@@ -16,47 +16,47 @@ use tokio::{fs::File as TokioFile, time};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct GeoResponse {
-    pub continent: String,
-    pub continent_code: String,
-    pub country: String,
-    pub country_code: String,
-    pub state: String,
-    pub state_code: String,
-    pub city: String,
-    pub district: String,
+    pub continent: Option<String>,
+    pub continent_code: Option<String>,
+    pub country: Option<String>,
+    pub country_code: Option<String>,
+    pub state: Option<String>,
+    pub state_code: Option<String>,
+    pub city: Option<String>,
+    pub district: Option<String>,
     pub zip: Option<u32>,
     pub lat: f64,
     pub lon: f64,
-    pub timezone: String,
+    pub timezone: Option<String>,
     pub offset: i32,
-    pub currency: String,
-    pub isp: String,
-    pub org: String,
+    pub currency: Option<String>,
+    pub isp: Option<String>,
+    pub org: Option<String>,
     #[serde(rename = "as")]
-    pub as_name: String,
+    pub as_name: Option<String>,
     pub as_code: u32,
 }
 
 impl GeoResponse {
     pub fn new() -> Self {
         GeoResponse {
-            continent: String::new(),
-            continent_code: String::new(),
-            country: String::new(),
-            country_code: String::new(),
-            state: String::new(),
-            state_code: String::new(),
-            city: String::new(),
-            district: String::new(),
+            continent: None,
+            continent_code: None,
+            country: None,
+            country_code: None,
+            state: None,
+            state_code: None,
+            city: None,
+            district: None,
             zip: None,
             lat: 0.0,
             lon: 0.0,
-            timezone: String::new(),
+            timezone: None,
             offset: 0,
-            currency: String::new(),
-            isp: String::new(),
-            org: String::new(),
-            as_name: String::new(),
+            currency: None,
+            isp: None,
+            org: None,
+            as_name: None,
             as_code: 0,
         }
     }
@@ -538,24 +538,24 @@ async fn download_file(url: &str, path: &Path, force: bool) -> io::Result<Vec<u8
 }
 
 fn extract_city_info(data: &maxminddb::geoip2::City, geo: &mut GeoResponse) {
-    if geo.continent.is_empty() || geo.continent_code.is_empty() {
+    if geo.continent.is_none() || geo.continent_code.is_none() {
         if let Some(cont) = &data.continent {
-            if geo.continent.is_empty() {
+            if geo.continent.is_none() {
                 if let Some(names) = &cont.names {
                     if let Some(name) = names.get("en") {
-                        geo.continent = name.to_string();
+                        geo.continent = Some(name.to_string());
                     }
                 }
             }
-            if geo.continent_code.is_empty() {
+            if geo.continent_code.is_none() {
                 if let Some(code) = cont.code {
-                    geo.continent_code = code.to_string();
+                    geo.continent_code = Some(code.to_string());
                 }
             }
         }
     }
 
-    if geo.country.is_empty() || geo.country_code.is_empty() {
+    if geo.country.is_none() || geo.country_code.is_none() {
         let country_info = if let Some(ctry) = &data.country {
             Some(ctry)
         } else if let Some(reg_ctry) = &data.registered_country {
@@ -565,16 +565,16 @@ fn extract_city_info(data: &maxminddb::geoip2::City, geo: &mut GeoResponse) {
         };
 
         if let Some(ctry) = country_info {
-            if geo.country.is_empty() {
+            if geo.country.is_none() {
                 if let Some(names) = &ctry.names {
                     if let Some(name) = names.get("en") {
-                        geo.country = name.to_string();
+                        geo.country = Some(name.to_string());
                     }
                 }
             }
-            if geo.country_code.is_empty() {
+            if geo.country_code.is_none() {
                 if let Some(code) = ctry.iso_code {
-                    geo.country_code = code.to_string();
+                    geo.country_code = Some(code.to_string());
                 }
             }
         }
@@ -584,18 +584,18 @@ fn extract_city_info(data: &maxminddb::geoip2::City, geo: &mut GeoResponse) {
         if let Some(first) = subdivisions.first() {
             if let Some(names) = &first.names {
                 if let Some(name) = names.get("en") {
-                    geo.state = name.to_string();
+                    geo.state = Some(name.to_string());
                 }
             }
             if let Some(code) = first.iso_code {
-                geo.state_code = code.to_string();
+                geo.state_code = Some(code.to_string());
             }
         }
 
         if !subdivisions.is_empty() {
             if let Some(names) = &subdivisions[0].names {
                 if let Some(name) = names.get("en") {
-                    geo.district = name.to_string();
+                    geo.district = Some(name.to_string());
                 }
             }
         }
@@ -604,7 +604,7 @@ fn extract_city_info(data: &maxminddb::geoip2::City, geo: &mut GeoResponse) {
     if let Some(city) = &data.city {
         if let Some(names) = &city.names {
             if let Some(name) = names.get("en") {
-                geo.city = name.to_string();
+                geo.city = Some(name.to_string());
             }
         }
     }
@@ -625,13 +625,13 @@ fn extract_city_info(data: &maxminddb::geoip2::City, geo: &mut GeoResponse) {
             geo.lon = lon;
         }
         if let Some(tz) = loc.time_zone {
-            geo.timezone = tz.to_string();
+            geo.timezone = Some(tz.to_string());
         }
     }
 }
 
-fn get_currency_from_country(country_code: &str) -> String {
-    match country_code {
+fn get_currency_from_country(country_code: &str) -> Option<String> {
+    let currency = match country_code {
         "AF" => "AFN",
         "AL" => "ALL",
         "DZ" => "DZD",
@@ -872,49 +872,56 @@ fn get_currency_from_country(country_code: &str) -> String {
         "ZM" => "ZMK",
         "ZW" => "ZWD",
         _ => "",
+    };
+    
+    if currency.is_empty() {
+        None
+    } else {
+        Some(currency.to_string())
     }
-    .to_string()
 }
 
 fn fill_empty_fields_with_geocoder(geo: &mut GeoResponse) {
     if geo.lat != 0.0
         && geo.lon != 0.0
-        && (geo.state.is_empty()
-            || geo.state_code.is_empty()
-            || geo.city.is_empty()
-            || geo.district.is_empty()
+        && (geo.state.is_none()
+            || geo.state_code.is_none()
+            || geo.city.is_none()
+            || geo.district.is_none()
             || geo.zip.is_none())
     {
         let result = REVERSE_GEOCODER.search((geo.lat, geo.lon));
 
-        if geo.state.is_empty() && !result.record.admin1.is_empty() {
-            geo.state = result.record.admin1.clone();
+        if geo.state.is_none() && !result.record.admin1.is_empty() {
+            geo.state = Some(result.record.admin1.clone());
         }
 
-        if geo.state_code.is_empty() && !geo.country_code.is_empty() && !geo.state.is_empty() {
-            if let Some(state_code) = get_state_code(&geo.country_code, &geo.state) {
-                geo.state_code = state_code;
+        if geo.state_code.is_none() && geo.country_code.is_some() && geo.state.is_some() {
+            if let Some(state_code) = get_state_code(geo.country_code.as_ref().unwrap(), geo.state.as_ref().unwrap()) {
+                geo.state_code = Some(state_code);
             }
         }
 
-        if geo.city.is_empty() && !result.record.name.is_empty() {
-            geo.city = result.record.name.clone();
+        if geo.city.is_none() && !result.record.name.is_empty() {
+            geo.city = Some(result.record.name.clone());
         }
 
-        if geo.district.is_empty() && !result.record.admin2.is_empty() {
-            geo.district = result.record.admin2.clone();
+        if geo.district.is_none() && !result.record.admin2.is_empty() {
+            geo.district = Some(result.record.admin2.clone());
         }
 
-        if geo.country.is_empty() && !result.record.cc.is_empty() {
-            geo.country = result.record.cc.clone();
+        if geo.country.is_none() && !result.record.cc.is_empty() {
+            geo.country = Some(result.record.cc.clone());
         }
 
-        if geo.country_code.is_empty() && !result.record.cc.is_empty() {
-            geo.country_code = result.record.cc.clone();
-            println!("geo.country_code: {}", geo.country_code);
-            if geo.state_code.is_empty() && !geo.state.is_empty() {
-                if let Some(state_code) = get_state_code(&geo.country_code, &geo.state) {
-                    geo.state_code = state_code;
+        if geo.country_code.is_none() && !result.record.cc.is_empty() {
+            geo.country_code = Some(result.record.cc.clone());
+            if let Some(country_code) = &geo.country_code {
+                println!("geo.country_code: {}", country_code);
+                if geo.state_code.is_none() && geo.state.is_some() {
+                    if let Some(state_code) = get_state_code(country_code, geo.state.as_ref().unwrap()) {
+                        geo.state_code = Some(state_code);
+                    }
                 }
             }
         }
@@ -1046,41 +1053,45 @@ async fn download_countries_json() -> io::Result<()> {
 }
 
 fn fill_country_continent_data(geo: &mut GeoResponse) {
-    if !geo.country.is_empty()
-        && (geo.country_code.is_empty()
-            || geo.continent.is_empty()
-            || geo.continent_code.is_empty())
+    if geo.country.is_some()
+        && (geo.country_code.is_none()
+            || geo.continent.is_none()
+            || geo.continent_code.is_none())
     {
         let cache = COUNTRY_DATA.read().unwrap();
-        if let Some(country_info) = cache.get(&geo.country) {
-            if geo.country_code.is_empty() {
-                geo.country_code = country_info.country_code2.clone();
-            }
-            if geo.continent_code.is_empty() {
-                geo.continent_code = country_info.continent_code.clone();
-            }
-            if geo.continent.is_empty() {
-                geo.continent = country_info.continent_name.clone();
+        if let Some(country) = &geo.country {
+            if let Some(country_info) = cache.get(country) {
+                if geo.country_code.is_none() {
+                    geo.country_code = Some(country_info.country_code2.clone());
+                }
+                if geo.continent_code.is_none() {
+                    geo.continent_code = Some(country_info.continent_code.clone());
+                }
+                if geo.continent.is_none() {
+                    geo.continent = Some(country_info.continent_name.clone());
+                }
             }
         }
     }
 
-    if !geo.country_code.is_empty()
-        && (geo.country.is_empty() || geo.continent.is_empty() || geo.continent_code.is_empty())
+    if geo.country_code.is_some()
+        && (geo.country.is_none() || geo.continent.is_none() || geo.continent_code.is_none())
     {
         let cache = COUNTRY_DATA.read().unwrap();
-        for (country_name, country_info) in cache.iter() {
-            if country_info.country_code2 == geo.country_code {
-                if geo.country.is_empty() {
-                    geo.country = country_name.clone();
+        if let Some(country_code) = &geo.country_code {
+            for (country_name, country_info) in cache.iter() {
+                if &country_info.country_code2 == country_code {
+                    if geo.country.is_none() {
+                        geo.country = Some(country_name.clone());
+                    }
+                    if geo.continent_code.is_none() {
+                        geo.continent_code = Some(country_info.continent_code.clone());
+                    }
+                    if geo.continent.is_none() {
+                        geo.continent = Some(country_info.continent_name.clone());
+                    }
+                    break;
                 }
-                if geo.continent_code.is_empty() {
-                    geo.continent_code = country_info.continent_code.clone();
-                }
-                if geo.continent.is_empty() {
-                    geo.continent = country_info.continent_name.clone();
-                }
-                break;
             }
         }
     }
@@ -1273,16 +1284,18 @@ pub fn get_us_zip_code(city: &str, state: Option<&str>) -> Option<String> {
 }
 
 fn fill_zip_code(geo: &mut GeoResponse) {
-    if geo.zip.is_none() && !geo.city.is_empty() && geo.country_code == "US" {
-        let state_code = if !geo.state_code.is_empty() {
-            Some(geo.state_code.as_str())
+    if geo.zip.is_none() && geo.city.is_some() && geo.country_code.as_deref() == Some("US") {
+        let state_code = if let Some(code) = &geo.state_code {
+            Some(code.as_str())
         } else {
             None
         };
 
-        if let Some(zip) = get_us_zip_code(&geo.city, state_code) {
-            if let Ok(zip_num) = zip.parse::<u32>() {
-                geo.zip = Some(zip_num);
+        if let Some(city) = &geo.city {
+            if let Some(zip) = get_us_zip_code(city, state_code) {
+                if let Ok(zip_num) = zip.parse::<u32>() {
+                    geo.zip = Some(zip_num);
+                }
             }
         }
     }
@@ -1331,21 +1344,20 @@ pub async fn get_geo_data(ip: std::net::IpAddr) -> Result<GeoResponse, String> {
 
     geo.isp = asn_data
         .autonomous_system_organization
-        .unwrap_or_default()
-        .to_string();
+        .map(|org| org.to_string());
     geo.org = asn_data
         .autonomous_system_organization
-        .unwrap_or_default()
-        .to_string();
+        .map(|org| org.to_string());
     geo.as_name = asn_data
         .autonomous_system_organization
-        .unwrap_or_default()
-        .to_string();
+        .map(|org| org.to_string());
     geo.as_code = asn_data.autonomous_system_number.unwrap_or(0);
 
     extract_city_info(&city_data, &mut geo);
 
-    geo.currency = get_currency_from_country(&geo.country_code);
+    if let Some(country_code) = &geo.country_code {
+        geo.currency = get_currency_from_country(country_code);
+    }
 
     fill_empty_fields_with_geocoder(&mut geo);
 
