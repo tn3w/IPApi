@@ -9,7 +9,7 @@ curl http://localhost:5000/8.8.8.8 | jq
 Output:
 ```json
 {
-    "query": "8.8.8.8",
+    "ip": "8.8.8.8",
     "continent": "North America",
     "continent_code": "NA",
     "country": "United States",
@@ -18,7 +18,7 @@ Output:
     "state_code": "KS",
     "city": "Cheney",
     "district": "Sedgwick County",
-    "zip": "67025",
+    "zip": 67025,
     "lat": 37.751,
     "lon": -97.822,
     "timezone": "America/Chicago",

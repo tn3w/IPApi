@@ -24,7 +24,7 @@ pub struct GeoResponse {
     pub state_code: String,
     pub city: String,
     pub district: String,
-    pub zip: String,
+    pub zip: Option<u32>,
     pub lat: f64,
     pub lon: f64,
     pub timezone: String,
@@ -48,7 +48,7 @@ impl GeoResponse {
             state_code: String::new(),
             city: String::new(),
             district: String::new(),
-            zip: String::new(),
+            zip: None,
             lat: 0.0,
             lon: 0.0,
             timezone: String::new(),
@@ -611,7 +611,9 @@ fn extract_city_info(data: &maxminddb::geoip2::City, geo: &mut GeoResponse) {
 
     if let Some(postal) = &data.postal {
         if let Some(code) = postal.code {
-            geo.zip = code.to_string();
+            if let Ok(zip_num) = code.parse::<u32>() {
+                geo.zip = Some(zip_num);
+            }
         }
     }
 
@@ -881,7 +883,7 @@ fn fill_empty_fields_with_geocoder(geo: &mut GeoResponse) {
             || geo.state_code.is_empty()
             || geo.city.is_empty()
             || geo.district.is_empty()
-            || geo.zip.is_empty())
+            || geo.zip.is_none())
     {
         let result = REVERSE_GEOCODER.search((geo.lat, geo.lon));
 
@@ -1271,7 +1273,7 @@ pub fn get_us_zip_code(city: &str, state: Option<&str>) -> Option<String> {
 }
 
 fn fill_zip_code(geo: &mut GeoResponse) {
-    if geo.zip.is_empty() && !geo.city.is_empty() && geo.country_code == "US" {
+    if geo.zip.is_none() && !geo.city.is_empty() && geo.country_code == "US" {
         let state_code = if !geo.state_code.is_empty() {
             Some(geo.state_code.as_str())
         } else {
@@ -1279,7 +1281,9 @@ fn fill_zip_code(geo: &mut GeoResponse) {
         };
 
         if let Some(zip) = get_us_zip_code(&geo.city, state_code) {
-            geo.zip = zip;
+            if let Ok(zip_num) = zip.parse::<u32>() {
+                geo.zip = Some(zip_num);
+            }
         }
     }
 }

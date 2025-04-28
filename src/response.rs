@@ -18,7 +18,7 @@ const TOR_CACHE_EXPIRATION: Duration = Duration::from_secs(60 * 60 * 6);
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct IpResponse {
-    pub query: String,
+    pub ip: String,
     #[serde(flatten)]
     pub geo_data: GeoResponse,
     pub reverse: String,
@@ -40,7 +40,7 @@ static TOR_CACHE: Lazy<Arc<RwLock<HashMap<String, (bool, DateTime<Utc>)>>>> =
 impl IpResponse {
     pub fn new(ip_string: String, geo_data: GeoResponse, reverse: String, tor: bool) -> Self {
         IpResponse {
-            query: ip_string,
+            ip: ip_string,
             geo_data,
             reverse,
             tor,
