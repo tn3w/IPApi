@@ -21,3 +21,18 @@ Cargo.lock
 
 # Cache
 cache/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+.env/
+.venv/
+env/
+ENV/
+.python-version
+.pytest_cache/
+.coverage
+htmlcov/
