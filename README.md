@@ -22,7 +22,6 @@ Output:
     "lat": 37.751,
     "lon": -97.822,
     "timezone": "America/Chicago",
-    "offset": 0,
     "currency": "USD",
     "isp": "GOOGLE",
     "org": "GOOGLE",

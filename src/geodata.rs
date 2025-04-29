@@ -28,7 +28,6 @@ pub struct GeoResponse {
     pub lat: f64,
     pub lon: f64,
     pub timezone: Option<String>,
-    pub offset: i32,
     pub currency: Option<String>,
     pub isp: Option<String>,
     pub org: Option<String>,
@@ -52,7 +51,6 @@ impl GeoResponse {
             lat: 0.0,
             lon: 0.0,
             timezone: None,
-            offset: 0,
             currency: None,
             isp: None,
             org: None,
@@ -873,7 +871,7 @@ fn get_currency_from_country(country_code: &str) -> Option<String> {
         "ZW" => "ZWD",
         _ => "",
     };
-    
+
     if currency.is_empty() {
         None
     } else {
@@ -897,7 +895,10 @@ fn fill_empty_fields_with_geocoder(geo: &mut GeoResponse) {
         }
 
         if geo.state_code.is_none() && geo.country_code.is_some() && geo.state.is_some() {
-            if let Some(state_code) = get_state_code(geo.country_code.as_ref().unwrap(), geo.state.as_ref().unwrap()) {
+            if let Some(state_code) = get_state_code(
+                geo.country_code.as_ref().unwrap(),
+                geo.state.as_ref().unwrap(),
+            ) {
                 geo.state_code = Some(state_code);
             }
         }
@@ -919,7 +920,9 @@ fn fill_empty_fields_with_geocoder(geo: &mut GeoResponse) {
             if let Some(country_code) = &geo.country_code {
                 println!("geo.country_code: {}", country_code);
                 if geo.state_code.is_none() && geo.state.is_some() {
-                    if let Some(state_code) = get_state_code(country_code, geo.state.as_ref().unwrap()) {
+                    if let Some(state_code) =
+                        get_state_code(country_code, geo.state.as_ref().unwrap())
+                    {
                         geo.state_code = Some(state_code);
                     }
                 }
@@ -1054,9 +1057,7 @@ async fn download_countries_json() -> io::Result<()> {
 
 fn fill_country_continent_data(geo: &mut GeoResponse) {
     if geo.country.is_some()
-        && (geo.country_code.is_none()
-            || geo.continent.is_none()
-            || geo.continent_code.is_none())
+        && (geo.country_code.is_none() || geo.continent.is_none() || geo.continent_code.is_none())
     {
         let cache = COUNTRY_DATA.read().unwrap();
         if let Some(country) = &geo.country {

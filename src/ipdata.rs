@@ -13,9 +13,8 @@ use tokio::{fs::File as TokioFile, time};
 
 const CACHE_DIR: &str = "cache";
 const ONIONOO_URL: &str = "https://onionoo.torproject.org/details?flag=exit";
-const DATASET_FILE: &str = "tor_onionoo_list.dataset";
+const DATASET_FILE: &str = "tor_onionoo.json";
 const CACHE_EXPIRATION: Duration = Duration::from_secs(60 * 60 * 24);
-const TIMESTAMP_MARKER: &str = "TIMESTAMP:";
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TorOnionooData {
@@ -228,15 +227,18 @@ async fn save_tor_data(
         ipv6_nodes: ipv6_nodes.clone(),
     };
 
-    let json_data = serde_json::to_string(&cache_data)
+    let mut json_value = serde_json::Map::new();
+    json_value.insert(
+        "_timestamp".to_string(),
+        serde_json::json!(Utc::now().timestamp()),
+    );
+    json_value.insert("data".to_string(), serde_json::json!(cache_data));
+
+    let json_data = serde_json::to_string(&json_value)
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
     let mut file = TokioFile::create(dataset_path).await?;
     file.write_all(json_data.as_bytes()).await?;
-
-    let timestamp: i64 = Utc::now().timestamp();
-    let timestamp_data = format!("\n{}{}", TIMESTAMP_MARKER, timestamp);
-    file.write_all(timestamp_data.as_bytes()).await?;
 
     Ok(())
 }
@@ -247,15 +249,18 @@ async fn create_empty_dataset(dataset_path: &Path) -> io::Result<()> {
         ipv6_nodes: HashSet::new(),
     };
 
-    let json_data = serde_json::to_string(&cache_data)
+    let mut json_value = serde_json::Map::new();
+    json_value.insert(
+        "_timestamp".to_string(),
+        serde_json::json!(Utc::now().timestamp()),
+    );
+    json_value.insert("data".to_string(), serde_json::json!(cache_data));
+
+    let json_data = serde_json::to_string(&json_value)
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
     let mut file = TokioFile::create(dataset_path).await?;
     file.write_all(json_data.as_bytes()).await?;
-
-    let timestamp = Utc::now().timestamp();
-    let timestamp_data = format!("\n{}{}", TIMESTAMP_MARKER, timestamp);
-    file.write_all(timestamp_data.as_bytes()).await?;
 
     let mut db = TOR_DATABASE.write().unwrap();
     db.ipv4_nodes.clear();
@@ -268,30 +273,27 @@ async fn create_empty_dataset(dataset_path: &Path) -> io::Result<()> {
 async fn load_from_dataset(dataset_path: &Path) -> io::Result<()> {
     let file_content = tokio::fs::read_to_string(dataset_path).await?;
 
-    let json_str = if let Some(pos) = file_content.find(TIMESTAMP_MARKER) {
-        &file_content[0..pos]
-    } else {
-        &file_content
-    };
-
-    let data = serde_json::from_str::<TorOnionooData>(json_str.trim()).map_err(|e| {
+    let json_data: serde_json::Value = serde_json::from_str(&file_content).map_err(|e| {
         io::Error::new(
             io::ErrorKind::InvalidData,
-            format!(
-                "JSON parse error: {} - in content: {}",
-                e,
-                if json_str.len() > 100 {
-                    &json_str[0..100]
-                } else {
-                    json_str
-                }
-            ),
+            format!("JSON parse error: {}", e),
+        )
+    })?;
+
+    let data = json_data.get("data").ok_or_else(|| {
+        io::Error::new(io::ErrorKind::InvalidData, "Missing 'data' field in JSON")
+    })?;
+
+    let tor_data = serde_json::from_value::<TorOnionooData>(data.clone()).map_err(|e| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("Failed to parse Tor data: {}", e),
         )
     })?;
 
     let mut db = TOR_DATABASE.write().unwrap();
-    db.ipv4_nodes = data.ipv4_nodes;
-    db.ipv6_nodes = data.ipv6_nodes;
+    db.ipv4_nodes = tor_data.ipv4_nodes;
+    db.ipv6_nodes = tor_data.ipv6_nodes;
     db.last_updated = Utc::now();
 
     Ok(())
@@ -303,11 +305,8 @@ fn get_dataset_path() -> PathBuf {
 
 async fn read_embedded_timestamp(path: &Path) -> Option<i64> {
     if let Ok(content) = tokio::fs::read_to_string(path).await {
-        if let Some(pos) = content.find(TIMESTAMP_MARKER) {
-            let timestamp_str = &content[pos + TIMESTAMP_MARKER.len()..];
-            if let Ok(timestamp) = timestamp_str.trim().parse::<i64>() {
-                return Some(timestamp);
-            }
+        if let Ok(json_data) = serde_json::from_str::<serde_json::Value>(&content) {
+            return json_data.get("_timestamp").and_then(|v| v.as_i64());
         }
     }
     None
