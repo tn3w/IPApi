@@ -2,7 +2,7 @@
 
 """
 This script queries pwhois.org for ASN information.
-This is a POS.
+This is a PoC.
 
 Usage:
     ./get_asn_by_ip.py -i <ip_address>
