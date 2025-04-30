@@ -6,13 +6,14 @@ The output is formatted as Rust code for use in src/geodata.rs.
 """
 
 import urllib.request
+import urllib.error
 import json
+from typing import Dict, List, Any
 
 
 def main():
     """Main function to generate the currency mapping."""
 
-    # Download the JSON file
     url = (
         "https://raw.githubusercontent.com/"
         "mluqmaan/world-countries-json/"
@@ -23,11 +24,9 @@ def main():
         with urllib.request.urlopen(url) as response:
             data = response.read().decode("utf-8")
 
-        # Parse the JSON data
-        countries = json.loads(data)
+        countries: List[Dict[str, Any]] = json.loads(data)
 
-        # Create the mapping
-        currency_map = {}
+        currency_map: Dict[str, str] = {}
         for country in countries:
             if (
                 "isoAlpha2" in country
@@ -36,7 +35,6 @@ def main():
             ):
                 currency_map[country["isoAlpha2"]] = country["currency"]["code"]
 
-        # Format and print the mapping
         for iso, currency in currency_map.items():
             print(f'"{iso}" => "{currency}",')
 
