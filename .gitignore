@@ -16,9 +16,6 @@ Cargo.lock
 # RustRover
 .idea/
 
-# VSCode
-.vscode/
-
 # Cache
 cache/
 

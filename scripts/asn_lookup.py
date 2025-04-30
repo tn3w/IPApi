@@ -21,16 +21,16 @@ class ASNInformation:
     """Class to store ASN information."""
 
     asn: int
-    asn_name: str = ""
-    country: str = ""
-    country_code: str = ""
-    state: str = ""
-    city: str = ""
-    organization: str = ""
-    isp: str = ""
-    latitude: float = 0.0
-    longitude: float = 0.0
-    response_time_ms: float = 0
+    asn_name: Optional[str] = None
+    country: Optional[str] = None
+    country_code: Optional[str] = None
+    state: Optional[str] = None
+    city: Optional[str] = None
+    organization: Optional[str] = None
+    net: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    response_time_ms: Optional[float] = None
 
 
 @dataclass
@@ -46,26 +46,26 @@ class ParserState:
     """Class to hold the current state of parsing."""
 
     asn_code: int = 0
-    asn_name: str = ""
-    organization: str = ""
-    isp: str = ""
-    location_ctx: LocationContext = None
+    asn_name: Optional[str] = None
+    organization: Optional[str] = None
+    net: Optional[str] = None
+    location_ctx: Optional[LocationContext] = None
 
     def __post_init__(self):
         if self.location_ctx is None:
             location_data = {
-                "country": "",
-                "country_code": "",
-                "city": "",
-                "state": "",
-                "latitude": 0.0,
-                "longitude": 0.0,
+                "country": None,
+                "country_code": None,
+                "city": None,
+                "state": None,
+                "latitude": None,
+                "longitude": None,
             }
             geo_flags = {field: False for field in location_data}
             self.location_ctx = LocationContext(location_data, geo_flags)
 
 
-def query_whois(server: str, query: str) -> str:
+def query_whois(server: str, query: str) -> Optional[str]:
     """Send a WHOIS query to a specified server."""
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(5)
@@ -83,15 +83,15 @@ def query_whois(server: str, query: str) -> str:
         return response.decode("utf-8", errors="ignore")
     except (socket.timeout, socket.error) as e:
         print(f"Error querying {server}: {e}")
-        return ""
+        return None
     finally:
         s.close()
 
 
-def _parse_asn_fields(key: str, value: str) -> tuple[int, str]:
+def _parse_asn_fields(key: str, value: str) -> tuple[int, Optional[str]]:
     """Parse ASN-related fields and return ASN code and name."""
     asn_code = 0
-    asn_name = ""
+    asn_name = None
 
     if key == "as" and value:
         parts = value.split(" ", 1)
@@ -111,19 +111,21 @@ def _parse_asn_fields(key: str, value: str) -> tuple[int, str]:
     return asn_code, asn_name
 
 
-def _parse_org_fields(key: str, value: str, current_org: str = "") -> tuple[str, str]:
+def _parse_org_fields(
+    key: str, value: str, current_org: Optional[str] = None
+) -> tuple[Optional[str], Optional[str]]:
     """Parse organization and ISP related fields."""
     organization = current_org
-    isp = ""
+    net = None
 
     if key == "net-name" and value:
-        isp = value
+        net = value
     elif key == "as-org-name" and value and value != r"\(^_^)/":
         organization = value
     elif key == "org-name" and value and not organization:
         organization = value
 
-    return organization, isp
+    return organization, net
 
 
 def _parse_location_field(
@@ -148,24 +150,24 @@ def _parse_mapped_key(
     key: str,
     value: str,
     is_geo: bool,
-    key_mapping: dict,
+    key_mapping: Dict[str, str],
     location_ctx: LocationContext,
 ) -> None:
     """Parse keys that are mapped to other field names."""
     if key in key_mapping and value:
         mapped_key = key_mapping[key]
-        if (is_geo or not location_ctx.geo_flags[mapped_key]) and not location_ctx.data[
+        if (is_geo or not location_ctx.geo_flags[mapped_key]) and location_ctx.data[
             mapped_key
-        ]:
+        ] is None:
             location_ctx.data[mapped_key] = value
             if is_geo:
                 location_ctx.geo_flags[mapped_key] = True
 
 
-def _clean_field(field: str) -> str:
+def _clean_field(field: Optional[str]) -> Optional[str]:
     """Clean organization and ISP fields."""
     if not field:
-        return ""
+        return None
 
     parts = field.split("-")
     if len(parts) >= 3:
@@ -173,7 +175,9 @@ def _clean_field(field: str) -> str:
     return field
 
 
-def _process_line(line: str, parser_state: ParserState, key_mapping: dict) -> None:
+def _process_line(
+    line: str, parser_state: ParserState, key_mapping: Dict[str, str]
+) -> None:
     """Process a single line from the whois response."""
     if ":" not in line:
         return
@@ -195,17 +199,18 @@ def _process_line(line: str, parser_state: ParserState, key_mapping: dict) -> No
     if org:
         parser_state.organization = org
     if net_name:
-        parser_state.isp = net_name
+        parser_state.net = net_name
 
-    _parse_location_field(key, value, is_geo, parser_state.location_ctx)
-    _parse_mapped_key(key, value, is_geo, key_mapping, parser_state.location_ctx)
+    if parser_state.location_ctx:
+        _parse_location_field(key, value, is_geo, parser_state.location_ctx)
+        _parse_mapped_key(key, value, is_geo, key_mapping, parser_state.location_ctx)
 
 
 def parse_pwhois_response(response: str) -> Optional[ASNInformation]:
     """Parse the response from pwhois.org to extract ASN information."""
     state = ParserState()
 
-    key_mapping = {
+    key_mapping: Dict[str, str] = {
         "region": "state",
         "cc": "country_code",
         "country-code": "country_code",
@@ -218,22 +223,44 @@ def parse_pwhois_response(response: str) -> Optional[ASNInformation]:
         return None
 
     state.organization = _clean_field(state.organization)
-    state.isp = _clean_field(state.isp)
+    state.net = _clean_field(state.net)
 
     if not state.asn_name and state.organization:
         state.asn_name = state.organization
+
+    country = None
+    country_code = None
+    state_name = None
+    city = None
+    latitude = None
+    longitude = None
+
+    if state.location_ctx is not None:
+        country = state.location_ctx.data.get("country")
+        if country and len(country) == 2 and country.isupper():
+            if not state.location_ctx.data.get("country_code"):
+                state.location_ctx.data["country_code"] = country
+            state.location_ctx.data["country"] = None
+            country = None
+
+        country = state.location_ctx.data.get("country")
+        country_code = state.location_ctx.data.get("country_code")
+        state_name = state.location_ctx.data.get("state")
+        city = state.location_ctx.data.get("city")
+        latitude = state.location_ctx.data.get("latitude")
+        longitude = state.location_ctx.data.get("longitude")
 
     return ASNInformation(
         asn=state.asn_code,
         asn_name=state.asn_name,
         organization=state.organization,
-        isp=state.isp,
-        country=state.location_ctx.data["country"],
-        country_code=state.location_ctx.data["country_code"],
-        state=state.location_ctx.data["state"],
-        city=state.location_ctx.data["city"],
-        latitude=state.location_ctx.data["latitude"],
-        longitude=state.location_ctx.data["longitude"],
+        net=state.net,
+        country=country,
+        country_code=country_code,
+        state=state_name,
+        city=city,
+        latitude=latitude,
+        longitude=longitude,
     )
 
 
@@ -259,12 +286,12 @@ def get_detailed_asn_info(ip_address: str) -> Optional[ASNInformation]:
 
 def parse_registry_response(response: str, asn_code: int) -> Optional[ASNInformation]:
     """Parse registry response from pwhois.org"""
-    field_mapping = {
-        "Org-Name": "",
-        "Country": "",
-        "State": "",
-        "City": "",
-        "AS-Name": "",
+    field_mapping: Dict[str, Optional[str]] = {
+        "Org-Name": None,
+        "Country": None,
+        "State": None,
+        "City": None,
+        "AS-Name": None,
     }
 
     for line in response.splitlines():
@@ -282,11 +309,18 @@ def parse_registry_response(response: str, asn_code: int) -> Optional[ASNInforma
     if not field_mapping["Org-Name"]:
         return None
 
+    country = field_mapping["Country"]
+    country_code = None
+    if country and len(country) == 2 and country.isupper():
+        country_code = country
+        country = None
+
     return ASNInformation(
         asn=asn_code,
         asn_name=field_mapping["AS-Name"],
         organization=field_mapping["Org-Name"],
-        country=field_mapping["Country"],
+        country=country,
+        country_code=country_code,
         state=field_mapping["State"],
         city=field_mapping["City"],
     )
