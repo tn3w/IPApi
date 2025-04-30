@@ -85,7 +85,6 @@ def get_geoip_information(ip_address: str) -> Optional[GeoIPInformation]:
                 return None
 
             record = cast(RecordDict, result)
-            print(record)
             geoip_info = GeoIPInformation(ip=ip_address)
 
             def get_nested(d: Dict[str, Any], *keys: str, default: Any = None) -> Any:
