@@ -220,6 +220,9 @@ def parse_pwhois_response(response: str) -> Optional[ASNInformation]:
     state.organization = _clean_field(state.organization)
     state.isp = _clean_field(state.isp)
 
+    if not state.asn_name and state.organization:
+        state.asn_name = state.organization
+
     return ASNInformation(
         asn=state.asn_code,
         asn_name=state.asn_name,
