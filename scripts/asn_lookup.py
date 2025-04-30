@@ -20,9 +20,9 @@ from dataclasses import dataclass
 class ASNInformation:
     """Class to store ASN information."""
 
-    asn: str
-    asn_code: int
+    asn: int
     country: str = ""
+    country_code: str = ""
     state: str = ""
     city: str = ""
     organization: str = ""
@@ -61,10 +61,18 @@ def parse_pwhois_response(response: str) -> Optional[ASNInformation]:
     organization = ""
     isp = ""
     country = ""
+    country_code = ""
     city = ""
     state = ""
     latitude = 0.0
     longitude = 0.0
+
+    geo_country_set = False
+    geo_country_code_set = False
+    geo_city_set = False
+    geo_state_set = False
+    geo_latitude_set = False
+    geo_longitude_set = False
 
     # Process line by line
     for line in response.splitlines():
@@ -73,13 +81,13 @@ def parse_pwhois_response(response: str) -> Optional[ASNInformation]:
             continue
 
         key, value = line.split(":", 1)
-        key = key.strip().lower()
+        original_key = key.strip().lower()
+        key = original_key.replace("geo-", "")
         value = value.strip()
 
-        print(key + ": " + value)
+        is_geo = original_key.startswith("geo-")
+
         if key == "as" and value:
-            print(f"AS: {value}")
-            # Format is usually "AS123 Some ASN Name"
             parts = value.split(" ", 1)
             if parts and parts[0].startswith("AS"):
                 try:
@@ -94,35 +102,66 @@ def parse_pwhois_response(response: str) -> Optional[ASNInformation]:
         elif key.lower() == "net-name" and value:
             isp = value
         elif key.lower() == "as-org-name" and value:
-            organization = value
+            if value != r"\(^_^)/":
+                organization = value
         elif key.lower() == "org-name" and value and not organization:
             organization = value
         elif key == "country" and value:
-            country = value
+            if is_geo or not geo_country_set:
+                country = value
+                if is_geo:
+                    geo_country_set = True
+        elif key == "country-code" and value:
+            if is_geo or not geo_country_code_set:
+                country_code = value
+                if is_geo:
+                    geo_country_code_set = True
+        elif key == "cc" and value and not country_code and not geo_country_code_set:
+            country_code = value
         elif key == "city" and value:
-            city = value
+            if is_geo or not geo_city_set:
+                city = value
+                if is_geo:
+                    geo_city_set = True
         elif key == "region" and value:
-            state = value
+            if is_geo or not geo_state_set:
+                state = value
+                if is_geo:
+                    geo_state_set = True
         elif key == "latitude" and value:
-            try:
-                latitude = float(value)
-            except ValueError:
-                pass
+            if is_geo or not geo_latitude_set:
+                try:
+                    latitude = float(value)
+                    if is_geo:
+                        geo_latitude_set = True
+                except ValueError:
+                    pass
         elif key == "longitude" and value:
-            try:
-                longitude = float(value)
-            except ValueError:
-                pass
+            if is_geo or not geo_longitude_set:
+                try:
+                    longitude = float(value)
+                    if is_geo:
+                        geo_longitude_set = True
+                except ValueError:
+                    pass
 
     if asn_code == 0:
         return None
 
+    parts = organization.split("-")
+    if len(parts) >= 3:
+        organization = parts[1]
+
+    parts = isp.split("-")
+    if len(parts) >= 3:
+        isp = parts[1]
+
     return ASNInformation(
-        asn=f"AS{asn_code}",
-        asn_code=asn_code,
+        asn=asn_code,
         organization=organization,
         isp=isp,
         country=country,
+        country_code=country_code,
         state=state,
         city=city,
         latitude=latitude,
@@ -182,8 +221,7 @@ def parse_registry_response(response: str, asn_code: int) -> Optional[ASNInforma
         return None
 
     return ASNInformation(
-        asn=f"AS{asn_code}",
-        asn_code=asn_code,
+        asn=asn_code,
         organization=org_name,
         country=country,
         state=state,
@@ -200,6 +238,7 @@ def get_asn_info_by_asn(asn_code: int) -> Optional[ASNInformation]:
 
     # Query pwhois.org for AS information
     pwhois_response = query_whois("whois.pwhois.org", query)
+    print(pwhois_response)
 
     if not pwhois_response:
         return None
