@@ -26,6 +26,7 @@ class ASNInformation:
     state: str = ""
     city: str = ""
     organization: str = ""
+    isp: str = ""
     latitude: float = 0.0
     longitude: float = 0.0
     response_time_ms: float = 0
@@ -57,8 +58,8 @@ def query_whois(server: str, query: str) -> str:
 def parse_pwhois_response(response: str) -> Optional[ASNInformation]:
     """Parse the response from pwhois.org to extract ASN information."""
     asn_code = 0
-    net_name = ""
     organization = ""
+    isp = ""
     country = ""
     city = ""
     state = ""
@@ -75,7 +76,9 @@ def parse_pwhois_response(response: str) -> Optional[ASNInformation]:
         key = key.strip().lower()
         value = value.strip()
 
+        print(key + ": " + value)
         if key == "as" and value:
+            print(f"AS: {value}")
             # Format is usually "AS123 Some ASN Name"
             parts = value.split(" ", 1)
             if parts and parts[0].startswith("AS"):
@@ -89,8 +92,10 @@ def parse_pwhois_response(response: str) -> Optional[ASNInformation]:
             except ValueError:
                 pass
         elif key.lower() == "net-name" and value:
-            net_name = value
+            isp = value
         elif key.lower() == "as-org-name" and value:
+            organization = value
+        elif key.lower() == "org-name" and value and not organization:
             organization = value
         elif key == "country" and value:
             country = value
@@ -113,9 +118,10 @@ def parse_pwhois_response(response: str) -> Optional[ASNInformation]:
         return None
 
     return ASNInformation(
-        asn=net_name if net_name else f"AS{asn_code}",
+        asn=f"AS{asn_code}",
         asn_code=asn_code,
         organization=organization,
+        isp=isp,
         country=country,
         state=state,
         city=city,
