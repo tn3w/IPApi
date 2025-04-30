@@ -354,9 +354,6 @@ def main():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("-i", "--ip", help="IP address to lookup")
     group.add_argument("-a", "--asn", type=int, help="ASN code to lookup")
-    parser.add_argument(
-        "-v", "--verbose", action="store_true", help="Display verbose output"
-    )
 
     args = parser.parse_args()
 
@@ -364,8 +361,6 @@ def main():
         print(f"Looking up ASN information for IP {args.ip}...")
         asn_info = get_detailed_asn_info(args.ip)
         if asn_info:
-            if args.verbose:
-                print(f"Response time: {asn_info.response_time_ms}ms")
             print(asn_info)
         else:
             print("Failed to retrieve ASN information")
@@ -374,8 +369,6 @@ def main():
         print(f"Looking up information for ASN {args.asn}...")
         asn_info = get_asn_info_by_asn(args.asn)
         if asn_info:
-            if args.verbose:
-                print(f"Response time: {asn_info.response_time_ms}ms")
             print(asn_info)
         else:
             print("Failed to retrieve ASN information")
