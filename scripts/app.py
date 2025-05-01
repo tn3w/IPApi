@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 #
 # Requirements:
-#   pip install "Flask>=3.1.0"
+#   pip install "Flask>=3.1.0" "maxminddb>=2.6.3" "reverse-geocode>=1.6.5"
 #
 
 """

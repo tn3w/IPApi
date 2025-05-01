@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 #
 # Requirements:
-#   pip install "maxminddb>=2.6.3"
-#   pip install "reverse-geocode>=1.6.5"
+#   pip install "maxminddb>=2.6.3" "reverse-geocode>=1.6.5"
 #
 
 """
