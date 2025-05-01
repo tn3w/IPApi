@@ -33,10 +33,11 @@ def main():
                 and "currency" in country
                 and "code" in country["currency"]
             ):
-                currency_map[country["isoAlpha2"]] = country["currency"]["code"]
+                currency_code = country["currency"]["code"] or "USD"
+                currency_map[country["isoAlpha2"]] = currency_code
 
         for iso, currency in currency_map.items():
-            print(f'"{iso}" => "{currency}",')
+            print(f'"{iso}": "{currency}",')
 
     except urllib.error.URLError as e:
         print(f"Failed to download data: {e.reason}")
