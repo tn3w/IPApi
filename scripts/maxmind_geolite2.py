@@ -160,7 +160,12 @@ def main():
         print(f"Looking up GeoIP information for IP {args.ip}...")
         geoip_info = get_geoip_information(args.ip)
         if geoip_info:
-            print(geoip_info)
+            print("\n~-~ GeoIP Information: ~-~")
+            for key, value in geoip_info.__dict__.items():
+                key = key.replace("_", " ").capitalize()
+                if value is None:
+                    value = "N/A"
+                print(f"{key}: {value}")
         else:
             print("Failed to retrieve GeoIP information")
 
