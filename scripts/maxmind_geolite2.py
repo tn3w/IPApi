@@ -42,7 +42,6 @@ class GeoIPInformation:
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     timezone: Optional[str] = None
-    is_in_european_union: Optional[bool] = None
     accuracy_radius: Optional[int] = None
     response_time_ms: Optional[float] = None
 
@@ -96,19 +95,20 @@ def get_geoip_information(ip_address: str) -> Optional[GeoIPInformation]:
                     current = current[key]
                 return current
 
-            geoip_info.country = get_nested(
-                record, "country", "names", "en"
-            ) or get_nested(record, "registered_country", "names", "en")
-            geoip_info.country_code = get_nested(
-                record, "country", "iso_code"
-            ) or get_nested(record, "registered_country", "iso_code")
+            country_value = get_nested(record, "country", "names", "en")
+            if country_value is None:
+                geoip_info.country = get_nested(
+                    record, "registered_country", "names", "en"
+                )
+                geoip_info.country_code = get_nested(
+                    record, "registered_country", "iso_code"
+                )
+            else:
+                geoip_info.country = country_value
+                geoip_info.country_code = get_nested(record, "country", "iso_code")
 
             geoip_info.continent = get_nested(record, "continent", "names", "en")
             geoip_info.continent_code = get_nested(record, "continent", "code")
-
-            geoip_info.is_in_european_union = get_nested(
-                record, "country", "is_in_european_union"
-            ) or get_nested(record, "registered_country", "is_in_european_union")
 
             subdivisions = get_nested(record, "subdivisions")
             if subdivisions and len(subdivisions) > 0:
