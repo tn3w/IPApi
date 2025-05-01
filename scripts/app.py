@@ -8,9 +8,9 @@
 This is a simple API that returns the GeoIP and ASN information for the given IP address.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from functools import lru_cache
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Request
 
 from geolite2_asn import get_asn_information
 from geolite2_city import get_geoip_information
@@ -25,6 +25,18 @@ def index():
     Return a simple message to indicate the API is running.
     """
     return "Hello, World!"
+
+
+def get_ip_address(request: Request) -> Optional[str]:
+    """
+    Return the IP address from the request.
+    """
+    ip_address = request.remote_addr
+    if not ip_address or ip_address == "127.0.0.1":
+        ip_address = request.headers.get("X-Forwarded-For", request.remote_addr)
+    if not ip_address or not is_valid_and_routable_ip(ip_address):
+        return None
+    return ip_address
 
 
 @lru_cache(maxsize=1000)
