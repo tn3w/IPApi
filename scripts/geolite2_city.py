@@ -2,6 +2,7 @@
 #
 # Requirements:
 #   pip install "maxminddb>=2.6.3"
+#   pip install "reverse-geocode>=1.6.5"
 #
 
 """
@@ -15,16 +16,25 @@ Usage:
 
 import os
 import time
+import json
 import argparse
 import urllib.request
-from typing import Optional, Dict, Any, cast
+from typing import Optional, Dict, Any, cast, TypedDict
 from dataclasses import dataclass
+
 import maxminddb
+import reverse_geocode  # type: ignore
 
 
 GEOLITE2_URL = "https://git.io/GeoLite2-City.mmdb"
 DATABASE_DIR = "test"
 DATABASE_PATH = os.path.join(DATABASE_DIR, "GeoLite2-City.mmdb")
+COUNTRIES_DATA_URL = (
+    "https://raw.githubusercontent.com/dr5hn/"
+    "countries-states-cities-database/refs/heads/master/"
+    "json/countries%2Bstates%2Bcities.json"
+)
+COUNTRIES_DATA_PATH = os.path.join(DATABASE_DIR, "countries_states_cities.json")
 
 COUNTRY_TO_CURRENCY_MAP: Dict[str, str] = {
     "AF": "AFN",
@@ -298,6 +308,16 @@ EU_COUNTRY_CODES: set[str] = {
     "SE",  # Sweden
 }
 
+CONTINENT_NAME_TO_CODE: Dict[str, str] = {
+    "Africa": "AF",
+    "Antarctica": "AN",
+    "Asia": "AS",
+    "Europe": "EU",
+    "North America": "NA",
+    "Oceania": "OC",
+    "South America": "SA",
+}
+
 
 @dataclass
 class GeoIPInformation:
@@ -319,6 +339,29 @@ class GeoIPInformation:
     timezone: Optional[str] = None
     accuracy_radius: Optional[int] = None
     response_time_ms: Optional[float] = None
+
+
+class RegionData(TypedDict):
+    """Class to store region data."""
+
+    name: str
+    code: str
+    latitude: str
+    longitude: str
+    cities: Dict[str, Dict[str, Any]]
+
+
+@dataclass
+class CountryData:
+    """Class to store country data."""
+
+    name: str
+    iso2: str
+    iso3: str
+    region: str
+    subregion: str
+    currency: str
+    regions: Dict[str, RegionData]
 
 
 RecordDict = Dict[str, Any]
@@ -360,6 +403,123 @@ def is_country_in_european_union(country_code: str) -> bool:
     return country_code.upper() in EU_COUNTRY_CODES
 
 
+def download_countries_data() -> bool:
+    """Download countries, states, and cities data."""
+    if not os.path.exists(DATABASE_DIR):
+        os.makedirs(DATABASE_DIR)
+
+    try:
+        print(f"Downloading countries data from {COUNTRIES_DATA_URL}...")
+        urllib.request.urlretrieve(COUNTRIES_DATA_URL, COUNTRIES_DATA_PATH)
+        print(f"Successfully downloaded countries data to {COUNTRIES_DATA_PATH}")
+        return True
+    except Exception as e:
+        print(f"Error downloading countries data: {e}")
+        return False
+
+
+def load_countries_data() -> Dict[str, CountryData]:
+    """Load countries data from file or download if not exists."""
+    if not os.path.exists(COUNTRIES_DATA_PATH):
+        print("Countries data not found. Downloading it now...")
+        if not download_countries_data():
+            print("Failed to download countries data.")
+            return {}
+
+    try:
+        with open(COUNTRIES_DATA_PATH, "r", encoding="utf-8") as f:
+            countries_json = json.load(f)
+
+        countries_data: Dict[str, CountryData] = {}
+        for country in countries_json:
+            country_code = country.get("iso2", "")
+            if not country_code:
+                continue
+
+            regions_data: Dict[str, RegionData] = {}
+            for region in country.get("states", []):
+                region_code = region.get("state_code", "")
+                if not region_code:
+                    continue
+
+                regions_data[region_code] = {
+                    "name": region.get("name", ""),
+                    "code": region_code,
+                    "latitude": region.get("latitude", ""),
+                    "longitude": region.get("longitude", ""),
+                    "cities": {
+                        city.get("name", ""): city for city in region.get("cities", [])
+                    },
+                }
+
+            countries_data[country_code] = CountryData(
+                name=country.get("name", ""),
+                iso2=country_code,
+                iso3=country.get("iso3", ""),
+                region=country.get("region", ""),
+                subregion=country.get("subregion", ""),
+                currency=country.get("currency", ""),
+                regions=regions_data,
+            )
+
+        return countries_data
+    except Exception as e:
+        print(f"Error loading countries data: {e}")
+        return {}
+
+
+def get_countries_data() -> Dict[str, CountryData]:
+    """Get countries data with caching using closure instead of global variable."""
+    cache: Dict[str, Optional[Dict[str, CountryData]]] = {"data": None}
+
+    def get_data() -> Dict[str, CountryData]:
+        if cache["data"] is None:
+            cache["data"] = load_countries_data()
+        return cache["data"] or {}
+
+    return get_data()
+
+
+def fill_country_continent_data(geoip_info: GeoIPInformation) -> None:
+    """Fill country, continent, and region data using the downloaded dataset."""
+    if not geoip_info.country_code:
+        return
+
+    countries_data = get_countries_data()
+    country_code = geoip_info.country_code
+
+    if country_code not in countries_data:
+        return
+
+    country_data = countries_data[country_code]
+
+    if not geoip_info.country:
+        geoip_info.country = country_data.name
+
+    if not geoip_info.continent:
+        geoip_info.continent = country_data.region
+
+    # Set continent code if we have the continent name but not the code
+    if geoip_info.continent and not geoip_info.continent_code:
+        geoip_info.continent_code = CONTINENT_NAME_TO_CODE.get(geoip_info.continent)
+
+    if not geoip_info.currency:
+        geoip_info.currency = country_data.currency
+
+    if geoip_info.city and not geoip_info.region:
+        city_name = geoip_info.city
+
+        for region_code, region_data in country_data.regions.items():
+            for city_key in region_data["cities"]:
+                if city_name.lower() in city_key.lower():
+                    geoip_info.region = region_data["name"]
+                    geoip_info.region_code = region_code
+                    break
+
+            if geoip_info.region:
+                break
+
+
 def get_geoip_information(ip_address: str) -> Optional[GeoIPInformation]:
     """Get detailed geolocation information for an IP address."""
     if not database_exists():
@@ -375,7 +535,6 @@ def get_geoip_information(ip_address: str) -> Optional[GeoIPInformation]:
                 return None
 
             record = cast(RecordDict, result)
-            print(record)
             geoip_info = GeoIPInformation(ip=ip_address)
 
             def get_nested(d: Dict[str, Any], *keys: str, default: Any = None) -> Any:
@@ -416,7 +575,9 @@ def get_geoip_information(ip_address: str) -> Optional[GeoIPInformation]:
             subdivisions = get_nested(record, "subdivisions")
             if subdivisions and len(subdivisions) > 0:
                 geoip_info.region = get_nested(subdivisions[0], "names", "en")
-                geoip_info.region_code = get_nested(subdivisions[0], "iso_code")
+                region_code = get_nested(subdivisions[0], "iso_code")
+                if region_code and region_code != "0":
+                    geoip_info.region_code = region_code
 
             geoip_info.city = get_nested(record, "city", "names", "en")
             geoip_info.postal_code = get_nested(record, "postal", "code")
@@ -430,11 +591,54 @@ def get_geoip_information(ip_address: str) -> Optional[GeoIPInformation]:
 
             geoip_info.response_time_ms = round((time.time() - start_time) * 1000)
 
+            if geoip_info.latitude is not None and geoip_info.longitude is not None:
+                fill_empty_fields_with_geocoder(geoip_info)
+
+            fill_country_continent_data(geoip_info)
+
             return geoip_info
 
     except Exception as e:
         print(f"Error querying database: {e}")
         return None
+
+
+def fill_empty_fields_with_geocoder(geoip_info: GeoIPInformation) -> None:
+    """Fill in empty fields in the GeoIP information using reverse geocoding."""
+    try:
+        if not (geoip_info.latitude and geoip_info.longitude):
+            return
+
+        coordinates = [(geoip_info.latitude, geoip_info.longitude)]
+        result: Dict[str, str] = reverse_geocode.search(coordinates)[0]  # type: ignore
+
+        if not geoip_info.country:
+            country = result.get("country", "")  # type: ignore
+            geoip_info.country = country
+
+        if not geoip_info.country_code:
+            country_code: str | None = result.get("country_code", "")  # type: ignore
+            if isinstance(country_code, str):
+                geoip_info.country_code = country_code
+
+            if geoip_info.country_code:
+                if geoip_info.is_in_european_union is None:
+                    geoip_info.is_in_european_union = is_country_in_european_union(
+                        geoip_info.country_code
+                    )
+                    if not geoip_info.currency:
+                        geoip_info.currency = get_currency_from_country(
+                            geoip_info.country_code
+                        )
+
+        if not geoip_info.city:
+            city = result.get("city", "")  # type: ignore
+            geoip_info.city = city
+
+    except ImportError:
+        print("Warning: reverse_geocode package not found.")
+    except Exception as e:
+        print(f"Error during reverse geocoding: {e}")
 
 
 def main():
@@ -447,11 +651,21 @@ def main():
     group.add_argument(
         "-d", "--download", action="store_true", help="Download/update the database"
     )
+    group.add_argument(
+        "-c",
+        "--download-countries",
+        action="store_true",
+        help="Download/update the countries data",
+    )
 
     args = parser.parse_args()
 
     if args.download:
         download_database()
+        return
+
+    if args.download_countries:
+        download_countries_data()
         return
 
     if args.ip:
