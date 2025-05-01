@@ -19,6 +19,7 @@ import argparse
 import urllib.request
 from typing import Optional, Dict, Any, cast
 from dataclasses import dataclass
+from functools import lru_cache
 import maxminddb
 
 
@@ -33,7 +34,9 @@ class ASNIPInformation:
 
     ip: str
     asn: Optional[int] = None
+    asn_name: Optional[str] = None
     organization: Optional[str] = None
+    net: Optional[str] = None
     response_time_ms: Optional[float] = None
 
 
@@ -42,6 +45,9 @@ RecordDict = Dict[str, Any]
 
 def download_database() -> bool:
     """Download the GeoLite2 ASN database."""
+    if os.path.exists(DATABASE_PATH):
+        return True
+
     if not os.path.exists(DATABASE_DIR):
         os.makedirs(DATABASE_DIR)
 
@@ -60,11 +66,12 @@ def database_exists() -> bool:
     return os.path.exists(DATABASE_PATH)
 
 
-def get_asn_information(ip_address: str) -> Optional[ASNIPInformation]:
+@lru_cache(maxsize=1000)
+def get_asn_information(ip_address: str) -> ASNIPInformation:
     """Get ASN information for an IP address."""
     if not database_exists():
         print("Database not found. Please run with -d option to download it first.")
-        return None
+        return ASNIPInformation(ip=ip_address)
 
     start_time = time.time()
 
@@ -72,7 +79,7 @@ def get_asn_information(ip_address: str) -> Optional[ASNIPInformation]:
         with maxminddb.open_database(DATABASE_PATH) as reader:  # type: ignore
             result = reader.get(ip_address)  # type: ignore
             if not result:
-                return None
+                return ASNIPInformation(ip=ip_address)
 
             record = cast(RecordDict, result)
             asn_info = ASNIPInformation(ip=ip_address)
@@ -95,7 +102,7 @@ def get_asn_information(ip_address: str) -> Optional[ASNIPInformation]:
 
     except Exception as e:
         print(f"Error querying database: {e}")
-        return None
+        return ASNIPInformation(ip=ip_address)
 
 
 def main():

@@ -368,6 +368,9 @@ RecordDict = Dict[str, Any]
 
 def download_database() -> bool:
     """Download the GeoLite2 City database."""
+    if os.path.exists(DATABASE_PATH):
+        return True
+
     if not os.path.exists(DATABASE_DIR):
         os.makedirs(DATABASE_DIR)
 
@@ -404,6 +407,9 @@ def is_country_in_european_union(country_code: str) -> bool:
 
 def download_countries_data() -> bool:
     """Download countries, states, and cities data."""
+    if os.path.exists(COUNTRIES_DATA_PATH):
+        return True
+
     if not os.path.exists(DATABASE_DIR):
         os.makedirs(DATABASE_DIR)
 
@@ -519,11 +525,11 @@ def fill_country_continent_data(geoip_info: GeoIPInformation) -> None:
                 break
 
 
-def get_geoip_information(ip_address: str) -> Optional[GeoIPInformation]:
+def get_geoip_information(ip_address: str) -> GeoIPInformation:
     """Get detailed geolocation information for an IP address."""
     if not database_exists():
         print("Database not found. Please run with -d option to download it first.")
-        return None
+        return GeoIPInformation(ip=ip_address)
 
     start_time = time.time()
 
@@ -531,7 +537,7 @@ def get_geoip_information(ip_address: str) -> Optional[GeoIPInformation]:
         with maxminddb.open_database(DATABASE_PATH) as reader:  # type: ignore
             result = reader.get(ip_address)  # type: ignore
             if not result:
-                return None
+                return GeoIPInformation(ip=ip_address)
 
             record = cast(RecordDict, result)
             geoip_info = GeoIPInformation(ip=ip_address)
@@ -590,16 +596,11 @@ def get_geoip_information(ip_address: str) -> Optional[GeoIPInformation]:
 
             geoip_info.response_time_ms = round((time.time() - start_time) * 1000)
 
-            if geoip_info.latitude is not None and geoip_info.longitude is not None:
-                fill_empty_fields_with_geocoder(geoip_info)
-
-            fill_country_continent_data(geoip_info)
-
             return geoip_info
 
     except Exception as e:
         print(f"Error querying database: {e}")
-        return None
+        return GeoIPInformation(ip=ip_address)
 
 
 def fill_empty_fields_with_geocoder(geoip_info: GeoIPInformation) -> None:
