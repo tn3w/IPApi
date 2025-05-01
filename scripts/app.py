@@ -63,12 +63,8 @@ def self():
     """
     Return the GeoIP and ASN information for the current IP address.
     """
-    ip_address = request.remote_addr
-    if ip_address in (None, "127.0.0.1"):
-        ip_address = request.headers.get("X-Forwarded-For", request.remote_addr)
-    if ip_address is None:
-        return jsonify({"error": "Not a valid IP address"})
-    if not is_valid_and_routable_ip(ip_address):
+    ip_address = get_ip_address(request)
+    if not ip_address:
         return jsonify({"error": "Not a valid IP address"})
 
     return jsonify(get_ip_information(ip_address))
