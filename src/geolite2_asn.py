@@ -14,7 +14,6 @@ Usage:
 """
 
 import os
-import time
 import argparse
 import urllib.request
 from typing import Optional, Dict, Any, cast
@@ -37,7 +36,6 @@ class ASNIPInformation:
     asn_name: Optional[str] = None
     organization: Optional[str] = None
     net: Optional[str] = None
-    response_time_ms: Optional[float] = None
 
 
 RecordDict = Dict[str, Any]
@@ -73,8 +71,6 @@ def get_asn_information(ip_address: str) -> ASNIPInformation:
         print("Database not found. Please run with -d option to download it first.")
         return ASNIPInformation(ip=ip_address)
 
-    start_time = time.time()
-
     try:
         with maxminddb.open_database(DATABASE_PATH) as reader:  # type: ignore
             result = reader.get(ip_address)  # type: ignore
@@ -95,8 +91,6 @@ def get_asn_information(ip_address: str) -> ASNIPInformation:
 
             asn_info.asn = get_nested(record, "autonomous_system_number")
             asn_info.organization = get_nested(record, "autonomous_system_organization")
-
-            asn_info.response_time_ms = round((time.time() - start_time) * 1000)
 
             return asn_info
 

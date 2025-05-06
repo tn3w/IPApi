@@ -14,11 +14,11 @@ Usage:
 """
 
 import os
-import time
+import csv
 import json
 import argparse
 import urllib.request
-from typing import Optional, Dict, Any, cast, TypedDict
+from typing import Optional, Dict, Any, cast, TypedDict, List
 from dataclasses import dataclass
 
 import maxminddb
@@ -34,6 +34,8 @@ COUNTRIES_DATA_URL = (
     "json/countries%2Bstates%2Bcities.json"
 )
 COUNTRIES_DATA_PATH = os.path.join(DATABASE_DIR, "countries_states_cities.json")
+ZIP_CODES_URL = "https://raw.githubusercontent.com/wouterdebie/zip_codes_plus/refs/heads/main/data/zip_codes.csv"
+ZIP_CODES_PATH = os.path.join(DATABASE_DIR, "zip_codes.csv")
 
 COUNTRY_TO_CURRENCY_MAP: Dict[str, str] = {
     "AF": "AFN",
@@ -317,6 +319,11 @@ CONTINENT_NAME_TO_CODE: Dict[str, str] = {
     "South America": "SA",
 }
 
+CONTINENT_NAME_TO_NORMALIZED_NAME: Dict[str, str] = {
+    "Northern America": "North America",
+    "Southern America": "South America",
+}
+
 
 @dataclass
 class GeoIPInformation:
@@ -337,7 +344,6 @@ class GeoIPInformation:
     longitude: Optional[float] = None
     timezone: Optional[str] = None
     accuracy_radius: Optional[int] = None
-    response_time_ms: Optional[float] = None
 
 
 class RegionData(TypedDict):
@@ -485,6 +491,137 @@ def get_countries_data() -> Dict[str, CountryData]:
     return get_data()
 
 
+def download_zip_codes() -> bool:
+    """Download US zip codes data."""
+    if os.path.exists(ZIP_CODES_PATH):
+        return True
+
+    if not os.path.exists(DATABASE_DIR):
+        os.makedirs(DATABASE_DIR)
+
+    try:
+        print(f"Downloading US zip codes data from {ZIP_CODES_URL}...")
+        urllib.request.urlretrieve(ZIP_CODES_URL, ZIP_CODES_PATH)
+        print(f"Successfully downloaded zip codes data to {ZIP_CODES_PATH}")
+        return True
+    except Exception as e:
+        print(f"Error downloading zip codes data: {e}")
+        return False
+
+
+@dataclass
+class ZipCodeEntry:
+    """Class to store zip code entry."""
+
+    zip_code: str
+    city: str
+    state: str
+
+
+def load_zip_codes() -> Dict[str, List[ZipCodeEntry]]:
+    """Load zip codes data from file or download if not exists."""
+    if not os.path.exists(ZIP_CODES_PATH):
+        print("Zip codes data not found. Downloading it now...")
+        if not download_zip_codes():
+            print("Failed to download zip codes data.")
+            return {}
+
+    try:
+        zip_codes: Dict[str, List[ZipCodeEntry]] = {}
+        with open(ZIP_CODES_PATH, "r", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            # Skip header if exists
+            try:
+                header = next(reader)
+                if not header[0].isdigit():  # Check if first row is header
+                    pass
+                else:
+                    # Was not a header, rewind
+                    f.seek(0)
+                    reader = csv.reader(f)
+            except StopIteration:
+                return {}
+
+            for row in reader:
+                if len(row) >= 4:
+                    # Format: "67025","STANDARD","CHENEY","KS","PRIMARY",37.62,-97.78,...
+                    zip_code, _, city, state = row[0], row[1], row[2], row[3]
+
+                    # Remove quotes if present
+                    zip_code = zip_code.strip('"')
+                    city = city.strip('"')
+                    state = state.strip('"')
+
+                    city_upper = city.strip().upper()
+                    state_upper = state.strip().upper()
+                    key = f"{city_upper}_{state_upper}"
+
+                    entry = ZipCodeEntry(zip_code=zip_code, city=city, state=state)
+                    if key not in zip_codes:
+                        zip_codes[key] = []
+                    zip_codes[key].append(entry)
+
+        return zip_codes
+    except Exception as e:
+        print(f"Error loading zip codes data: {e}")
+        return {}
+
+
+def get_zip_codes() -> Dict[str, List[ZipCodeEntry]]:
+    """Get zip codes data with caching using closure instead of global variable."""
+    cache: Dict[str, Optional[Dict[str, List[ZipCodeEntry]]]] = {"data": None}
+
+    def get_data() -> Dict[str, List[ZipCodeEntry]]:
+        if cache["data"] is None:
+            cache["data"] = load_zip_codes()
+        return cache["data"] or {}
+
+    return get_data()
+
+
+def get_us_zip_code(city: str, state: Optional[str] = None) -> Optional[str]:
+    """Get US zip code based on city and state."""
+    if not city:
+        return None
+
+    # Ensure ZIP codes data is downloaded
+    if not os.path.exists(ZIP_CODES_PATH):
+        download_zip_codes()
+
+    city_upper = city.strip().upper()
+    zip_codes_data = get_zip_codes()
+
+    if state:
+        state_upper = state.strip().upper()
+        key = f"{city_upper}_{state_upper}"
+
+        if key in zip_codes_data and zip_codes_data[key]:
+            entries = zip_codes_data[key]
+            for entry in entries:
+                if len(entry.zip_code) == 5:
+                    return entry.zip_code
+            return entries[0].zip_code
+
+    # Try case-insensitive match
+    for key, entries in zip_codes_data.items():
+        city_part = key.split("_")[0]
+        if city_part == city_upper and entries:
+            for entry in entries:
+                if len(entry.zip_code) == 5:
+                    return entry.zip_code
+            return entries[0].zip_code
+
+    # If exact match not found, try a partial match
+    for key, entries in zip_codes_data.items():
+        if key.startswith(f"{city_upper}_") and entries:
+            for entry in entries:
+                if len(entry.zip_code) == 5:
+                    return entry.zip_code
+            return entries[0].zip_code
+
+    return None
+
+
 def fill_country_continent_data(geoip_info: GeoIPInformation) -> None:
     """Fill country, continent, and region data using the downloaded dataset."""
     if not geoip_info.country_code:
@@ -502,11 +639,18 @@ def fill_country_continent_data(geoip_info: GeoIPInformation) -> None:
         geoip_info.country = country_data.name
 
     if not geoip_info.continent:
-        geoip_info.continent = country_data.region
-
-    # Set continent code if we have the continent name but not the code
-    if geoip_info.continent and not geoip_info.continent_code:
-        geoip_info.continent_code = CONTINENT_NAME_TO_CODE.get(geoip_info.continent)
+        if country_data.region in CONTINENT_NAME_TO_CODE:
+            geoip_info.continent = country_data.region
+            geoip_info.continent_code = CONTINENT_NAME_TO_CODE.get(country_data.region)
+        else:
+            normalized_subregion = CONTINENT_NAME_TO_NORMALIZED_NAME.get(
+                country_data.subregion, ""
+            )
+            if normalized_subregion:
+                geoip_info.continent = normalized_subregion
+                geoip_info.continent_code = CONTINENT_NAME_TO_CODE.get(
+                    normalized_subregion
+                )
 
     if not geoip_info.currency:
         geoip_info.currency = country_data.currency
@@ -524,14 +668,22 @@ def fill_country_continent_data(geoip_info: GeoIPInformation) -> None:
             if geoip_info.region:
                 break
 
+    if geoip_info.region and not geoip_info.region_code:
+        for region_code, region_data in country_data.regions.items():
+            if geoip_info.region.lower() == region_data["name"].lower():
+                geoip_info.region_code = region_code
+                break
+
+    if geoip_info.region_code and not geoip_info.region:
+        if geoip_info.region_code in country_data.regions:
+            geoip_info.region = country_data.regions[geoip_info.region_code]["name"]
+
 
 def get_geoip_information(ip_address: str) -> GeoIPInformation:
     """Get detailed geolocation information for an IP address."""
     if not database_exists():
         print("Database not found. Please run with -d option to download it first.")
         return GeoIPInformation(ip=ip_address)
-
-    start_time = time.time()
 
     try:
         with maxminddb.open_database(DATABASE_PATH) as reader:  # type: ignore
@@ -594,8 +746,6 @@ def get_geoip_information(ip_address: str) -> GeoIPInformation:
                 geoip_info.timezone = get_nested(location, "time_zone")
                 geoip_info.accuracy_radius = get_nested(location, "accuracy_radius")
 
-            geoip_info.response_time_ms = round((time.time() - start_time) * 1000)
-
             return geoip_info
 
     except Exception as e:
@@ -657,6 +807,12 @@ def main():
         action="store_true",
         help="Download/update the countries data",
     )
+    group.add_argument(
+        "-z",
+        "--download-zip-codes",
+        action="store_true",
+        help="Download/update the US zip codes data",
+    )
 
     args = parser.parse_args()
 
@@ -668,12 +824,24 @@ def main():
         download_countries_data()
         return
 
+    if args.download_zip_codes:
+        download_zip_codes()
+        return
+
     if args.ip:
         if not database_exists():
             print("Database not found. Downloading it now...")
             if not download_database():
                 print("Failed to download the database.")
                 return
+
+        if not os.path.exists(ZIP_CODES_PATH):
+            print("ZIP codes data not found. Downloading it now...")
+            download_zip_codes()
+
+        if not os.path.exists(COUNTRIES_DATA_PATH):
+            print("Countries data not found. Downloading it now...")
+            download_countries_data()
 
         print(f"Looking up GeoIP information for IP {args.ip}...")
         geoip_info = get_geoip_information(args.ip)

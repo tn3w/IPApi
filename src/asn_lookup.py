@@ -12,6 +12,7 @@ Usage:
 import socket
 import time
 import argparse
+from functools import lru_cache
 from typing import Optional, Dict, Any
 from dataclasses import dataclass
 
@@ -264,12 +265,12 @@ def parse_pwhois_response(response: str) -> Optional[ASNInformation]:
     )
 
 
+@lru_cache(maxsize=1000)
 def get_detailed_asn_info(ip_address: str) -> Optional[ASNInformation]:
     """Get detailed ASN information for an IP address using pwhois.org"""
     start_time = time.time()
 
     pwhois_response = query_whois("whois.pwhois.org", ip_address)
-    print(pwhois_response)
 
     if not pwhois_response:
         return None
