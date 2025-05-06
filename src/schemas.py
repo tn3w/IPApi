@@ -2,8 +2,10 @@
 Pydantic models for API request and response schemas.
 """
 
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
+
+from src.field_utils import FIELDS
 
 
 class ErrorResponse(BaseModel):
@@ -42,7 +44,7 @@ class IPGeolocationResponse(BaseModel):
     net: Optional[str] = Field(None, description="Network range")
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "ip": "8.8.8.8",
                 "continent": "North America",
@@ -60,3 +62,58 @@ class IPGeolocationResponse(BaseModel):
                 "organization": "GOOGLE",
             }
         }
+
+
+# Models for Fields-tagged endpoints
+
+
+class FieldsListResponse(BaseModel):
+    """Response model for the field list endpoint."""
+
+    fields: List[str] = Field(..., description="List of all available fields")
+
+    class Config:
+        json_schema_extra = {"example": {"fields": FIELDS}}
+
+
+class FieldToNumberResponse(BaseModel):
+    """Response model for converting field names to a number."""
+
+    fields: List[str] = Field(..., description="List of field names")
+    number: int = Field(..., description="Numeric representation of the fields")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "fields": ["ip", "country", "city"],
+                "number": 293,  # Example number that represents these fields
+            }
+        }
+
+
+class NumberToFieldsResponse(BaseModel):
+    """Response model for converting a number to field names."""
+
+    number: int = Field(..., description="Numeric representation of the fields")
+    fields: List[str] = Field(..., description="List of field names")
+    fields_str: str = Field(..., description="Comma-separated list of field names")
+
+    class Config:
+        @staticmethod
+        def json_schema_extra(schema: Dict[str, Any], model: type) -> None:
+            """Dynamically calculate the example values based on current FIELDS."""
+            # Calculate all fields bitmask dynamically: 2^len(FIELDS) - 1
+            all_fields_mask = (1 << len(FIELDS)) - 1
+
+            # Generate a comma-separated string of all fields
+            all_fields_str = ",".join(FIELDS)
+
+            # Set the example
+            if "example" not in schema:
+                schema["example"] = {}
+
+            schema["example"] = {
+                "number": all_fields_mask,
+                "fields": FIELDS,
+                "fields_str": all_fields_str,
+            }

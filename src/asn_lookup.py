@@ -1,71 +1,27 @@
 #!/usr/bin/env python3
 
 """
-This script queries pwhois.org for ASN information.
-This is a PoC.
+A specialized module for retrieving and parsing ASN (Autonomous System Number) information.
 
-Usage:
-    ./get_asn_by_ip.py -i <ip_address>
-    ./get_asn_by_ip.py -a <asn_code>
+This module provides a straightforward interface for querying pwhois.org, offering:
+- ASN lookup by IP address
+- Detailed organization and network information retrieval
+- Geographic location data extraction
+- Response parsing with error handling
+- Caching for performance optimization
+- MaxMind GeoLite2 database support for offline ASN lookups
 """
 
 import socket
-import time
-import argparse
 from functools import lru_cache
-from typing import Optional, Dict, Any
-from dataclasses import dataclass
+from typing import Optional, Dict, Any, Tuple, cast
+import maxminddb
 
 
-@dataclass
-class ASNInformation:
-    """Class to store ASN information."""
-
-    asn: int
-    asn_name: Optional[str] = None
-    country: Optional[str] = None
-    country_code: Optional[str] = None
-    state: Optional[str] = None
-    city: Optional[str] = None
-    organization: Optional[str] = None
-    net: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-    response_time_ms: Optional[float] = None
+GEOLITE2_URL = "https://git.io/GeoLite2-ASN.mmdb"
 
 
-@dataclass
-class LocationContext:
-    """Class to hold location data and geo flags during parsing."""
-
-    data: Dict[str, Any]
-    geo_flags: Dict[str, bool]
-
-
-@dataclass
-class ParserState:
-    """Class to hold the current state of parsing."""
-
-    asn_code: int = 0
-    asn_name: Optional[str] = None
-    organization: Optional[str] = None
-    net: Optional[str] = None
-    location_ctx: Optional[LocationContext] = None
-
-    def __post_init__(self):
-        if self.location_ctx is None:
-            location_data = {
-                "country": None,
-                "country_code": None,
-                "city": None,
-                "state": None,
-                "latitude": None,
-                "longitude": None,
-            }
-            geo_flags = {field: False for field in location_data}
-            self.location_ctx = LocationContext(location_data, geo_flags)
-
-
+@lru_cache(maxsize=1000)
 def query_whois(server: str, query: str) -> Optional[str]:
     """Send a WHOIS query to a specified server."""
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -89,7 +45,7 @@ def query_whois(server: str, query: str) -> Optional[str]:
         s.close()
 
 
-def _parse_asn_fields(key: str, value: str) -> tuple[int, Optional[str]]:
+def _parse_asn_fields(key: str, value: str) -> Tuple[int, Optional[str]]:
     """Parse ASN-related fields and return ASN code and name."""
     asn_code = 0
     asn_name = None
@@ -114,7 +70,7 @@ def _parse_asn_fields(key: str, value: str) -> tuple[int, Optional[str]]:
 
 def _parse_org_fields(
     key: str, value: str, current_org: Optional[str] = None
-) -> tuple[Optional[str], Optional[str]]:
+) -> Tuple[Optional[str], Optional[str]]:
     """Parse organization and ISP related fields."""
     organization = current_org
     net = None
@@ -130,21 +86,25 @@ def _parse_org_fields(
 
 
 def _parse_location_field(
-    key: str, value: str, is_geo: bool, location_ctx: LocationContext
+    key: str,
+    value: str,
+    is_geo: bool,
+    location_data: Dict[str, Any],
+    geo_flags: Dict[str, bool],
 ) -> None:
     """Parse and update location data fields."""
-    if key in location_ctx.data and value:
-        if is_geo or not location_ctx.geo_flags[key]:
+    if key in location_data and value:
+        if is_geo or not geo_flags[key]:
             if key in ["latitude", "longitude"]:
                 try:
-                    location_ctx.data[key] = float(value)
+                    location_data[key] = float(value)
                 except ValueError:
                     return
             else:
-                location_ctx.data[key] = value
+                location_data[key] = value
 
             if is_geo:
-                location_ctx.geo_flags[key] = True
+                geo_flags[key] = True
 
 
 def _parse_mapped_key(
@@ -152,17 +112,16 @@ def _parse_mapped_key(
     value: str,
     is_geo: bool,
     key_mapping: Dict[str, str],
-    location_ctx: LocationContext,
+    location_data: Dict[str, Any],
+    geo_flags: Dict[str, bool],
 ) -> None:
     """Parse keys that are mapped to other field names."""
     if key in key_mapping and value:
         mapped_key = key_mapping[key]
-        if (is_geo or not location_ctx.geo_flags[mapped_key]) and location_ctx.data[
-            mapped_key
-        ] is None:
-            location_ctx.data[mapped_key] = value
+        if (is_geo or not geo_flags[mapped_key]) and location_data[mapped_key] is None:
+            location_data[mapped_key] = value
             if is_geo:
-                location_ctx.geo_flags[mapped_key] = True
+                geo_flags[mapped_key] = True
 
 
 def _clean_field(field: Optional[str]) -> Optional[str]:
@@ -177,11 +136,18 @@ def _clean_field(field: Optional[str]) -> Optional[str]:
 
 
 def _process_line(
-    line: str, parser_state: ParserState, key_mapping: Dict[str, str]
-) -> None:
+    line: str,
+    asn_code: int,
+    asn_name: Optional[str],
+    organization: Optional[str],
+    net: Optional[str],
+    location_data: Dict[str, Any],
+    geo_flags: Dict[str, bool],
+    key_mapping: Dict[str, str],
+) -> Tuple[int, Optional[str], Optional[str], Optional[str]]:
     """Process a single line from the whois response."""
     if ":" not in line:
-        return
+        return asn_code, asn_name, organization, net
 
     key, value = line.split(":", 1)
     original_key = key.strip().lower()
@@ -192,84 +158,90 @@ def _process_line(
 
     code, name = _parse_asn_fields(key, value)
     if code > 0:
-        parser_state.asn_code = code
+        asn_code = code
     if name:
-        parser_state.asn_name = name
+        asn_name = name
 
-    org, net_name = _parse_org_fields(key, value, parser_state.organization)
+    org, net_name = _parse_org_fields(key, value, organization)
     if org:
-        parser_state.organization = org
+        organization = org
     if net_name:
-        parser_state.net = net_name
+        net = net_name
 
-    if parser_state.location_ctx:
-        _parse_location_field(key, value, is_geo, parser_state.location_ctx)
-        _parse_mapped_key(key, value, is_geo, key_mapping, parser_state.location_ctx)
+    _parse_location_field(key, value, is_geo, location_data, geo_flags)
+    _parse_mapped_key(key, value, is_geo, key_mapping, location_data, geo_flags)
+
+    return asn_code, asn_name, organization, net
 
 
-def parse_pwhois_response(response: str) -> Optional[ASNInformation]:
+def parse_pwhois_response(response: str) -> Optional[Dict[str, Any]]:
     """Parse the response from pwhois.org to extract ASN information."""
-    state = ParserState()
+    asn_code = 0
+    asn_name = None
+    organization = None
+    net = None
 
-    key_mapping: Dict[str, str] = {
+    location_data = {
+        "country": None,
+        "country_code": None,
+        "city": None,
+        "state": None,
+        "latitude": None,
+        "longitude": None,
+    }
+    geo_flags = {field: False for field in location_data}
+
+    key_mapping = {
         "region": "state",
         "cc": "country_code",
         "country-code": "country_code",
     }
 
     for line in response.splitlines():
-        _process_line(line.strip(), state, key_mapping)
+        asn_code, asn_name, organization, net = _process_line(
+            line.strip(),
+            asn_code,
+            asn_name,
+            organization,
+            net,
+            location_data,
+            geo_flags,
+            key_mapping,
+        )
 
-    if state.asn_code == 0:
+    if asn_code == 0:
         return None
 
-    state.organization = _clean_field(state.organization)
-    state.net = _clean_field(state.net)
+    organization = _clean_field(organization)
+    net = _clean_field(net)
 
-    if not state.asn_name and state.organization:
-        state.asn_name = state.organization
+    if not asn_name and organization:
+        asn_name = organization
 
-    country = None
-    country_code = None
-    state_name = None
-    city = None
-    latitude = None
-    longitude = None
+    country = location_data.get("country")
+    if country and len(country) == 2 and country.isupper():
+        if not location_data.get("country_code"):
+            location_data["country_code"] = country
+        location_data["country"] = None
+        country = None
 
-    if state.location_ctx is not None:
-        country = state.location_ctx.data.get("country")
-        if country and len(country) == 2 and country.isupper():
-            if not state.location_ctx.data.get("country_code"):
-                state.location_ctx.data["country_code"] = country
-            state.location_ctx.data["country"] = None
-            country = None
-
-        country = state.location_ctx.data.get("country")
-        country_code = state.location_ctx.data.get("country_code")
-        state_name = state.location_ctx.data.get("state")
-        city = state.location_ctx.data.get("city")
-        latitude = state.location_ctx.data.get("latitude")
-        longitude = state.location_ctx.data.get("longitude")
-
-    return ASNInformation(
-        asn=state.asn_code,
-        asn_name=state.asn_name,
-        organization=state.organization,
-        net=state.net,
-        country=country,
-        country_code=country_code,
-        state=state_name,
-        city=city,
-        latitude=latitude,
-        longitude=longitude,
-    )
+    return {
+        "asn": asn_code,
+        "asn_name": asn_name,
+        "organization": organization,
+        "net": net,
+        "country": location_data.get("country"),
+        "country_code": location_data.get("country_code"),
+        "state": location_data.get("state"),
+        "city": location_data.get("city"),
+        "latitude": location_data.get("latitude"),
+        "longitude": location_data.get("longitude"),
+    }
 
 
 @lru_cache(maxsize=1000)
-def get_detailed_asn_info(ip_address: str) -> Optional[ASNInformation]:
+def lookup_asn_from_ip(ip_address: str) -> Optional[Dict[str, Any]]:
     """Get detailed ASN information for an IP address using pwhois.org"""
-    start_time = time.time()
-
     pwhois_response = query_whois("whois.pwhois.org", ip_address)
 
     if not pwhois_response:
@@ -277,103 +249,39 @@ def get_detailed_asn_info(ip_address: str) -> Optional[ASNInformation]:
 
     result = parse_pwhois_response(pwhois_response)
 
-    if not result:
-        return None
-
-    result.response_time_ms = round((time.time() - start_time) * 1000)
-
     return result
 
 
-def parse_registry_response(response: str, asn_code: int) -> Optional[ASNInformation]:
-    """Parse registry response from pwhois.org"""
-    field_mapping: Dict[str, Optional[str]] = {
-        "Org-Name": None,
-        "Country": None,
-        "State": None,
-        "City": None,
-        "AS-Name": None,
-    }
+@lru_cache(maxsize=1000)
+def get_asn_from_maxmind(
+    ip_address: str, database_path: str
+) -> Optional[Dict[str, Any]]:
+    """Get ASN information for an IP address using MaxMind database."""
 
-    for line in response.splitlines():
-        line = line.strip()
-        if ":" not in line:
-            continue
+    try:
+        with maxminddb.open_database(database_path) as reader:  # type: ignore
+            result = reader.get(ip_address)  # type: ignore
+            if not result:
+                return None
 
-        key, value = line.split(":", 1)
-        key = key.strip()
-        value = value.strip()
+            record = cast(Dict[str, Any], result)
 
-        if key in field_mapping:
-            field_mapping[key] = value
+            def get_nested(d: Dict[str, Any], *keys: str, default: Any = None) -> Any:
+                """Safely get a nested value from a dictionary."""
+                current = d
+                for key in keys:
+                    if not isinstance(current, dict) or key not in current:
+                        return default
+                    current = current[key]
+                return current
 
-    if not field_mapping["Org-Name"]:
-        return None
+            return {
+                "ip": ip_address,
+                "asn": get_nested(record, "autonomous_system_number"),
+                "organization": get_nested(record, "autonomous_system_organization"),
+                "asn_name": get_nested(record, "autonomous_system_organization"),
+            }
 
-    country = field_mapping["Country"]
-    country_code = None
-    if country and len(country) == 2 and country.isupper():
-        country_code = country
-        country = None
-
-    return ASNInformation(
-        asn=asn_code,
-        asn_name=field_mapping["AS-Name"],
-        organization=field_mapping["Org-Name"],
-        country=country,
-        country_code=country_code,
-        state=field_mapping["State"],
-        city=field_mapping["City"],
-    )
-
-
-def get_asn_info_by_asn(asn_code: int) -> Optional[ASNInformation]:
-    """Get detailed ASN information for an ASN code using pwhois.org."""
-    start_time = time.time()
-
-    query = f"registry source-as={asn_code}"
-
-    pwhois_response = query_whois("whois.pwhois.org", query)
-    print(pwhois_response)
-
-    if not pwhois_response:
-        return None
-
-    result = parse_registry_response(pwhois_response, asn_code)
-
-    if result:
-        result.response_time_ms = round((time.time() - start_time) * 1000)
-
-    return result
-
-
-def main():
-    """Main function to handle command line arguments and execute ASN lookups."""
-    parser = argparse.ArgumentParser(
-        description="Get ASN information for IP addresses or ASN codes"
-    )
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("-i", "--ip", help="IP address to lookup")
-    group.add_argument("-a", "--asn", type=int, help="ASN code to lookup")
-
-    args = parser.parse_args()
-
-    if args.ip:
-        print(f"Looking up ASN information for IP {args.ip}...")
-        asn_info = get_detailed_asn_info(args.ip)
-        if asn_info:
-            print(asn_info)
-        else:
-            print("Failed to retrieve ASN information")
-
-    elif args.asn:
-        print(f"Looking up information for ASN {args.asn}...")
-        asn_info = get_asn_info_by_asn(args.asn)
-        if asn_info:
-            print(asn_info)
-        else:
-            print("Failed to retrieve ASN information")
-
-
-if __name__ == "__main__":
-    main()
+    except Exception as e:
+        print(f"Error querying database: {e}")
+        return {"ip": ip_address}

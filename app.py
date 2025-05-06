@@ -5,22 +5,22 @@ import uvicorn
 from fastapi import FastAPI, Request, HTTPException, status, Query
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-from rewrite_src.ip_address import is_valid_and_routable_ip
-from rewrite_src.schemas import (
+from src.ip_address import is_valid_and_routable_ip
+from src.schemas import (
     IPGeolocationResponse,
     ErrorResponse,
     FieldsListResponse,
     FieldToNumberResponse,
     NumberToFieldsResponse,
 )
-from rewrite_src.field_utils import (
+from src.field_utils import (
     parse_fields_param,
     filter_response,
     fields_to_number,
     FIELDS,
     number_to_fields,
 )
-from rewrite_src.utils import download_file
+from src.utils import download_file
 
 DATASETS_DIR = "assets"
 DATASETS = {
