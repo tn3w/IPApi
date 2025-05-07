@@ -172,7 +172,6 @@ def ip(ip_address: str, request: Request):
     """
     Return the GeoIP and ASN information for the given IP address.
     """
-    print(ip_address, is_valid_and_routable_ip(ip_address))
     if not is_valid_and_routable_ip(ip_address):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
