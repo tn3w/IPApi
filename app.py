@@ -73,11 +73,6 @@ def get_ip_address(request: Request) -> Optional[str]:
     """
     client_ip = request.client.host if request.client else None
 
-    if not client_ip or client_ip == "127.0.0.1":
-        forwarded_for = request.headers.get("X-Forwarded-For")
-        if forwarded_for:
-            client_ip = forwarded_for.split(",")[0].strip()
-
     if not client_ip or not is_valid_and_routable_ip(client_ip):
         return None
 
@@ -177,6 +172,7 @@ def ip(ip_address: str, request: Request):
     """
     Return the GeoIP and ASN information for the given IP address.
     """
+    print(ip_address, is_valid_and_routable_ip(ip_address))
     if not is_valid_and_routable_ip(ip_address):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
