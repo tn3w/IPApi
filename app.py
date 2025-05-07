@@ -1,17 +1,18 @@
 import os
-from typing import Optional
+from typing import Optional, Dict, Any, List
 
 import uvicorn
 from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from src.ip_address import is_valid_and_routable_ip
+from src.ip_address import is_valid_and_routable_ip, get_ip_address_type
 from src.schemas import (
-    IPGeolocationResponse,
+    IPAPIResponse,
     ErrorResponse,
     FieldsListResponse,
     FieldToNumberResponse,
     NumberToFieldsResponse,
+    IPAddressResponse,
 )
 from src.field_utils import (
     parse_fields_param,
@@ -24,6 +25,7 @@ from src.geo_utils import (
     process_zip_codes_database,
 )
 from src.utils import download_file
+from src.dns_lookup import get_dns_info
 
 DATASETS_DIR = "assets"
 DATASETS = {
@@ -82,17 +84,35 @@ def get_ip_address(request: Request) -> Optional[str]:
     return client_ip
 
 
+def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
+    information: Dict[str, Any] = {}
+
+    if "ip" in fields:
+        information["ip"] = ip_address
+
+    if "hostname" in fields:
+        information["hostname"] = get_dns_info(ip_address)
+
+    if "type" in fields:
+        information["type"] = get_ip_address_type(ip_address)
+
+    return information
+
+
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def index(request: Request):
     """
     Return the index HTML page.
     """
-    return templates.TemplateResponse("index.html", {"request": request})
+    api_url = str(request.base_url).rstrip("/")
+    return templates.TemplateResponse(
+        "index.html", {"request": request, "api_url": api_url}
+    )
 
 
 @app.get(
     "/self",
-    response_model=IPGeolocationResponse,
+    response_model=IPAPIResponse,
     responses={
         status.HTTP_400_BAD_REQUEST: {
             "model": ErrorResponse,
@@ -101,6 +121,7 @@ async def index(request: Request):
     },
     summary="Get current IP geolocation",
     description="Returns geolocation and ASN information for the current client IP address",
+    tags=["IP"],
 )
 def self(request: Request):
     """
@@ -116,12 +137,32 @@ def self(request: Request):
     fields_param = request.query_params.get("fields", "")
     fields = parse_fields_param(fields_param)
 
+    return get_ip_information(ip_address, fields)
+
+
+@app.get(
+    "/onlyip",
+    response_model=IPAddressResponse,
+    summary="Get current IP address",
+    description="Returns the current IP address",
+    tags=["IP"],
+)
+def onlyip(request: Request):
+    """
+    Return the current IP address.
+    """
+    ip_address = get_ip_address(request)
+    if not ip_address:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid IP address",
+        )
     return {"ip": ip_address}
 
 
 @app.get(
     "/{ip_address}",
-    response_model=IPGeolocationResponse,
+    response_model=IPAPIResponse,
     responses={
         status.HTTP_400_BAD_REQUEST: {
             "model": ErrorResponse,
@@ -130,6 +171,7 @@ def self(request: Request):
     },
     summary="Get specific IP geolocation",
     description="Returns geolocation and ASN information for the specified IP address",
+    tags=["IP"],
 )
 def ip(ip_address: str, request: Request):
     """
@@ -144,7 +186,7 @@ def ip(ip_address: str, request: Request):
     fields_param = request.query_params.get("fields", "")
     fields = parse_fields_param(fields_param)
 
-    return {"ip": ip_address}
+    return get_ip_information(ip_address, fields)
 
 
 @app.get(
@@ -172,10 +214,8 @@ async def field_number(field_name: str):
     """
     Return the number representing a field or comma-separated field list.
     """
-    # Parse the field_name as a comma-separated list
     fields = [f.strip() for f in field_name.split(",") if f.strip() in FIELDS]
 
-    # Get the number
     number = fields_to_number(fields)
 
     return {
@@ -195,7 +235,6 @@ async def number_to_field_names(number: int):
     """
     Return the field names corresponding to the given number.
     """
-    # Convert the number to field names
     field_names = number_to_fields(number)
 
     return {
@@ -221,7 +260,6 @@ def main() -> None:
     zip_codes_json_path = zip_codes_path.replace(".csv", ".json")
     does_zip_codes_database_exist = os.path.exists(zip_codes_json_path)
 
-    # Download all datasets
     for dataset_name, (dataset_url, dataset_filename) in DATASETS.items():
         if dataset_name == "Zip-Codes" and does_zip_codes_database_exist:
             continue

@@ -14,11 +14,13 @@ class ErrorResponse(BaseModel):
     detail: str = Field(..., description="Error description")
 
 
-class IPGeolocationResponse(BaseModel):
-    """IP geolocation response model."""
+class IPAPIResponse(BaseModel):
+    """IP API response model."""
 
     # Geographic information
     ip: Optional[str] = Field(None, description="IP address")
+    hostname: Optional[str] = Field(None, description="Hostname")
+    type: Optional[str] = Field(None, description="IP address type")
     continent: Optional[str] = Field(None, description="Continent name")
     continent_code: Optional[str] = Field(None, description="Continent code")
     country: Optional[str] = Field(None, description="Country name")
@@ -47,11 +49,14 @@ class IPGeolocationResponse(BaseModel):
         json_schema_extra = {
             "example": {
                 "ip": "8.8.8.8",
+                "hostname": "dns.google",
+                "type": "ipv4",
                 "continent": "North America",
                 "continent_code": "NA",
                 "country": "United States",
                 "country_code": "US",
                 "region": "Kansas",
+                "region_code": "KS",
                 "city": "Cheney",
                 "latitude": 37.751,
                 "longitude": -97.822,
@@ -117,3 +122,12 @@ class NumberToFieldsResponse(BaseModel):
                 "fields": FIELDS,
                 "fields_str": all_fields_str,
             }
+
+
+class IPAddressResponse(BaseModel):
+    """Response model for the /onlyip endpoint."""
+
+    ip: str = Field(..., description="IP address")
+
+    class Config:
+        json_schema_extra = {"example": {"ip": "8.8.8.8"}}

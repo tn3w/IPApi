@@ -475,3 +475,20 @@ def get_ipv4_from_ipv6(ipv6_address: str) -> Optional[str]:
         pass
 
     return None
+
+
+@lru_cache(maxsize=1000)
+def get_ip_address_type(address: str) -> Optional[str]:
+    """Determine the type of IP address.
+
+    Args:
+        address: The address string to check
+
+    Returns:
+        Optional[str]: 'ipv4' if IPv4, 'ipv6' if IPv6, None if not a valid IP address
+    """
+    if IPv4.is_valid(address):
+        return "ipv4"
+    if IPv6.is_valid(address):
+        return "ipv6"
+    return None

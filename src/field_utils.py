@@ -36,6 +36,8 @@ EXTENDED_ASN_FIELDS: List[str] = [
 # List of all possible response fields
 FIELDS: List[str] = [
     "ip",
+    "hostname",
+    "type",
     "continent",
     "continent_code",
     "country",

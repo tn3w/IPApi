@@ -1,99 +1,823 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IP Geolocation API</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        h1 {
-            color: #2c3e50;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
-        }
-        .endpoint {
-            background-color: #f8f9fa;
-            border-left: 4px solid #4285f4;
-            padding: 10px 15px;
-            margin-bottom: 15px;
-            border-radius: 0 4px 4px 0;
-        }
-        .endpoint code {
-            background-color: #e9ecef;
-            padding: 2px 5px;
-            border-radius: 3px;
-            font-family: 'Courier New', Courier, monospace;
-        }
-        .example {
-            margin-top: 30px;
-        }
-        pre {
-            background-color: #272822;
-            color: #f8f8f2;
-            padding: 15px;
-            border-radius: 5px;
-            overflow-x: auto;
-        }
-        a {
-            color: #4285f4;
-            text-decoration: none;
-        }
-        a:hover {
-            text-decoration: underline;
-        }
-    </style>
-</head>
-<body>
-    <h1>IP Geolocation API</h1>
-    <p>A high-performance API that returns GeoIP and ASN information for IP addresses.</p>
+    <head>
+        <meta charset="utf-8"/>
+        <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+        <title>IPApi - IP Address Information</title>
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github.min.css" id="hljs-light-theme" rel="stylesheet"/>
+        <link disabled="" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css" id="hljs-dark-theme" rel="stylesheet"/>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/json.min.js"></script>
+        <style>
+            :root {
+                --background: #f8f9fa;
+                --text: #212529;
+                --primary: #4285f4;
+                --primary-dark: #3367d6;
+                --secondary: #34a853;
+                --accent: #fbbc05;
+                --danger: #ea4335;
+                --surface: #ffffff;
+                --border: #dee2e6;
+                --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                --code-background: #f5f7f9;
+            }
 
-    <h2>API Endpoints</h2>
-    
-    <div class="endpoint">
-        <h3>Get current IP information</h3>
-        <code>GET /self</code>
-        <p>Returns geolocation information for your current IP address.</p>
-    </div>
-    
-    <div class="endpoint">
-        <h3>Get specific IP information</h3>
-        <code>GET /{ip_address}</code>
-        <p>Returns geolocation information for the specified IP address.</p>
-    </div>
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --background: #121212;
+                    --text: #e9ecef;
+                    --primary: #5c9aff;
+                    --primary-dark: #4285f4;
+                    --secondary: #4ecca3;
+                    --accent: #ffcc40;
+                    --danger: #ff5c5c;
+                    --surface: #1e1e1e;
+                    --border: #333333;
+                    --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+                    --code-background: #2a2a2a;
+                }
+            }
 
-    <div class="example">
-        <h2>Example Response</h2>
-        <pre>{
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+                background-color: var(--background);
+                color: var(--text);
+                line-height: 1.6;
+                transition: background-color 0.3s, color 0.3s;
+            }
+
+            .container {
+                width: 100%;
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 0 20px;
+            }
+
+            .hero {
+                height: 66.6vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .logo {
+                text-align: center;
+                margin-bottom: 2rem;
+            }
+
+            .logo h1 {
+                font-size: 3.5rem;
+                font-weight: 800;
+                color: var(--primary);
+                letter-spacing: -1px;
+            }
+
+            .search-container {
+                max-width: 600px;
+                margin: 0 auto;
+            }
+
+            .search-wrapper {
+                display: flex;
+                position: relative;
+                margin-bottom: 1rem;
+            }
+
+            #search-input {
+                width: 100%;
+                padding: 16px 20px;
+                border-radius: 50px;
+                border: 2px solid var(--border);
+                background-color: var(--surface);
+                color: var(--text);
+                font-size: 1.1rem;
+                transition: all 0.3s ease;
+                outline: none;
+            }
+
+            #search-input:focus {
+                border-color: var(--primary);
+                box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.3);
+            }
+
+            #search-button {
+                position: absolute;
+                right: 8px;
+                top: 50%;
+                transform: translateY(-50%);
+                background-color: var(--primary);
+                color: white;
+                border: none;
+                width: 44px;
+                height: 44px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                opacity: 0;
+                pointer-events: none;
+            }
+
+            #search-button.visible {
+                opacity: 1;
+                pointer-events: auto;
+                animation: slideIn 0.3s forwards;
+            }
+
+            #search-button:hover {
+                background-color: var(--primary-dark);
+                transform: translateY(-50%) scale(1.05);
+            }
+
+            #search-button svg {
+                fill: white;
+            }
+
+            .action-buttons {
+                display: flex;
+                justify-content: center;
+                gap: 1rem;
+            }
+
+            .action-buttons button {
+                padding: 10px 16px;
+                border: none;
+                border-radius: 20px;
+                background-color: var(--surface);
+                color: var(--primary);
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                border: 1px solid var(--border);
+                position: relative;
+            }
+
+            .spinner {
+                display: inline-block;
+                width: 16px;
+                height: 16px;
+                border: 2px solid rgba(66, 133, 244, 0.3);
+                border-top-color: var(--primary);
+                border-radius: 50%;
+                animation: spinner 0.8s linear infinite;
+                margin-right: 6px;
+                vertical-align: middle;
+            }
+
+            @keyframes spinner {
+                to { transform: rotate(360deg); }
+            }
+
+            .action-buttons button:hover {
+                background-color: var(--primary);
+                color: white;
+            }
+
+            .documentation {
+                background-color: var(--surface);
+                padding: 4rem 0;
+                border-top: 1px solid var(--border);
+            }
+
+            .documentation h2 {
+                font-size: 2rem;
+                margin-bottom: 1rem;
+                color: var(--text);
+            }
+
+            .documentation p {
+                margin-bottom: 2rem;
+                color: var(--text);
+                opacity: 0.8;
+            }
+
+            .endpoint-card {
+                background-color: var(--surface);
+                border-radius: 8px;
+                overflow: hidden;
+                border: 1px solid var(--border);
+                box-shadow: var(--card-shadow);
+                margin-bottom: 2rem;
+            }
+
+            .endpoint-header {
+                padding: 1rem;
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                background-color: var(--code-background);
+                border-bottom: 1px solid var(--border);
+            }
+
+            .method {
+                background-color: var(--primary);
+                color: white;
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-weight: bold;
+                font-size: 0.9rem;
+            }
+
+            .endpoint-url-container {
+                display: flex;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+                flex: 1;
+            }
+
+            .base-url {
+                font-family: monospace;
+                font-size: 1rem;
+            }
+
+            #endpoint-input {
+                padding: 8px 12px;
+                border-radius: 4px;
+                border: 1px solid var(--border);
+                background-color: var(--surface);
+                color: var(--text);
+                font-family: monospace;
+                font-size: 1rem;
+                width: 120px;
+            }
+
+            #try-endpoint {
+                padding: 8px 16px;
+                border-radius: 4px;
+                border: none;
+                background-color: var(--primary);
+                color: white;
+                cursor: pointer;
+                transition: background-color 0.2s;
+            }
+
+            #try-endpoint:hover {
+                background-color: var(--primary-dark);
+            }
+
+            .endpoint-response {
+                padding: 0;
+                overflow: hidden;
+            }
+
+            .response-header {
+                padding: 0.75rem 1rem;
+                background-color: var(--code-background);
+                border-bottom: 1px solid var(--border);
+                font-weight: 500;
+            }
+
+            pre {
+                margin: 0;
+                overflow-x: auto;
+            }
+
+            code {
+                font-family: 'Fira Code', monospace;
+                font-size: 0.9rem;
+            }
+
+            .hljs {
+                background-color: var(--code-background) !important;
+                padding: 1.5rem !important;
+            }
+
+            .docs-link {
+                text-align: center;
+                margin-top: 2rem;
+            }
+
+            .full-docs-link {
+                display: inline-block;
+                color: var(--primary);
+                text-decoration: none;
+                font-weight: 500;
+                transition: color 0.2s;
+            }
+
+            .full-docs-link:hover {
+                color: var(--primary-dark);
+                text-decoration: underline;
+            }
+
+            footer {
+                padding: 2rem 0;
+                background-color: var(--background);
+                border-top: 1px solid var(--border);
+            }
+
+            footer .container {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .github-link a {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                color: var(--text);
+                text-decoration: none;
+                font-weight: 500;
+                transition: color 0.2s;
+            }
+
+            .github-link a:hover {
+                color: var(--primary);
+            }
+
+            .github-link svg {
+                fill: currentColor;
+            }
+
+            .notification-container {
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 1000;
+                pointer-events: none;
+            }
+
+            .notification {
+                background-color: var(--surface);
+                border-left: 4px solid var(--danger);
+                border-radius: 4px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                padding: 16px;
+                margin-bottom: 10px;
+                max-width: 350px;
+                opacity: 0;
+                transform: translateX(30px);
+                transition: opacity 0.3s, transform 0.3s;
+                pointer-events: auto;
+                position: relative;
+                overflow: hidden;
+            }
+
+            .notification.show {
+                opacity: 1;
+                transform: translateX(0);
+            }
+
+            .notification-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 8px;
+            }
+
+            .notification-title {
+                font-weight: 600;
+                color: var(--danger);
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .notification-counter {
+                font-size: 0.8rem;
+                background-color: var(--danger);
+                color: white;
+                padding: 2px 6px;
+                border-radius: 10px;
+                font-weight: bold;
+            }
+
+            .notification-close {
+                background: none;
+                border: none;
+                cursor: pointer;
+                color: var(--text);
+                opacity: 0.6;
+                transition: opacity 0.2s;
+                font-size: 1rem;
+                padding: 0;
+                width: 20px;
+                height: 20px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .notification-close:hover {
+                opacity: 1;
+            }
+
+            .notification-message {
+                color: var(--text);
+                font-size: 0.9rem;
+                margin-bottom: 8px;
+                line-height: 1.4;
+            }
+
+            .notification-progress {
+                height: 3px;
+                background-color: var(--danger);
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                transition: width linear;
+            }
+
+            @keyframes slideIn {
+                from {
+                    transform: translateY(-50%) translateX(20px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateY(-50%) translateX(0);
+                    opacity: 1;
+                }
+            }
+
+            @media (max-width: 768px) {
+                .hero {
+                    height: auto;
+                    padding: 4rem 0;
+                }
+                
+                .logo h1 {
+                    font-size: 2.5rem;
+                }
+                
+                .endpoint-header {
+                    flex-direction: column;
+                    align-items: flex-start;
+                }
+                
+                .endpoint-url-container {
+                    width: 100%;
+                    margin-top: 0.5rem;
+                }
+                
+                footer .container {
+                    flex-direction: column;
+                    gap: 1rem;
+                }
+            }
+
+            @media (max-width: 480px) {
+                .action-buttons {
+                    flex-direction: column;
+                    gap: 0.5rem;
+                }
+                
+                .endpoint-url-container {
+                    flex-direction: column;
+                    align-items: flex-start;
+                }
+                
+                #endpoint-input {
+                    width: 100%;
+                }
+                
+                #try-endpoint {
+                    width: 100%;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <main>
+            <section class="hero">
+                <div class="container">
+                    <div class="logo">
+                        <h1>IPApi</h1>
+                    </div>
+                    <div class="search-container">
+                        <div class="search-wrapper">
+                            <input id="search-input" placeholder="Enter IP, IPv6 or Domain" type="text"/>
+                            <button class="hidden" id="search-button">
+                                <svg height="24" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M0 0h24v24H0z" fill="none">
+                                    </path>
+                                    <path d="M16.01 11H4v2h12.01v3L20 12l-3.99-4z">
+                                    </path>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="action-buttons">
+                            <button id="my-ip">My IP</button>
+                            <button id="try-example">Try Example</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <section class="documentation">
+                <div class="container">
+                    <h2>API Documentation</h2>
+                    <p>Get detailed information about any IP address or domain with our simple API.</p>
+                    <div class="endpoint-card">
+                        <div class="endpoint-header">
+                            <span class="method">GET</span>
+                            <div class="endpoint-url-container">
+                                <span class="base-url">{{ api_url }}/</span>
+                                <input id="endpoint-input" placeholder="8.8.8.8" type="text" value="8.8.8.8"/>
+                                <button id="try-endpoint">Try it</button>
+                            </div>
+                        </div>
+                        <div class="endpoint-response">
+                            <div class="response-header">
+                                <span>Response</span>
+                            </div>
+                            <pre><code class="language-json" id="response-example">{
     "ip": "8.8.8.8",
+    "hostname": "dns.google",
+    "type": "ipv4",
     "continent": "North America",
     "continent_code": "NA",
     "country": "United States",
     "country_code": "US",
-    "region": "Kansas",
-    "city": "Cheney",
-    "latitude": 37.751,
-    "longitude": -97.822,
-    "timezone": "America/Chicago",
-    "currency": "USD",
-    "asn": 15169,
-    "asn_name": "GOOGLE",
-    "organization": "GOOGLE"
-}</pre>
-    </div>
+    "region": "California",
+    "region_code": "CA",
+    "city": "Mountain View",
+    "latitude": 37.4056,
+    "longitude": -122.0775,
+    "timezone": "America/Los_Angeles",
+    "isp": "Google LLC",
+    "org": "Google Public DNS",
+    "asn": "AS15169",
+    "currency_code": "USD",
+    "currency_name": "US Dollar"
+}</code></pre>
+                        </div>
+                    </div>
+                    <div class="docs-link">
+                        <a class="full-docs-link" href="/docs">View full API documentation →</a>
+                    </div>
+                </div>
+            </section>
+        </main>
+        <footer>
+            <div class="container">
+                <p>© 2025 IPApi. All rights reserved.</p>
+                <div class="github-link">
+                    <a href="https://github.com/tn3w/ipapi" rel="noopener noreferrer" target="_blank">
+                        <svg height="24" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z">
+                            </path>
+                        </svg>
+                        GitHub
+                    </a>
+                </div>
+            </div>
+        </footer>
 
-    <div class="links">
-        <h2>Documentation</h2>
-        <p>
-            <a href="/docs">Swagger UI</a> | 
-            <a href="/redoc">ReDoc</a>
-        </p>
-    </div>
-</body>
-</html> 
+        <div class="notification-container" id="notification-container"></div>
+        
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const searchInput = document.getElementById('search-input');
+                const searchButton = document.getElementById('search-button');
+                const myIpButton = document.getElementById('my-ip');
+                const tryExampleButton = document.getElementById('try-example');
+                const endpointInput = document.getElementById('endpoint-input');
+                const tryEndpointButton = document.getElementById('try-endpoint');
+                const responseExample = document.getElementById('response-example');
+
+                const lightThemeLink = document.getElementById('hljs-light-theme');
+                const darkThemeLink = document.getElementById('hljs-dark-theme');
+                
+                let cachedIP = null;
+
+                function updateCodeTheme() {
+                    const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    
+                    if (prefersDarkMode) {
+                        lightThemeLink.disabled = true;
+                        darkThemeLink.disabled = false;
+                    } else {
+                        lightThemeLink.disabled = false;
+                        darkThemeLink.disabled = true;
+                    }
+                    
+                    if (window.hljs) {
+                        hljs.highlightAll();
+                    }
+                }
+
+                updateCodeTheme();
+
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateCodeTheme);
+
+                searchInput.addEventListener('input', function() {
+                    if (this.value.trim() !== '') {
+                        searchButton.classList.add('visible');
+                        searchButton.classList.remove('hidden');
+                    } else {
+                        searchButton.classList.remove('visible');
+                        searchButton.classList.add('hidden');
+                    }
+                });
+
+                searchButton.addEventListener('click', function() {
+                    const query = searchInput.value.trim();
+                    if (query) {
+                        const url = `{{ api_url }}/${encodeURIComponent(query)}`;
+                        window.location.href = url;
+                    }
+                });
+
+                searchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter' && this.value.trim() !== '') {
+                        const query = this.value.trim();
+                        const url = `{{ api_url }}/${encodeURIComponent(query)}`;
+                        window.location.href = url;
+                    }
+                });
+
+                myIpButton.addEventListener('click', async function() {
+                    if (cachedIP) {
+                        searchInput.value = cachedIP;
+                        searchButton.classList.add('visible');
+                        searchButton.classList.remove('hidden');
+                        return;
+                    }
+                    
+                    const originalText = myIpButton.textContent;
+                    myIpButton.innerHTML = '<span class="spinner"></span> Loading...';
+                    myIpButton.disabled = true;
+                    
+                    try {
+                        const response = await fetch(`{{ api_url }}/onlyip`);
+                        const data = await response.json();
+                        
+                        if (data.ip) {
+                            cachedIP = data.ip;
+                            
+                            searchInput.value = cachedIP;
+                            searchButton.classList.add('visible');
+                            searchButton.classList.remove('hidden');
+                        } else if (data.detail) {
+                            throw new Error(data.detail);
+                        } else {
+                            throw new Error('Unexpected response format');
+                        }
+                    } catch (error) {
+                        showNotification('Error', 'Error fetching your IP address: ' + error.message + '. Please try again.');
+                        console.error('Error fetching IP:', error);
+                    } finally {
+                        myIpButton.innerHTML = originalText;
+                        myIpButton.disabled = false;
+                    }
+                });
+
+                tryExampleButton.addEventListener('click', function() {
+                    searchInput.value = '8.8.8.8';
+                    searchButton.classList.add('visible');
+                    searchButton.classList.remove('hidden');
+                });
+
+                tryEndpointButton.addEventListener('click', async function() {
+                    const query = endpointInput.value.trim();
+                    if (!query) return;
+
+                    tryEndpointButton.textContent = 'Loading...';
+                    tryEndpointButton.disabled = true;
+
+                    try {
+                        const response = await fetch(`{{ api_url }}/${encodeURIComponent(query)}`);
+                        const data = await response.json();
+
+                        responseExample.textContent = JSON.stringify(data, null, 4);
+
+                        if (window.hljs) {
+                            hljs.highlightElement(responseExample);
+                        }
+                    } catch (error) {
+                        responseExample.textContent = JSON.stringify({
+                            error: "An error occurred while fetching data",
+                            message: error.message
+                        }, null, 4);
+
+                        if (window.hljs) {
+                            hljs.highlightElement(responseExample);
+                        }
+                    } finally {
+                        tryEndpointButton.textContent = 'Try it';
+                        tryEndpointButton.disabled = false;
+                    }
+                });
+
+                document.body.classList.add('loaded');
+
+                const notificationContainer = document.getElementById('notification-container');
+                let activeNotification = null;
+                let notificationTimeout = null;
+                let lastErrorMessage = '';
+                let errorCounter = 1;
+
+                function showNotification(title, message, duration = 4000) {
+                    if (message === lastErrorMessage) {
+                        errorCounter++;
+                        
+                        if (activeNotification) {
+                            const counterElement = activeNotification.querySelector('.notification-counter');
+                            if (counterElement) {
+                                counterElement.textContent = `x${errorCounter}`;
+                            } else {
+                                const titleElement = activeNotification.querySelector('.notification-title');
+                                const counter = document.createElement('span');
+                                counter.className = 'notification-counter';
+                                counter.textContent = `x${errorCounter}`;
+                                titleElement.appendChild(counter);
+                            }
+                            
+                            const progressBar = activeNotification.querySelector('.notification-progress');
+                            if (progressBar) {
+                                progressBar.style.transition = 'none';
+                                progressBar.style.width = '100%';
+                                setTimeout(() => {
+                                    progressBar.style.transition = `width ${duration}ms linear`;
+                                    progressBar.style.width = '0';
+                                }, 50);
+                            }
+                            
+                            if (notificationTimeout) {
+                                clearTimeout(notificationTimeout);
+                            }
+                            notificationTimeout = setTimeout(() => {
+                                hideNotification();
+                            }, duration);
+                            
+                            return;
+                        }
+                    } else {
+                        lastErrorMessage = message;
+                        errorCounter = 1;
+                    }
+                    
+                    if (activeNotification) {
+                        hideNotification();
+                    }
+                    
+                    const notification = document.createElement('div');
+                    notification.className = 'notification';
+                    
+                    notification.innerHTML = `
+                        <div class="notification-header">
+                            <div class="notification-title">
+                                <span>${title}</span>
+                                ${errorCounter > 1 ? `<span class="notification-counter">x${errorCounter}</span>` : ''}
+                            </div>
+                            <button class="notification-close" aria-label="Close notification">&times;</button>
+                        </div>
+                        <div class="notification-message">${message}</div>
+                        <div class="notification-progress"></div>
+                    `;
+                    
+                    notificationContainer.appendChild(notification);
+                    
+                    notification.offsetHeight;
+                    
+                    notification.classList.add('show');
+                    
+                    const progressBar = notification.querySelector('.notification-progress');
+                    progressBar.style.width = '100%';
+                    setTimeout(() => {
+                        progressBar.style.transition = `width ${duration}ms linear`;
+                        progressBar.style.width = '0';
+                    }, 50);
+                    
+                    const closeButton = notification.querySelector('.notification-close');
+                    closeButton.addEventListener('click', hideNotification);
+                    
+                    notificationTimeout = setTimeout(() => {
+                        hideNotification();
+                    }, duration);
+                    
+                    activeNotification = notification;
+                }
+                
+                function hideNotification() {
+                    if (activeNotification) {
+                        activeNotification.classList.remove('show');
+                        
+                        setTimeout(() => {
+                            if (activeNotification && activeNotification.parentNode) {
+                                activeNotification.parentNode.removeChild(activeNotification);
+                            }
+                            activeNotification = null;
+                        }, 300);
+                        
+                        if (notificationTimeout) {
+                            clearTimeout(notificationTimeout);
+                            notificationTimeout = null;
+                        }
+                    }
+                }
+            });
+        </script>
+    </body>
+</html>
