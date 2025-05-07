@@ -7,10 +7,10 @@ from typing import Optional
 def get_dns_info(addr: str) -> Optional[str]:
     """
     Get hostname from IP address as fast as possible.
-    
+
     Args:
         addr: IP address string (IPv4 or IPv6)
-        
+
     Returns:
         str: Hostname for the given IP address
         None: If reverse lookup fails

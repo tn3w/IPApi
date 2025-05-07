@@ -1,7 +1,7 @@
 """
 A standalone module for handling IP address operations, validation, and transformations.
 
-This module provides a robust replacement for the deprecated ipaddress module, offering:
+This module provides a robust interface for IP address operations, offering:
 - IPv4 and IPv6 address validation and manipulation
 - CIDR range checking
 - Routing and network checks
@@ -10,16 +10,18 @@ This module provides a robust replacement for the deprecated ipaddress module, o
 """
 
 import socket
-import re
 from functools import lru_cache
 from typing import Union, Optional
 
+import netaddr
+
 
 class IPAddress:
-    """Class to represent and manipulate IP addresses."""
+    """Base class to represent and manipulate IP addresses."""
 
     def __init__(self, address: str):
         self.address = address
+        self._netaddr_ip = None
 
     @property
     def is_ipv4(self) -> bool:
@@ -51,7 +53,7 @@ class IPAddress:
         return self.address
 
     def __repr__(self) -> str:
-        return f"IPAddress('{self.address}')"
+        return f"{self.__class__.__name__}('{self.address}')"
 
 
 class IPv4(IPAddress):
@@ -69,7 +71,7 @@ class IPv4(IPAddress):
         if not self.is_valid(address):
             raise ValueError(f"Invalid IPv4 address: {address}")
         super().__init__(address)
-        self._int_value = self._to_integer(address)
+        self._netaddr_ip = netaddr.IPAddress(address)
 
     @property
     def is_ipv4(self) -> bool:
@@ -86,50 +88,11 @@ class IPv4(IPAddress):
         Returns:
             bool: True if the address is valid, False otherwise
         """
-        pattern = r"^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$"
-        match = re.match(pattern, address)
-        if not match:
+        try:
+            ip = netaddr.IPAddress(address)
+            return ip.version == 4
+        except (netaddr.AddrFormatError, ValueError):
             return False
-        return all(0 <= int(octet) <= 255 for octet in match.groups())
-
-    @staticmethod
-    @lru_cache(maxsize=1000)
-    def _to_integer(address: str) -> int:
-        """Convert an IPv4 address to its integer representation.
-
-        Args:
-            address: IPv4 address string
-
-        Returns:
-            int: Integer representation of the IP address
-        """
-        octets = address.split(".")
-        return (
-            (int(octets[0]) << 24)
-            + (int(octets[1]) << 16)
-            + (int(octets[2]) << 8)
-            + int(octets[3])
-        )
-
-    @staticmethod
-    @lru_cache(maxsize=1000)
-    def _from_integer(integer: int) -> str:
-        """Convert an integer to an IPv4 address string.
-
-        Args:
-            integer: Integer representation of the IP address
-
-        Returns:
-            str: IPv4 address in dotted decimal format
-        """
-        return ".".join(
-            [
-                str((integer >> 24) & 0xFF),
-                str((integer >> 16) & 0xFF),
-                str((integer >> 8) & 0xFF),
-                str(integer & 0xFF),
-            ]
-        )
 
     @lru_cache(maxsize=1000)
     def is_in_range(self, cidr_range: str) -> bool:
@@ -144,26 +107,13 @@ class IPv4(IPAddress):
         Raises:
             ValueError: If the CIDR range is invalid
         """
-        if "/" not in cidr_range:
-            raise ValueError(f"Invalid CIDR range: {cidr_range}")
-
-        network_addr, prefix_len = cidr_range.split("/")
-        if not self.is_valid(network_addr):
-            raise ValueError(f"Invalid network address in CIDR: {network_addr}")
-
         try:
-            prefix_len_int = int(prefix_len)
-            if not 0 <= prefix_len_int <= 32:
-                raise ValueError(f"Invalid prefix length: {prefix_len}")
-        except ValueError as exc:
-            raise ValueError(f"Invalid prefix length: {prefix_len}") from exc
-
-        network_int = self._to_integer(network_addr)
-        ip_int = self._int_value
-
-        mask = (1 << 32) - 1 - ((1 << (32 - prefix_len_int)) - 1)
-
-        return (network_int & mask) == (ip_int & mask)
+            network = netaddr.IPNetwork(cidr_range)
+            if network.version != 4:
+                return False
+            return self._netaddr_ip in network
+        except (netaddr.AddrFormatError, ValueError) as exc:
+            raise ValueError(f"Invalid CIDR range: {cidr_range}") from exc
 
     @lru_cache(maxsize=1000)
     def is_routable(self) -> bool:
@@ -172,31 +122,13 @@ class IPv4(IPAddress):
         Returns:
             bool: True if the IP is routable, False otherwise
         """
-        bogon_ranges = [
-            "0.0.0.0/8",
-            "10.0.0.0/8",
-            "100.64.0.0/10",
-            "127.0.0.0/8",
-            "169.254.0.0/16",
-            "172.16.0.0/12",
-            "192.0.0.0/24",
-            "192.0.2.0/24",
-            "192.168.0.0/16",
-            "198.18.0.0/15",
-            "198.51.100.0/24",
-            "203.0.113.0/24",
-            "224.0.0.0/4",
-            "240.0.0.0/4",
-            "255.255.255.255/32",
-        ]
-
-        return not any(self.is_in_range(bogon) for bogon in bogon_ranges)
-
-    def __str__(self) -> str:
-        return self.address
-
-    def __repr__(self) -> str:
-        return f"IPv4('{self.address}')"
+        return self._netaddr_ip.is_global and not (
+            self._netaddr_ip.is_loopback()
+            or self._netaddr_ip.is_reserved()
+            or self._netaddr_ip.is_multicast()
+            or self._netaddr_ip.is_link_local()
+            or self._netaddr_ip.is_ipv4_private_use()
+        )
 
 
 class IPv6(IPAddress):
@@ -215,14 +147,8 @@ class IPv6(IPAddress):
             raise ValueError(f"Invalid IPv6 address: {address}")
 
         super().__init__(address)
-        try:
-            packed = socket.inet_pton(socket.AF_INET6, address)
-            self.expanded_address = ":".join(
-                f"{b:02x}{b2:02x}" for b, b2 in zip(packed[::2], packed[1::2])
-            )
-            self._bytes = packed
-        except (socket.error, ValueError) as exc:
-            raise ValueError(f"Invalid IPv6 address: {address}") from exc
+        self._netaddr_ip = netaddr.IPAddress(address)
+        self.expanded_address = str(self._netaddr_ip.ipv6())
 
     @property
     def is_ipv6(self) -> bool:
@@ -240,9 +166,9 @@ class IPv6(IPAddress):
             bool: True if the address is valid, False otherwise
         """
         try:
-            socket.inet_pton(socket.AF_INET6, address)
-            return True
-        except (socket.error, ValueError):
+            ip = netaddr.IPAddress(address)
+            return ip.version == 6
+        except (netaddr.AddrFormatError, ValueError):
             return False
 
     @lru_cache(maxsize=1000)
@@ -258,27 +184,13 @@ class IPv6(IPAddress):
         Raises:
             ValueError: If the CIDR range is invalid
         """
-        if "/" not in cidr_range:
-            raise ValueError(f"Invalid CIDR range: {cidr_range}")
-
-        network_addr, prefix_len = cidr_range.split("/")
-        if not self.is_valid(network_addr):
-            raise ValueError(f"Invalid network address in CIDR: {network_addr}")
-
         try:
-            prefix_len_int = int(prefix_len)
-            if not 0 <= prefix_len_int <= 128:
-                raise ValueError(f"Invalid prefix length: {prefix_len}")
-        except ValueError as exc:
-            raise ValueError(f"Invalid prefix length: {prefix_len}") from exc
-
-        network_bytes = socket.inet_pton(socket.AF_INET6, network_addr)
-        ip_bytes = self._bytes
-
-        network_bits = "".join(format(byte, "08b") for byte in network_bytes)
-        ip_bits = "".join(format(byte, "08b") for byte in ip_bytes)
-
-        return network_bits[:prefix_len_int] == ip_bits[:prefix_len_int]
+            network = netaddr.IPNetwork(cidr_range)
+            if network.version != 6:
+                return False
+            return self._netaddr_ip in network
+        except (netaddr.AddrFormatError, ValueError) as exc:
+            raise ValueError(f"Invalid CIDR range: {cidr_range}") from exc
 
     @lru_cache(maxsize=1000)
     def is_routable(self) -> bool:
@@ -287,26 +199,13 @@ class IPv6(IPAddress):
         Returns:
             bool: True if the IP is routable, False otherwise
         """
-
-        bogon_ranges = [
-            "::/128",
-            "::1/128",
-            "::ffff:0:0/96",
-            "100::/64",
-            "2001:10::/28",
-            "2001:db8::/32",
-            "fc00::/7",
-            "fe80::/10",
-            "ff00::/8",
-        ]
-
-        return not any(self.is_in_range(bogon) for bogon in bogon_ranges)
-
-    def __str__(self) -> str:
-        return self.address
-
-    def __repr__(self) -> str:
-        return f"IPv6('{self.address}')"
+        return self._netaddr_ip.is_global and not (
+            self._netaddr_ip.is_loopback()
+            or self._netaddr_ip.is_reserved()
+            or self._netaddr_ip.is_multicast()
+            or self._netaddr_ip.is_link_local()
+            or self._netaddr_ip.is_ipv6_unique_local()
+        )
 
 
 @lru_cache(maxsize=1000)
@@ -319,8 +218,6 @@ def is_valid_and_routable_ip(ip: str) -> bool:
     Returns:
         bool: True if the IP is valid and routable, False otherwise
     """
-    if ip == "127.0.0.1":
-        return False
     try:
         ip_obj = get_ip_object(ip)
         return ip_obj.is_routable()
@@ -338,8 +235,6 @@ def get_valid_and_routable_ip_object(ip: str) -> Optional[IPAddress]:
     Returns:
         Optional[IPAddress]: The IP address object if it is valid and routable, None otherwise
     """
-    if ip == "127.0.0.1":
-        return None
     try:
         ip_obj = get_ip_object(ip)
         if ip_obj.is_routable():
@@ -363,10 +258,14 @@ def get_ip_object(address: str) -> Union[IPv4, IPv6]:
     Raises:
         ValueError: If the address is neither a valid IPv4 nor IPv6 address
     """
-    if IPv4.is_valid(address):
-        return IPv4(address)
-    if IPv6.is_valid(address):
-        return IPv6(address)
+    try:
+        ip = netaddr.IPAddress(address)
+        if ip.version == 4:
+            return IPv4(address)
+        elif ip.version == 6:
+            return IPv6(address)
+    except (netaddr.AddrFormatError, ValueError):
+        pass
 
     raise ValueError(f"Invalid IP address: {address}")
 
@@ -405,9 +304,6 @@ def is_ip_routable(ip: str) -> bool:
     Raises:
         ValueError: If the IP address is invalid
     """
-    if ip == "127.0.0.1":
-        return False
-
     try:
         ip_obj = get_ip_object(ip)
         return ip_obj.is_routable()
@@ -426,6 +322,17 @@ def reverse_ip(ip_address: str) -> str:
     Returns:
         str: The reversed IP address.
     """
+    try:
+        ip = netaddr.IPAddress(ip_address)
+        if ip.version == 4:
+            octets = str(ip).split(".")
+            return ".".join(reversed(octets))
+        elif ip.version == 6:
+            expanded = ip.format(netaddr.ipv6_verbose)
+            segments = expanded.replace(":", "")
+            return ".".join(reversed(segments))
+    except (netaddr.AddrFormatError, ValueError):
+        pass
 
     symbol = ":" if ":" in ip_address else "."
     return symbol.join(reversed(ip_address.split(symbol)))
@@ -441,29 +348,28 @@ def get_ipv4_from_ipv6(ipv6_address: str) -> Optional[str]:
     Returns:
         Optional[str]: IPv4 address if conversion successful, None otherwise
     """
+    try:
+        ip = netaddr.IPAddress(ipv6_address)
+        if ip.version != 6:
+            return None
 
-    if "::ffff:" in ipv6_address.lower():
-        try:
-            ipv4_part = ipv6_address.split(":")[-1]
-            if IPv4.is_valid(ipv4_part):
-                return ipv4_part
-        except Exception:
-            pass
+        if ip.is_ipv4_mapped():
+            ipv4_int = int(ip) & 0xFFFFFFFF
+            return str(netaddr.IPAddress(ipv4_int, version=4))
 
-    if ipv6_address.lower().startswith("2002:"):
-        try:
+        if ipv6_address.lower().startswith("2002:"):
             parts = ipv6_address.split(":")
             if len(parts) >= 3:
                 hex_ip = parts[1] + parts[2]
                 if len(hex_ip) == 8:
-                    ipv4_octets = [
-                        str(int(hex_ip[i : i + 2], 16)) for i in range(0, 8, 2)
-                    ]
-                    ipv4 = ".".join(ipv4_octets)
-                    if IPv4.is_valid(ipv4):
-                        return ipv4
-        except Exception:
-            pass
+                    try:
+                        ipv4_int = int(hex_ip, 16)
+                        return str(netaddr.IPAddress(ipv4_int, version=4))
+                    except (ValueError, netaddr.AddrFormatError):
+                        pass
+
+    except (netaddr.AddrFormatError, ValueError):
+        pass
 
     try:
         socket.setdefaulttimeout(3)
@@ -471,7 +377,7 @@ def get_ipv4_from_ipv6(ipv6_address: str) -> Optional[str]:
         ipv4_addrs = socket.getaddrinfo(hostname, None, socket.AF_INET)
         if ipv4_addrs:
             return str(ipv4_addrs[0][4][0])
-    except Exception:
+    except (socket.gaierror, socket.timeout, socket.herror, OSError):
         pass
 
     return None
@@ -487,8 +393,13 @@ def get_ip_address_type(address: str) -> Optional[str]:
     Returns:
         Optional[str]: 'ipv4' if IPv4, 'ipv6' if IPv6, None if not a valid IP address
     """
-    if IPv4.is_valid(address):
-        return "ipv4"
-    if IPv6.is_valid(address):
-        return "ipv6"
+    try:
+        ip = netaddr.IPAddress(address)
+        if ip.version == 4:
+            return "ipv4"
+        if ip.version == 6:
+            return "ipv6"
+    except (netaddr.AddrFormatError, ValueError):
+        pass
+
     return None

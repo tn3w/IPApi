@@ -16,3 +16,6 @@ htmlcov/
 
 # Assets
 assets/
+
+# Test
+test*
