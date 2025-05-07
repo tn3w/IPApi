@@ -1,9 +1,9 @@
 import os
-from typing import Optional, Dict, Any
+from typing import Optional
 
 import uvicorn
-from fastapi import FastAPI, Request, HTTPException, status, Query
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import FastAPI, Request, HTTPException, status
+from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from src.ip_address import is_valid_and_routable_ip
 from src.schemas import (
@@ -15,10 +15,13 @@ from src.schemas import (
 )
 from src.field_utils import (
     parse_fields_param,
-    filter_response,
     fields_to_number,
     FIELDS,
     number_to_fields,
+)
+from src.geo_utils import (
+    process_country_states_cities_database,
+    process_zip_codes_database,
 )
 from src.utils import download_file
 
@@ -79,13 +82,6 @@ def get_ip_address(request: Request) -> Optional[str]:
     return client_ip
 
 
-def get_ip_information(ip_address: str) -> Dict[str, Any]:
-    """
-    Get the GeoIP and ASN information for the given IP address.
-    """
-    return {"ip": ip_address}
-
-
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def index(request: Request):
     """
@@ -105,14 +101,8 @@ async def index(request: Request):
     },
     summary="Get current IP geolocation",
     description="Returns geolocation and ASN information for the current client IP address",
-    tags=["API"],
 )
-async def self(
-    request: Request,
-    fields: Optional[str] = Query(
-        None, description="Comma-separated list of fields to include or field number"
-    ),
-):
+def self(request: Request):
     """
     Return the GeoIP and ASN information for the current IP address.
     """
@@ -123,16 +113,10 @@ async def self(
             detail="Invalid IP address",
         )
 
-    # Get the IP information
-    ip_info = get_ip_information(ip_address)
+    fields_param = request.query_params.get("fields", "")
+    fields = parse_fields_param(fields_param)
 
-    # Parse the fields parameter
-    _, field_number = parse_fields_param(fields)
-
-    # Filter the response based on the requested fields
-    filtered_data = filter_response(ip_info, field_number)
-
-    return JSONResponse(filtered_data)
+    return {"ip": ip_address}
 
 
 @app.get(
@@ -146,14 +130,8 @@ async def self(
     },
     summary="Get specific IP geolocation",
     description="Returns geolocation and ASN information for the specified IP address",
-    tags=["API"],
 )
-async def ip(
-    ip_address: str,
-    fields: Optional[str] = Query(
-        None, description="Comma-separated list of fields to include or field number"
-    ),
-):
+def ip(ip_address: str, request: Request):
     """
     Return the GeoIP and ASN information for the given IP address.
     """
@@ -163,16 +141,10 @@ async def ip(
             detail="Invalid IP address",
         )
 
-    # Get the IP information
-    ip_info = get_ip_information(ip_address)
+    fields_param = request.query_params.get("fields", "")
+    fields = parse_fields_param(fields_param)
 
-    # Parse the fields parameter
-    _, field_number = parse_fields_param(fields)
-
-    # Filter the response based on the requested fields
-    filtered_data = filter_response(ip_info, field_number)
-
-    return JSONResponse(filtered_data)
+    return {"ip": ip_address}
 
 
 @app.get(
@@ -238,11 +210,33 @@ def main() -> None:
     Main function to run the app.
     """
 
+    country_states_cities_path = os.path.join(
+        DATASETS_DIR, DATASETS["Country-States-Cities"][1]
+    )
+    does_country_states_cities_database_exist = os.path.exists(
+        country_states_cities_path
+    )
+
+    zip_codes_path = os.path.join(DATASETS_DIR, DATASETS["Zip-Codes"][1])
+    zip_codes_json_path = zip_codes_path.replace(".csv", ".json")
+    does_zip_codes_database_exist = os.path.exists(zip_codes_json_path)
+
     # Download all datasets
     for dataset_name, (dataset_url, dataset_filename) in DATASETS.items():
+        if dataset_name == "Zip-Codes" and does_zip_codes_database_exist:
+            continue
+
         download_file(
             dataset_url, os.path.join(DATASETS_DIR, dataset_filename), dataset_name
         )
+
+    if not does_country_states_cities_database_exist:
+        print("Processing country states cities database...")
+        process_country_states_cities_database(country_states_cities_path)
+
+    if not does_zip_codes_database_exist:
+        print("Processing zip codes database...")
+        process_zip_codes_database(zip_codes_path, zip_codes_json_path)
 
     uvicorn.run(
         "app:app",

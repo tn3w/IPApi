@@ -2,7 +2,36 @@
 Utilities for handling field selection in API responses.
 """
 
-from typing import List, Optional, Dict, Any, Tuple
+from typing import List, Optional
+
+# List of fields that are related to the location of the IP address
+GEO_FIELDS: List[str] = [
+    "continent",
+    "continent_code",
+    "country",
+    "country_code",
+    "region",
+    "region_code",
+    "city",
+    "postal_code",
+    "latitude",
+    "longitude",
+    "timezone",
+    "currency",
+    "accuracy_radius",
+]
+
+# List of fields that are related to the ASN of the IP address
+ASN_FIELDS: List[str] = [
+    "asn",
+    "organization",
+]
+
+# List of fields that are related to the ASN of the IP address
+EXTENDED_ASN_FIELDS: List[str] = [
+    "asn_name",
+    "net",
+]
 
 # List of all possible response fields
 FIELDS: List[str] = [
@@ -90,7 +119,7 @@ def number_to_fields(number: int) -> List[str]:
     return result
 
 
-def parse_fields_param(fields_param: Optional[str] = None) -> Tuple[List[str], int]:
+def parse_fields_param(fields_param: Optional[str] = None) -> List[str]:
     """
     Parse the fields parameter from the request.
 
@@ -98,42 +127,19 @@ def parse_fields_param(fields_param: Optional[str] = None) -> Tuple[List[str], i
         fields_param: String parameter, either a number or comma-separated fields
 
     Returns:
-        Tuple of (list of field names, numeric representation)
+        List of field names
     """
     # Default: all fields
     if not fields_param:
-        return FIELDS.copy(), ALL_FIELDS_MASK
+        return FIELDS.copy()
 
     # Try parsing as number first
     try:
         number = int(fields_param)
-        return number_to_fields(number), number
+        return number_to_fields(number)
     except ValueError:
         # Parse as comma-separated list
         fields = [f.strip() for f in fields_param.split(",") if f.strip() in FIELDS]
         if not fields:
-            return FIELDS.copy(), ALL_FIELDS_MASK
-        number = fields_to_number(fields)
-        return fields, number
-
-
-def filter_response(response_data: Dict[str, Any], field_number: int) -> Dict[str, Any]:
-    """
-    Filter response data to include only the selected fields.
-
-    Args:
-        response_data: Original response data dictionary
-        field_number: Number representing selected fields
-
-    Returns:
-        Filtered response data
-    """
-    # If all fields are selected or invalid number, return original
-    if field_number >= ALL_FIELDS_MASK or field_number <= 0:
-        return response_data
-
-    # Get the fields represented by the number
-    selected_fields = number_to_fields(field_number)
-
-    # Filter the response
-    return {k: v for k, v in response_data.items() if k in selected_fields}
+            return FIELDS.copy()
+        return fields

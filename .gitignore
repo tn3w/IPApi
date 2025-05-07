@@ -14,5 +14,5 @@ ENV/
 htmlcov/
 .mypy_cache/
 
-# Python testing
-test/
+# Assets
+assets/
