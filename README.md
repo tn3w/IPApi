@@ -14,22 +14,26 @@
 ## Installation and Usage
 
 ### Prerequisites
+
 - Python 3.6 or higher
 - Git
 
 ### Installation
+
 1. Clone the repository:
-   ```bash
-   git clone https://github.com/tn3w/ipapi.git
-   cd ipapi
-   ```
+
+    ```bash
+    git clone https://github.com/tn3w/ipapi.git
+    cd ipapi
+    ```
 
 2. Run the application:
-   ```bash
-   ./app.sh
-   ```
+    ```bash
+    ./app.sh
+    ```
 
 The script will automatically:
+
 - Create a Python virtual environment
 - Install all required dependencies
 - Start the API server
