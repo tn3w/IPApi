@@ -98,6 +98,8 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
     if "type" in fields:
         information["type"] = ip_address_type
 
+    information = {field: information.get(field) for field in fields}
+
     return information
 
 
