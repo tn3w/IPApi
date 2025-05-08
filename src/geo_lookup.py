@@ -668,7 +668,10 @@ def get_geocoder_data(coordinates: Tuple[float, float]) -> Dict[str, str]:
 
     result["region"] = result.get("state", "")
     for key in ["state", "population", "latitude", "longitude"]:
-        result.pop(key)
+        try:
+            result.pop(key)
+        except KeyError:
+            pass
 
     return result
 

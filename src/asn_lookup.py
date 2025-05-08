@@ -232,7 +232,7 @@ def parse_pwhois_response(response: str) -> Optional[Dict[str, Any]]:
         "net": net,
         "country": location_data.get("country"),
         "country_code": location_data.get("country_code"),
-        "state": location_data.get("state"),
+        "region": location_data.get("state"),
         "city": location_data.get("city"),
         "latitude": location_data.get("latitude"),
         "longitude": location_data.get("longitude"),

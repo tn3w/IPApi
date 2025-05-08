@@ -42,6 +42,7 @@ ALL_FIELDS: Final[List[str]] = [
     "latitude",
     "longitude",
     "timezone",
+    "offset",
     "currency",
     "accuracy_radius",
     "asn",
@@ -124,6 +125,8 @@ def parse_fields_param(fields_param: Optional[str] = None) -> List[str]:
         number = int(fields_param)
         return number_to_fields(number)
     except ValueError:
+        if fields_param.lower() == "all":
+            return ALL_FIELDS.copy()
         fields = [f.strip() for f in fields_param.split(",") if f.strip() in ALL_FIELDS]
         if not fields:
             return DEFAULT_FIELDS.copy()

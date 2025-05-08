@@ -98,7 +98,7 @@ ASN_LOOKUP_FIELDS = [
 ]
 
 
-GEOCODER_FIELDS = ["country", "country_code", "region", "county", "city"]
+GEOCODER_FIELDS = ["country", "region", "county", "city"]
 
 COUNTRY_STATES_CITIES_FIELDS = [
     "continent",
@@ -157,11 +157,14 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
         information["ip"] = ip_address
 
     if "ipv4" in fields:
-        ipv4_from_ipv6 = get_ipv4_from_ipv6(ip_address)
-        if ipv4_from_ipv6 and ipv4_from_ipv6 != ip_address:
-            information["ipv4"] = ipv4_from_ipv6
+        if ip_address_type == "ipv6":
+            ipv4_from_ipv6 = get_ipv4_from_ipv6(ip_address)
+            if ipv4_from_ipv6 and ipv4_from_ipv6 != ip_address:
+                information["ipv4"] = ipv4_from_ipv6
+            else:
+                information["ipv4"] = None
         else:
-            information["ipv4"] = None
+            information["ipv4"] = ip_address
 
     if "hostname" in fields:
         information["hostname"] = get_dns_info(ip_address)
@@ -179,13 +182,6 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
         if asn_info:
             information.update(asn_info)
 
-    if check_missing_information(information, ASN_LOOKUP_FIELDS, fields):
-        lookup_result = lookup_asn_from_ip(ip_address)
-        if lookup_result:
-            if not information.get("latitude") or not information.get("longitude"):
-                information["accuracy_radius"] = 1000
-            information.update(lookup_result)
-
     if (
         information.get("latitude")
         and information.get("longitude")
@@ -194,6 +190,13 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
         information.update(
             get_geocoder_data((information["latitude"], information["longitude"]))
         )
+
+    if check_missing_information(information, ASN_LOOKUP_FIELDS, fields):
+        lookup_result = lookup_asn_from_ip(ip_address)
+        if lookup_result:
+            if not information.get("latitude") or not information.get("longitude"):
+                information["accuracy_radius"] = 1000
+            information.update(lookup_result)
 
     def fill_in_region_and_postal_code(
         information: Dict[str, Any], fields: List[str]
