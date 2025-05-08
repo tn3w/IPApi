@@ -1688,12 +1688,12 @@
                             const linkElement = document.createElement('link');
                             linkElement.rel = 'stylesheet';
                             linkElement.href =
-                                'https://cdn.jsdelivr.net/npm/leaflet@latest/dist/leaflet.css';
+                                'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css';
                             document.head.appendChild(linkElement);
 
                             const scriptElement = document.createElement('script');
                             scriptElement.src =
-                                'https://cdn.jsdelivr.net/npm/leaflet@latest/dist/leaflet.js';
+                                'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';
                             document.head.appendChild(scriptElement);
 
                             scriptElement.onload = () => createMap(lat, lon, ipAddress);
