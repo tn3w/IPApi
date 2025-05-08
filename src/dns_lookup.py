@@ -1,3 +1,15 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+DNS lookup and IP address conversion utilities.
+
+This module provides functions for DNS operations including hostname resolution,
+reverse DNS lookups, and IPv6 to IPv4 address conversions. It implements caching
+for improved performance and handles various DNS record types for IP address
+format detection and conversion.
+"""
+
 import socket
 from functools import lru_cache
 from typing import Optional

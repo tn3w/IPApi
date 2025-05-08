@@ -1,21 +1,20 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 """
-A specialized module for retrieving and parsing ASN (Autonomous System Number) information.
+ASN (Autonomous System Number) lookup and processing module.
 
-This module provides a straightforward interface for querying pwhois.org, offering:
-- ASN lookup by IP address
-- Detailed organization and network information retrieval
-- Geographic location data extraction
-- Response parsing with error handling
-- Caching for performance optimization
-- MaxMind GeoLite2 database support for offline ASN lookups
+This module provides functionality to retrieve ASN information for IP addresses,
+including organization names, network ranges, and related data. It supports
+lookups through MaxMind databases and WHOIS queries with response parsing,
+using caching to improve performance.
 """
 
 import socket
 from functools import lru_cache
 from typing import Optional, Dict, Any, Tuple, cast
 import maxminddb
+import maxminddb.errors
 
 
 GEOLITE2_URL = "https://git.io/GeoLite2-ASN.mmdb"
@@ -280,6 +279,11 @@ def get_asn_from_maxmind(
                 "organization": get_nested(record, "autonomous_system_organization"),
             }
 
-    except Exception as e:
+    except (
+        maxminddb.errors.InvalidDatabaseError,
+        FileNotFoundError,
+        PermissionError,
+        ValueError,
+    ) as e:
         print(f"Error querying database: {e}")
         return {"ip": ip_address}

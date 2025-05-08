@@ -1,12 +1,25 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Geolocation data lookup and processing module.
+
+This module handles geolocation data retrieval and processing for IP addresses,
+providing country, region, city, timezone, and other geographic information.
+It supports multiple data sources including MaxMind GeoIP databases and
+supplementary data for enhanced location details like currencies and timezones.
+"""
+
 import json
 import os
+import csv
 import unicodedata
 from functools import lru_cache
 from typing import Dict, List, Optional, Any, cast, Iterator, Tuple, Union
 
 import maxminddb
+import maxminddb.errors
 import reverse_geocode  # type: ignore
-import csv
 
 
 RecordDict = Dict[str, Any]
@@ -676,7 +689,7 @@ def process_zip_codes_database(csv_file_path: str, json_file_path: str) -> None:
 
         print(f"Successfully processed ZIP codes data to {json_file_path}")
 
-    except Exception as e:
+    except (IOError, json.JSONDecodeError, csv.Error, OSError) as e:
         print(f"Error processing ZIP codes data: {e}")
 
 
@@ -814,6 +827,11 @@ def get_geo_from_maxmind(ip_address: str, database_path: str) -> Dict[str, Any]:
 
             return geo_info
 
-    except Exception as exc:
+    except (
+        maxminddb.errors.InvalidDatabaseError,
+        FileNotFoundError,
+        PermissionError,
+        ValueError,
+    ) as exc:
         print(f"Error looking up geo information: {exc}")
         return geo_info

@@ -1,12 +1,13 @@
-"""
-A standalone module for handling IP address operations, validation, and transformations.
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
-This module provides a robust interface for IP address operations, offering:
-- IPv4 and IPv6 address validation and manipulation
-- CIDR range checking
-- Routing and network checks
-- Address format conversions
-- Caching for performance optimization
+"""
+IP address handling and validation module.
+
+This module provides classes and utilities for working with IPv4 and IPv6 addresses,
+including validation, classification, range checking, and various IP address operations.
+It implements caching for performance and provides functionality to determine if an IP
+is routable, check if it belongs to specific network ranges, and convert between formats.
 """
 
 from functools import lru_cache

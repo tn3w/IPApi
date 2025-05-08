@@ -1,5 +1,12 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 """
-Pydantic models for API request and response schemas.
+Pydantic model schemas for API responses.
+
+This module defines the data structures and schemas used for API responses,
+including IP geolocation data, error responses, and field management endpoints.
+It provides models for standardized JSON responses with proper field typing and documentation.
 """
 
 from typing import Optional, List, Dict, Any

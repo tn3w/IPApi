@@ -1,3 +1,14 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Main FastAPI application for IPApi service.
+
+This module sets up the FastAPI server with routes to provide geolocation and ASN information
+for IP addresses. It includes endpoints for current client IP lookup, specific IP address lookup,
+field management, and serves a web interface.
+"""
+
 import uvicorn
 from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -25,7 +36,7 @@ from src.handlers import (
 templates = Jinja2Templates(directory="templates")
 
 app = FastAPI(
-    title="IP Geolocation API",
+    title="IPApi",
     description="API that returns GeoIP and ASN information for IP addresses",
     version="1.0.0",
 )

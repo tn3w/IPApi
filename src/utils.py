@@ -1,5 +1,16 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Utility functions for general application operations.
+
+This module provides helper functions for common operations used across
+the application, such as file downloading and error handling for network operations.
+"""
+
 import os
 import urllib.request
+import urllib.error
 
 
 def download_file(url: str, output_path: str, name: str) -> None:
@@ -21,5 +32,5 @@ def download_file(url: str, output_path: str, name: str) -> None:
         print(f"Downloading {name} from {url}...")
         urllib.request.urlretrieve(url, output_path)
         print(f"Successfully downloaded {name} to {output_path}")
-    except Exception as e:
+    except (urllib.error.URLError, urllib.error.HTTPError, OSError) as e:
         print(f"Error downloading {name}: {e}")

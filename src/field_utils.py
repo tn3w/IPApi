@@ -1,5 +1,13 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 """
-Utilities for handling field selection in API responses.
+Field management utilities for API responses.
+
+This module provides functionality for handling response field selection,
+including field definitions, conversion between field names and numeric representations,
+and parsing of field parameters from API requests. It supports selective field inclusion
+in responses through bitwise operations and query parameter parsing.
 """
 
 from typing import Final, List, Dict, Optional

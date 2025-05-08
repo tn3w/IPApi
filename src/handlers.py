@@ -1,3 +1,15 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Request handling and data processing module.
+
+This module provides the core business logic for processing IP information requests,
+extracting client IP addresses from requests, gathering IP geolocation and ASN data,
+and downloading/initializing required datasets. It coordinates data lookup from
+various sources and handles dataset management.
+"""
+
 import os
 from typing import Optional, Dict, Any, List
 
