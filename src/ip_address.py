@@ -9,7 +9,6 @@ This module provides a robust interface for IP address operations, offering:
 - Caching for performance optimization
 """
 
-import socket
 from functools import lru_cache
 from typing import Union, Optional
 
@@ -336,51 +335,6 @@ def reverse_ip(ip_address: str) -> str:
 
     symbol = ":" if ":" in ip_address else "."
     return symbol.join(reversed(ip_address.split(symbol)))
-
-
-@lru_cache(maxsize=1000)
-def get_ipv4_from_ipv6(ipv6_address: str) -> Optional[str]:
-    """Extract IPv4 address from a given IPv6 address.
-
-    Args:
-        ipv6_address: The IPv6 address string to convert
-
-    Returns:
-        Optional[str]: IPv4 address if conversion successful, None otherwise
-    """
-    try:
-        ip = netaddr.IPAddress(ipv6_address)
-        if ip.version != 6:
-            return None
-
-        if ip.is_ipv4_mapped():
-            ipv4_int = int(ip) & 0xFFFFFFFF
-            return str(netaddr.IPAddress(ipv4_int, version=4))
-
-        if ipv6_address.lower().startswith("2002:"):
-            parts = ipv6_address.split(":")
-            if len(parts) >= 3:
-                hex_ip = parts[1] + parts[2]
-                if len(hex_ip) == 8:
-                    try:
-                        ipv4_int = int(hex_ip, 16)
-                        return str(netaddr.IPAddress(ipv4_int, version=4))
-                    except (ValueError, netaddr.AddrFormatError):
-                        pass
-
-    except (netaddr.AddrFormatError, ValueError):
-        pass
-
-    try:
-        socket.setdefaulttimeout(3)
-        hostname = socket.gethostbyaddr(ipv6_address)[0]
-        ipv4_addrs = socket.getaddrinfo(hostname, None, socket.AF_INET)
-        if ipv4_addrs:
-            return str(ipv4_addrs[0][4][0])
-    except (socket.gaierror, socket.timeout, socket.herror, OSError):
-        pass
-
-    return None
 
 
 @lru_cache(maxsize=1000)
