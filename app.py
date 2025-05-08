@@ -87,7 +87,6 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
 
     if "ipv4" in fields:
         ipv4_from_ipv6 = get_ipv4_from_ipv6(ip_address)
-        print(ipv4_from_ipv6)
         if ipv4_from_ipv6 and ipv4_from_ipv6 != ip_address:
             information["ipv4"] = ipv4_from_ipv6
         else:
