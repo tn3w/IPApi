@@ -1,36 +1,35 @@
-# IPApi
+<p align="center">
+	<a href="https://github.com/tn3w/ipapi">
+		<picture>
+			<source width="60%" media="(prefers-color-scheme: dark)" srcset="https://github.com/tn3w/ipapi/releases/download/img/ipapi-dark.webp">
+			<source width="60%" media="(prefers-color-scheme: light)" srcset="https://github.com/tn3w/ipapi/releases/download/img/ipapi-dark.leight">
+			<img width="60%" alt="HighlightIt Logo" src="https://github.com/tn3w/ipapi/releases/download/img/ipapi-dark.webp">
+		</picture>
+	</a>
+</p>
 
-A fast, efficient, and free Rust-powered API for retrieving IP address information.
+<h1 align="center">IPApi</h1>
+<p align="center">A fast, efficient, and free Python-powered API for retrieving IP address information. </p>
 
-## Example Usage
+## Installation and Usage
 
-```bash
-curl http://localhost:5000/8.8.8.8 | jq
-```
+### Prerequisites
+- Python 3.6 or higher
+- Git
 
-Output:
+### Installation
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/tn3w/ipapi.git
+   cd ipapi
+   ```
 
-```json
-{
-    "ip": "8.8.8.8",
-    "continent": "North America",
-    "continent_code": "NA",
-    "country": "United States",
-    "country_code": "US",
-    "state": "Kansas",
-    "state_code": "KS",
-    "city": "Cheney",
-    "district": "Sedgwick County",
-    "zip": 67025,
-    "lat": 37.751,
-    "lon": -97.822,
-    "timezone": "America/Chicago",
-    "currency": "USD",
-    "isp": "GOOGLE",
-    "org": "GOOGLE",
-    "as": "GOOGLE",
-    "as_code": 15169,
-    "reverse": "dns.google",
-    "tor": false
-}
-```
+2. Run the application:
+   ```bash
+   ./app.sh
+   ```
+
+The script will automatically:
+- Create a Python virtual environment
+- Install all required dependencies
+- Start the API server
