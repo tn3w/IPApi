@@ -22,9 +22,18 @@ from src.field_utils import (
 from src.geo_utils import (
     process_country_states_cities_database,
     process_zip_codes_database,
+    get_currency_from_country,
+    is_country_in_european_union,
+    get_geocoder_data,
+    get_us_state_name_and_code,
+    get_country_states_cities_data,
+    get_continent_code_from_name,
+    find_zip_code,
 )
+from src.asn_lookup import lookup_asn_from_ip, get_asn_from_maxmind
 from src.utils import download_file
 from src.dns_lookup import get_dns_info, get_ipv4_from_ipv6
+from src.geo_lookup import get_geo_from_maxmind
 
 DATASETS_DIR = "assets"
 DATASETS = {
@@ -78,6 +87,81 @@ def get_ip_address(request: Request) -> Optional[str]:
     return client_ip
 
 
+GEO_FIELDS = [
+    "continent",
+    "continent_code",
+    "country",
+    "country_code",
+    "region",
+    "region_code",
+    "city",
+    "postal_code",
+    "latitude",
+    "longitude",
+    "timezone",
+    "accuracy_radius",
+]
+
+ASN_FIELDS = [
+    "asn",
+    "organization",
+]
+
+ASN_LOOKUP_FIELDS = [
+    "asn",
+    "asn_name",
+    "organization",
+    "net",
+    "country",
+    "country_code",
+    "state",
+    "city",
+    "latitude",
+    "longitude",
+]
+
+
+GEOCODER_FIELDS = ["country", "country_code", "region", "county", "city"]
+
+COUNTRY_STATES_CITIES_FIELDS = [
+    "continent",
+    "country",
+    "timezone",
+    "offset",
+    "region",
+    "region_code",
+    "city",
+    "county",
+]
+
+
+def check_missing_information(
+    information: Dict[str, Any], list1: List[str], list2: List[str]
+) -> bool:
+    """
+    Check if any keys from list1 that are also in list2 have
+    missing or None values in the information dict.
+
+    Args:
+        information: Dictionary with information data
+        list1: First list of keys to check
+        list2: Second list of keys to check against
+
+    Returns:
+        True if any common key is missing or None in the information
+        dict, False otherwise
+    """
+
+    common_keys = set(list1) & set(list2)
+
+    if not common_keys:
+        return False
+
+    return any(
+        key not in information or information[key] is None for key in common_keys
+    )
+
+
 def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
     information: Dict[str, Any] = {}
     ip_address_type = get_ip_address_type(ip_address)
@@ -97,6 +181,87 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
 
     if "type" in fields:
         information["type"] = ip_address_type
+
+    if check_missing_information(information, GEO_FIELDS, fields):
+        maxmind_path = os.path.join(DATASETS_DIR, DATASETS["GeoLite2-City"][1])
+        information.update(get_geo_from_maxmind(ip_address, maxmind_path))
+
+    if check_missing_information(information, ASN_FIELDS, fields):
+        maxmind_path = os.path.join(DATASETS_DIR, DATASETS["GeoLite2-ASN"][1])
+        asn_info = get_asn_from_maxmind(ip_address, maxmind_path)
+        if asn_info:
+            information.update(asn_info)
+
+    if check_missing_information(information, ASN_LOOKUP_FIELDS, fields):
+        lookup_result = lookup_asn_from_ip(ip_address)
+        if lookup_result:
+            if not information.get("latitude") or not information.get("longitude"):
+                information["accuracy_radius"] = 1000
+            information.update(lookup_result)
+
+    if (
+        information.get("latitude")
+        and information.get("longitude")
+        and check_missing_information(information, GEOCODER_FIELDS, fields)
+    ):
+        information.update(
+            get_geocoder_data((information["latitude"], information["longitude"]))
+        )
+
+    def fill_in_region_and_postal_code(
+        information: Dict[str, Any], fields: List[str]
+    ) -> None:
+        if check_missing_information(information, ["region", "region_code"], fields):
+            information["region"], information["region_code"] = (
+                get_us_state_name_and_code(
+                    information.get("region"), information.get("region_code")
+                )
+            )
+        if check_missing_information(information, ["postal_code"], fields):
+            zip_codes_path = os.path.join(
+                DATASETS_DIR, DATASETS["Zip-Codes"][1].replace(".csv", ".json")
+            )
+            information["postal_code"] = find_zip_code(
+                information.get("city"), information.get("region_code"), zip_codes_path
+            )
+
+    if information.get("country_code"):
+        if "currency" in fields:
+            information["currency"] = get_currency_from_country(
+                information["country_code"]
+            )
+        if "is_in_european_union" in fields:
+            information["is_in_european_union"] = is_country_in_european_union(
+                information["country_code"]
+            )
+        if information.get("country_code") == "US":
+            fill_in_region_and_postal_code(information, fields)
+        if check_missing_information(information, COUNTRY_STATES_CITIES_FIELDS, fields):
+            country_states_cities_path = os.path.join(
+                DATASETS_DIR, DATASETS["Country-States-Cities"][1]
+            )
+            information.update(
+                get_country_states_cities_data(
+                    information["country_code"],
+                    country_states_cities_path,
+                    information.get("city"),
+                    information.get("region"),
+                    information.get("region_code"),
+                )
+            )
+    else:
+        fill_in_region_and_postal_code(information, fields)
+
+    if information.get("continent") and check_missing_information(
+        information, ["continent_code"], fields
+    ):
+        information["continent_code"] = get_continent_code_from_name(
+            information["continent"]
+        )
+
+    if information.get("postal_code"):
+        if isinstance(information["postal_code"], str) and information["postal_code"].isdigit():
+            information["postal_code"] = int(information["postal_code"])
 
     information = {field: information.get(field) for field in fields}
 

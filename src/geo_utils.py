@@ -1,6 +1,7 @@
 import json
 import os
 import unicodedata
+from functools import lru_cache
 from typing import Dict, List, Optional, Any, cast, Iterator, Tuple
 
 import csv
@@ -402,7 +403,6 @@ def get_us_state_name_and_code(
     return None, None
 
 
-# Country-States-Cities database
 def process_country_states_cities_database(file_path: str) -> None:
     """
     Process the country-states-cities database from a JSON file.
@@ -476,94 +476,81 @@ def process_country_states_cities_database(file_path: str) -> None:
         json.dump(result, file, ensure_ascii=False)
 
 
-def enhance_with_country_data(
-    data_dict: Dict[str, Any], country_data_path: str
+@lru_cache(maxsize=1000)
+def get_country_states_cities_data(
+    country_code: Optional[str],
+    country_data_path: str,
+    city: Optional[str] = None,
+    region: Optional[str] = None,
+    region_code: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
-    Enhance the provided dictionary with country, region, and timezone data based on country code.
+    Get additional country, region, and timezone data based on country code.
 
     Args:
-        data_dict: Dictionary containing at least a country_code key
+        country_code: ISO country code
         country_data_path: Path to the processed country-states-cities JSON file
+        city: City name (optional)
+        region: Region name (optional)
+        region_code: Region code (optional)
 
     Returns:
-        Enhanced dictionary with additional geographic information
+        Dictionary with geographic information
     """
-    if not data_dict.get("country_code"):
-        return data_dict
+    country_info: Dict[str, Any] = {}
 
-    result = data_dict.copy()
+    if not country_code:
+        return country_info
 
     try:
         with open(country_data_path, "r", encoding="utf-8") as file:
             countries_data = json.load(file)
     except (IOError, json.JSONDecodeError) as e:
         print(f"Error loading country database: {e}")
-        return result
+        return country_info
 
-    country_code = result.get("country_code", "")
-    country_info = countries_data.get(country_code)
+    country_data = countries_data.get(country_code)
 
-    if not country_info:
-        return result
+    if not country_data:
+        return country_info
 
-    if not result.get("country"):
-        result["country"] = country_info.get("name", "")
+    country_info["country"] = country_data.get("name", "")
+    country_info["country_code"] = country_code
+    country_info["continent"] = country_data.get("region", "")
 
-    if not result.get("continent"):
-        result["continent"] = country_info.get("region", "")
-
-    timezone_info = country_info.get("timezone", {})
+    timezone_info = country_data.get("timezone", {})
     if timezone_info:
-        if not result.get("timezone"):
-            result["timezone"] = timezone_info.get("name", "")
-        if not result.get("offset"):
-            result["offset"] = timezone_info.get("offset", 0)
+        country_info["timezone"] = timezone_info.get("name", "")
+        country_info["offset"] = timezone_info.get("offset", 0)
 
-    states = country_info.get("states", [])
+    states = country_data.get("states", [])
 
-    if (
-        result.get("city")
-        and not result.get("region")
-        and not result.get("region_code")
-    ):
-        city_name = result.get("city", "")
+    if city and not region and not region_code:
         for state in states:
-            if state.get("name") == city_name:
-                result["region"] = state.get("name", "")
-                result["region_code"] = state.get("state_code", "")
+            if state.get("name") == city:
+                country_info["region"] = state.get("name", "")
+                country_info["region_code"] = state.get("state_code", "")
                 break
 
             cities = state.get("cities", [])
-            if any(city.lower() == city_name.lower() for city in cities):
-                result["region"] = state.get("name", "")
-                result["region_code"] = state.get("state_code", "")
+            if any(c.lower() == city.lower() for c in cities):
+                country_info["region"] = state.get("name", "")
+                country_info["region_code"] = state.get("state_code", "")
                 break
 
-    elif result.get("region_code") and not result.get("region"):
-        region_code = result.get("region_code", "")
+    elif region_code and not region:
         for state in states:
             if state.get("state_code") == region_code:
-                result["region"] = state.get("name", "")
+                country_info["region"] = state.get("name", "")
                 break
 
-    elif (
-        result.get("region")
-        and not result.get("region_code")
-        and not result.get("city")
-    ):
-        region_name = result.get("region", "")
+    elif region and not region_code and not city:
         for state in states:
-            if state.get("name") == region_name:
-                result["region_code"] = state.get("state_code", "")
+            if state.get("name") == region:
+                country_info["region_code"] = state.get("state_code", "")
                 break
 
-    if result.get("country_code") == "US":
-        result["region"], result["region_code"] = get_us_state_name_and_code(
-            result.get("region"), result.get("region_code")
-        )
-
-    return result
+    return country_info
 
 
 def process_zip_codes_database(csv_file_path: str, json_file_path: str) -> None:
@@ -614,6 +601,7 @@ def process_zip_codes_database(csv_file_path: str, json_file_path: str) -> None:
         print(f"Error processing ZIP codes data: {e}")
 
 
+@lru_cache(maxsize=1000)
 def find_zip_code(
     city: str, state_code: str, zip_codes_data_path: str
 ) -> Optional[str]:
@@ -663,7 +651,7 @@ def find_zip_code(
     return None
 
 
-# Geocoder
+@lru_cache(maxsize=1000)
 def get_geocoder_data(coordinates: Tuple[float, float]) -> Dict[str, str]:
     """
     Get geocoder data for a given set of coordinates.
@@ -672,8 +660,7 @@ def get_geocoder_data(coordinates: Tuple[float, float]) -> Dict[str, str]:
     result = cast(Dict[str, str], result)
 
     result["region"] = result.get("state", "")
-    result["district"] = result.get("county", "")
-    for key in ["state", "population", "county", "latitude", "longitude"]:
+    for key in ["state", "population", "latitude", "longitude"]:
         result.pop(key)
 
     return result

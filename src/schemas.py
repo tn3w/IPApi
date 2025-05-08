@@ -26,6 +26,9 @@ class IPAPIResponse(BaseModel):
     type: Optional[str] = Field(None, description="IP address type")
     continent: Optional[str] = Field(None, description="Continent name")
     continent_code: Optional[str] = Field(None, description="Continent code")
+    is_in_european_union: Optional[bool] = Field(
+        None, description="If the country is in the European Union"
+    )
     country: Optional[str] = Field(None, description="Country name")
     country_code: Optional[str] = Field(
         None, description="Country code (ISO 3166-1 alpha-2)"
@@ -33,7 +36,8 @@ class IPAPIResponse(BaseModel):
     region: Optional[str] = Field(None, description="Region/state name")
     region_code: Optional[str] = Field(None, description="Region/state code")
     city: Optional[str] = Field(None, description="City name")
-    postal_code: Optional[str] = Field(None, description="Postal/ZIP code")
+    county: Optional[str] = Field(None, description="County name")
+    postal_code: Optional[int] = Field(None, description="Postal/ZIP code")
     latitude: Optional[float] = Field(None, description="Latitude coordinate")
     longitude: Optional[float] = Field(None, description="Longitude coordinate")
     timezone: Optional[str] = Field(None, description="Timezone")
@@ -51,23 +55,24 @@ class IPAPIResponse(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
-                "ip": "8.8.8.8",
-                "hostname": "dns.google",
+                "ip": "1.1.1.1",
+                "hostname": "one.one.one.one",
                 "type": "ipv4",
                 "continent": "North America",
                 "continent_code": "NA",
                 "country": "United States",
                 "country_code": "US",
-                "region": "Kansas",
-                "region_code": "KS",
-                "city": "Cheney",
-                "latitude": 37.751,
-                "longitude": -97.822,
-                "timezone": "America/Chicago",
+                "region": "California",
+                "region_code": "CA",
+                "city": "Los Angeles",
+                "postal_code": 90001,
+                "latitude": 34.052571,
+                "longitude": -118.243907,
+                "timezone": "America/Adak",
                 "currency": "USD",
-                "asn": 15169,
-                "asn_name": "GOOGLE",
-                "organization": "GOOGLE",
+                "accuracy_radius": 1000,
+                "asn": 13335,
+                "organization": "Cloudflare, Inc."
             }
         }
 

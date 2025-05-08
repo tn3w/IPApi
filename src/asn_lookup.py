@@ -276,10 +276,8 @@ def get_asn_from_maxmind(
                 return current
 
             return {
-                "ip": ip_address,
                 "asn": get_nested(record, "autonomous_system_number"),
                 "organization": get_nested(record, "autonomous_system_organization"),
-                "asn_name": get_nested(record, "autonomous_system_organization"),
             }
 
     except Exception as e:
