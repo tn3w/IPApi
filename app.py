@@ -3,7 +3,7 @@ from typing import Optional, Dict, Any, List
 
 import uvicorn
 from fastapi import FastAPI, Request, HTTPException, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from src.ip_address import is_valid_and_routable_ip, get_ip_address_type
 from src.schemas import (
@@ -12,12 +12,11 @@ from src.schemas import (
     FieldsListResponse,
     FieldToNumberResponse,
     NumberToFieldsResponse,
-    IPAddressResponse,
 )
 from src.field_utils import (
     parse_fields_param,
     fields_to_number,
-    FIELDS,
+    ALL_FIELDS,
     number_to_fields,
 )
 from src.geo_utils import (
@@ -25,7 +24,7 @@ from src.geo_utils import (
     process_zip_codes_database,
 )
 from src.utils import download_file
-from src.dns_lookup import get_dns_info
+from src.dns_lookup import get_dns_info, get_ipv4_from_ipv6
 
 DATASETS_DIR = "assets"
 DATASETS = {
@@ -81,15 +80,24 @@ def get_ip_address(request: Request) -> Optional[str]:
 
 def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
     information: Dict[str, Any] = {}
+    ip_address_type = get_ip_address_type(ip_address)
 
     if "ip" in fields:
         information["ip"] = ip_address
+
+    if "ipv4" in fields:
+        ipv4_from_ipv6 = get_ipv4_from_ipv6(ip_address)
+        print(ipv4_from_ipv6)
+        if ipv4_from_ipv6 and ipv4_from_ipv6 != ip_address:
+            information["ipv4"] = ipv4_from_ipv6
+        else:
+            information["ipv4"] = None
 
     if "hostname" in fields:
         information["hostname"] = get_dns_info(ip_address)
 
     if "type" in fields:
-        information["type"] = get_ip_address_type(ip_address)
+        information["type"] = ip_address_type
 
     return information
 
@@ -132,27 +140,7 @@ def self(request: Request):
     fields_param = request.query_params.get("fields", "")
     fields = parse_fields_param(fields_param)
 
-    return get_ip_information(ip_address, fields)
-
-
-@app.get(
-    "/onlyip",
-    response_model=IPAddressResponse,
-    summary="Get current IP address",
-    description="Returns the current IP address",
-    tags=["IP"],
-)
-def onlyip(request: Request):
-    """
-    Return the current IP address.
-    """
-    ip_address = get_ip_address(request)
-    if not ip_address:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid IP address",
-        )
-    return {"ip": ip_address}
+    return JSONResponse(content=get_ip_information(ip_address, fields))
 
 
 @app.get(
@@ -181,7 +169,7 @@ def ip(ip_address: str, request: Request):
     fields_param = request.query_params.get("fields", "")
     fields = parse_fields_param(fields_param)
 
-    return get_ip_information(ip_address, fields)
+    return JSONResponse(content=get_ip_information(ip_address, fields))
 
 
 @app.get(
@@ -195,7 +183,7 @@ async def available_fields():
     """
     Return a list of all available fields.
     """
-    return {"fields": FIELDS}
+    return {"fields": ALL_FIELDS}
 
 
 @app.get(
@@ -209,7 +197,7 @@ async def field_number(field_name: str):
     """
     Return the number representing a field or comma-separated field list.
     """
-    fields = [f.strip() for f in field_name.split(",") if f.strip() in FIELDS]
+    fields = [f.strip() for f in field_name.split(",") if f.strip() in ALL_FIELDS]
 
     number = fields_to_number(fields)
 

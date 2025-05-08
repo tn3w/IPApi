@@ -33,9 +33,31 @@ EXTENDED_ASN_FIELDS: List[str] = [
     "net",
 ]
 
-# List of all possible response fields
-FIELDS: List[str] = [
+# Default fields to return
+DEFAULT_FIELDS: List[str] = [
     "ip",
+    "type",
+    "continent",
+    "continent_code",
+    "country",
+    "country_code",
+    "region",
+    "region_code",
+    "city",
+    "postal_code",
+    "latitude",
+    "longitude",
+    "timezone",
+    "currency",
+    "accuracy_radius",
+    "asn",
+    "organization",
+]
+
+# List of all possible response fields
+ALL_FIELDS: List[str] = [
+    "ip",
+    "ipv4",
     "hostname",
     "type",
     "continent",
@@ -59,10 +81,10 @@ FIELDS: List[str] = [
 
 # Each field is assigned a power of 2 (a bit position)
 # This allows any combination of fields to be represented by a unique number
-FIELD_BITS = {field: 1 << i for i, field in enumerate(FIELDS)}
+FIELD_BITS = {field: 1 << i for i, field in enumerate(ALL_FIELDS)}
 
 # All fields mask - has all bits set for all fields
-ALL_FIELDS_MASK = (1 << len(FIELDS)) - 1
+ALL_FIELDS_MASK = (1 << len(ALL_FIELDS)) - 1
 
 
 def fields_to_number(fields: List[str]) -> int:
@@ -110,7 +132,7 @@ def number_to_fields(number: int) -> List[str]:
 
     # If number represents ALL_FIELDS_MASK or is larger, return all fields
     if number >= ALL_FIELDS_MASK:
-        return FIELDS.copy()
+        return ALL_FIELDS.copy()
 
     # Check each bit position and include corresponding field if set
     result: List[str] = []
@@ -133,7 +155,7 @@ def parse_fields_param(fields_param: Optional[str] = None) -> List[str]:
     """
     # Default: all fields
     if not fields_param:
-        return FIELDS.copy()
+        return DEFAULT_FIELDS.copy()
 
     # Try parsing as number first
     try:
@@ -141,7 +163,7 @@ def parse_fields_param(fields_param: Optional[str] = None) -> List[str]:
         return number_to_fields(number)
     except ValueError:
         # Parse as comma-separated list
-        fields = [f.strip() for f in fields_param.split(",") if f.strip() in FIELDS]
+        fields = [f.strip() for f in fields_param.split(",") if f.strip() in ALL_FIELDS]
         if not fields:
-            return FIELDS.copy()
+            return DEFAULT_FIELDS.copy()
         return fields

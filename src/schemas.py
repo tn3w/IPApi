@@ -5,7 +5,7 @@ Pydantic models for API request and response schemas.
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 
-from src.field_utils import FIELDS
+from src.field_utils import ALL_FIELDS
 
 
 class ErrorResponse(BaseModel):
@@ -19,6 +19,9 @@ class IPAPIResponse(BaseModel):
 
     # Geographic information
     ip: Optional[str] = Field(None, description="IP address")
+    ipv4: Optional[str] = Field(
+        None, description="IPv4 address from DNS lookup for IPv6 input"
+    )
     hostname: Optional[str] = Field(None, description="Hostname")
     type: Optional[str] = Field(None, description="IP address type")
     continent: Optional[str] = Field(None, description="Continent name")
@@ -78,7 +81,7 @@ class FieldsListResponse(BaseModel):
     fields: List[str] = Field(..., description="List of all available fields")
 
     class Config:
-        json_schema_extra = {"example": {"fields": FIELDS}}
+        json_schema_extra = {"example": {"fields": ALL_FIELDS}}
 
 
 class FieldToNumberResponse(BaseModel):
@@ -108,10 +111,10 @@ class NumberToFieldsResponse(BaseModel):
         def json_schema_extra(schema: Dict[str, Any], model: type) -> None:
             """Dynamically calculate the example values based on current FIELDS."""
             # Calculate all fields bitmask dynamically: 2^len(FIELDS) - 1
-            all_fields_mask = (1 << len(FIELDS)) - 1
+            all_fields_mask = (1 << len(ALL_FIELDS)) - 1
 
             # Generate a comma-separated string of all fields
-            all_fields_str = ",".join(FIELDS)
+            all_fields_str = ",".join(ALL_FIELDS)
 
             # Set the example
             if "example" not in schema:
@@ -119,15 +122,6 @@ class NumberToFieldsResponse(BaseModel):
 
             schema["example"] = {
                 "number": all_fields_mask,
-                "fields": FIELDS,
+                "fields": ALL_FIELDS,
                 "fields_str": all_fields_str,
             }
-
-
-class IPAddressResponse(BaseModel):
-    """Response model for the /onlyip endpoint."""
-
-    ip: str = Field(..., description="IP address")
-
-    class Config:
-        json_schema_extra = {"example": {"ip": "8.8.8.8"}}

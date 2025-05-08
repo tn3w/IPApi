@@ -611,15 +611,28 @@
 
                 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateCodeTheme);
 
-                searchInput.addEventListener('input', function() {
-                    if (this.value.trim() !== '') {
+                function updateSearchButtonVisibility() {
+                    if (searchInput.value.trim() !== '') {
                         searchButton.classList.add('visible');
                         searchButton.classList.remove('hidden');
                     } else {
                         searchButton.classList.remove('visible');
                         searchButton.classList.add('hidden');
                     }
+                }
+
+                updateSearchButtonVisibility();
+
+                searchInput.addEventListener('input', updateSearchButtonVisibility);
+                searchInput.addEventListener('change', updateSearchButtonVisibility);
+                searchInput.addEventListener('autocomplete', updateSearchButtonVisibility);
+                searchInput.addEventListener('animationstart', function(e) {
+                    if (e.animationName.indexOf('autofill') !== -1) {
+                        updateSearchButtonVisibility();
+                    }
                 });
+                
+                setTimeout(updateSearchButtonVisibility, 100);
 
                 searchButton.addEventListener('click', function() {
                     const query = searchInput.value.trim();
@@ -650,7 +663,7 @@
                     myIpButton.disabled = true;
                     
                     try {
-                        const response = await fetch(`{{ api_url }}/onlyip`);
+                        const response = await fetch(`{{ api_url }}/self?fields=ip`);
                         const data = await response.json();
                         
                         if (data.ip) {
