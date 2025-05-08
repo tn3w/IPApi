@@ -72,7 +72,7 @@ class IPAPIResponse(BaseModel):
                 "currency": "USD",
                 "accuracy_radius": 1000,
                 "asn": 13335,
-                "organization": "Cloudflare, Inc."
+                "organization": "Cloudflare, Inc.",
             }
         }
 
