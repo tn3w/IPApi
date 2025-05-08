@@ -4,6 +4,7 @@ import unicodedata
 from typing import Dict, List, Optional, Any, cast, Iterator, Tuple
 
 import csv
+import reverse_geocode  # type: ignore
 
 COUNTRY_TO_CURRENCY_MAP: Dict[str, str] = {
     "AF": "AFN",
@@ -660,3 +661,19 @@ def find_zip_code(
             return zip_code
 
     return None
+
+
+# Geocoder
+def get_geocoder_data(coordinates: Tuple[float, float]) -> Dict[str, str]:
+    """
+    Get geocoder data for a given set of coordinates.
+    """
+    result: Dict[str, str] = reverse_geocode.search([coordinates])[0]  # type: ignore
+    result = cast(Dict[str, str], result)
+
+    result["region"] = result.get("state", "")
+    result["district"] = result.get("county", "")
+    for key in ["state", "population", "county", "latitude", "longitude"]:
+        result.pop(key)
+
+    return result
