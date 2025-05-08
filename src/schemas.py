@@ -44,7 +44,7 @@ class IPAPIResponse(BaseModel):
     region_code: Optional[str] = Field(None, description="Region/state code")
     city: Optional[str] = Field(None, description="City name")
     county: Optional[str] = Field(None, description="County name")
-    postal_code: Optional[int] = Field(None, description="Postal/ZIP code")
+    postal_code: Optional[str] = Field(None, description="Postal/ZIP code")
     latitude: Optional[float] = Field(None, description="Latitude coordinate")
     longitude: Optional[float] = Field(None, description="Longitude coordinate")
     timezone: Optional[str] = Field(None, description="Timezone")
@@ -60,6 +60,7 @@ class IPAPIResponse(BaseModel):
     net: Optional[str] = Field(None, description="Network range")
 
     class Config:
+        """Config for the IPAPIResponse model."""
         json_schema_extra = {
             "example": {
                 "ip": "1.1.1.1",
@@ -72,7 +73,7 @@ class IPAPIResponse(BaseModel):
                 "region": "California",
                 "region_code": "CA",
                 "city": "Los Angeles",
-                "postal_code": 90001,
+                "postal_code": "90001",
                 "latitude": 34.052571,
                 "longitude": -118.243907,
                 "timezone": "America/Adak",
@@ -84,15 +85,13 @@ class IPAPIResponse(BaseModel):
         }
 
 
-# Models for Fields-tagged endpoints
-
-
 class FieldsListResponse(BaseModel):
     """Response model for the field list endpoint."""
 
     fields: List[str] = Field(..., description="List of all available fields")
 
     class Config:
+        """Config for the FieldsListResponse model."""
         json_schema_extra = {"example": {"fields": ALL_FIELDS}}
 
 
@@ -103,10 +102,11 @@ class FieldToNumberResponse(BaseModel):
     number: int = Field(..., description="Numeric representation of the fields")
 
     class Config:
+        """Config for the FieldToNumberResponse model."""
         json_schema_extra = {
             "example": {
                 "fields": ["ip", "country", "city"],
-                "number": 293,  # Example number that represents these fields
+                "number": 293,
             }
         }
 
@@ -119,16 +119,14 @@ class NumberToFieldsResponse(BaseModel):
     fields_str: str = Field(..., description="Comma-separated list of field names")
 
     class Config:
+        """Config for the NumberToFieldsResponse model."""
         @staticmethod
-        def json_schema_extra(schema: Dict[str, Any], model: type) -> None:
+        def json_schema_extra(schema: Dict[str, Any], _model: type) -> None:
             """Dynamically calculate the example values based on current FIELDS."""
-            # Calculate all fields bitmask dynamically: 2^len(FIELDS) - 1
             all_fields_mask = (1 << len(ALL_FIELDS)) - 1
 
-            # Generate a comma-separated string of all fields
             all_fields_str = ",".join(ALL_FIELDS)
 
-            # Set the example
             if "example" not in schema:
                 schema["example"] = {}
 

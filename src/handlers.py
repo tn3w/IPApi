@@ -283,13 +283,6 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
             information["continent"]
         )
 
-    if information.get("postal_code"):
-        if (
-            isinstance(information["postal_code"], str)
-            and information["postal_code"].isdigit()
-        ):
-            information["postal_code"] = int(information["postal_code"])
-
     information = {field: information.get(field) for field in fields}
 
     return information
