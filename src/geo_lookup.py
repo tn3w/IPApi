@@ -354,6 +354,59 @@ UNITED_STATES_STATES_TO_CODES: Dict[str, str] = {
     "Wyoming": "WY",
 }
 
+UNITED_STATES_STATES_TO_TIMEZONE_AND_OFFSET = {
+    "AL": ("America/Chicago", -21600),  # Alabama
+    "AK": ("America/Anchorage", -32400),  # Alaska
+    "AZ": ("America/Phoenix", -25200),  # Arizona
+    "AR": ("America/Chicago", -21600),  # Arkansas
+    "CA": ("America/Los_Angeles", -28800),  # California
+    "CO": ("America/Denver", -25200),  # Colorado
+    "CT": ("America/New_York", -18000),  # Connecticut
+    "DE": ("America/New_York", -18000),  # Delaware
+    "FL": ("America/New_York", -18000),  # Florida
+    "GA": ("America/New_York", -18000),  # Georgia
+    "HI": ("Pacific/Honolulu", -36000),  # Hawaii
+    "ID": ("America/Denver", -25200),  # Idaho
+    "IL": ("America/Chicago", -21600),  # Illinois
+    "IN": ("America/New_York", -18000),  # Indiana
+    "IA": ("America/Chicago", -21600),  # Iowa
+    "KS": ("America/Chicago", -21600),  # Kansas
+    "KY": ("America/New_York", -18000),  # Kentucky
+    "LA": ("America/Chicago", -21600),  # Louisiana
+    "ME": ("America/New_York", -18000),  # Maine
+    "MD": ("America/New_York", -18000),  # Maryland
+    "MA": ("America/New_York", -18000),  # Massachusetts
+    "MI": ("America/New_York", -18000),  # Michigan
+    "MN": ("America/Chicago", -21600),  # Minnesota
+    "MS": ("America/Chicago", -21600),  # Mississippi
+    "MO": ("America/Chicago", -21600),  # Missouri
+    "MT": ("America/Denver", -25200),  # Montana
+    "NE": ("America/Chicago", -21600),  # Nebraska
+    "NV": ("America/Los_Angeles", -28800),  # Nevada
+    "NH": ("America/New_York", -18000),  # New Hampshire
+    "NJ": ("America/New_York", -18000),  # New Jersey
+    "NM": ("America/Denver", -25200),  # New Mexico
+    "NY": ("America/New_York", -18000),  # New York
+    "NC": ("America/New_York", -18000),  # North Carolina
+    "ND": ("America/Chicago", -21600),  # North Dakota
+    "OH": ("America/New_York", -18000),  # Ohio
+    "OK": ("America/Chicago", -21600),  # Oklahoma
+    "OR": ("America/Los_Angeles", -28800),  # Oregon
+    "PA": ("America/New_York", -18000),  # Pennsylvania
+    "RI": ("America/New_York", -18000),  # Rhode Island
+    "SC": ("America/New_York", -18000),  # South Carolina
+    "SD": ("America/Chicago", -21600),  # South Dakota
+    "TN": ("America/Chicago", -21600),  # Tennessee
+    "TX": ("America/Chicago", -21600),  # Texas
+    "UT": ("America/Denver", -25200),  # Utah
+    "VT": ("America/New_York", -18000),  # Vermont
+    "VA": ("America/New_York", -18000),  # Virginia
+    "WA": ("America/Los_Angeles", -28800),  # Washington
+    "WV": ("America/New_York", -18000),  # West Virginia
+    "WI": ("America/Chicago", -21600),  # Wisconsin
+    "WY": ("America/Denver", -25200),  # Wyoming
+}
+
 
 def get_currency_from_country(country_code: str) -> Optional[str]:
     """Get the currency from the country code."""
@@ -408,6 +461,25 @@ def get_us_state_name_and_code(
         return None, None
 
     return None, None
+
+
+def get_timezone_and_offset_from_us_state_code(
+    state_code: Optional[str],
+) -> Tuple[Optional[str], Optional[int]]:
+    """
+    Get the timezone name and GMT offset for a US state code.
+
+    Args:
+        state_code: Two-letter US state code (e.g., 'CA', 'NY')
+
+    Returns:
+        Tuple containing (timezone_name, gmt_offset_in_seconds) or (None, None) if not found
+    """
+    if not state_code:
+        return None, None
+
+    state_code = state_code.upper()
+    return UNITED_STATES_STATES_TO_TIMEZONE_AND_OFFSET.get(state_code, (None, None))
 
 
 def process_country_states_cities_database(file_path: str) -> None:
@@ -663,7 +735,7 @@ def get_geocoder_data(coordinates: Tuple[float, float]) -> Dict[str, str]:
     """
     Get geocoder data for a given set of coordinates.
     """
-    result: Dict[str, str] = reverse_geocode.search([coordinates])[0]  # type: ignore
+    result = reverse_geocode.search([coordinates])[0]  # type: ignore
     result = cast(Dict[str, str], result)
 
     result["region"] = result.get("state", "")

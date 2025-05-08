@@ -15,6 +15,7 @@ from src.geo_lookup import (
     is_country_in_european_union,
     get_geocoder_data,
     get_us_state_name_and_code,
+    get_timezone_and_offset_from_us_state_code,
     get_country_states_cities_data,
     get_continent_code_from_name,
     find_zip_code,
@@ -212,7 +213,7 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
             get_geocoder_data((information["latitude"], information["longitude"]))
         )
 
-    def fill_in_region_and_postal_code(
+    def fill_in_region_postal_timezone(
         information: Dict[str, Any], fields: List[str]
     ) -> None:
         if check_missing_information(information, ["region", "region_code"], fields):
@@ -229,6 +230,13 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
                 information.get("city"), information.get("region_code"), zip_codes_path
             )
 
+        timezone, offset = get_timezone_and_offset_from_us_state_code(
+            information.get("region_code")
+        )
+        if timezone and offset:
+            information["timezone"] = timezone
+            information["offset"] = offset
+
     if information.get("country_code"):
         if "currency" in fields:
             information["currency"] = get_currency_from_country(
@@ -238,8 +246,6 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
             information["is_in_european_union"] = is_country_in_european_union(
                 information["country_code"]
             )
-        if information.get("country_code") == "US":
-            fill_in_region_and_postal_code(information, fields)
         if check_missing_information(information, COUNTRY_STATES_CITIES_FIELDS, fields):
             country_states_cities_path = os.path.join(
                 DATASETS_DIR, DATASETS["Country-States-Cities"][1]
@@ -253,8 +259,10 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
                     information.get("region_code"),
                 )
             )
+        if information.get("country_code") == "US":
+            fill_in_region_postal_timezone(information, fields)
     else:
-        fill_in_region_and_postal_code(information, fields)
+        fill_in_region_postal_timezone(information, fields)
 
     if information.get("continent") and check_missing_information(
         information, ["continent_code"], fields
