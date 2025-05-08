@@ -3,7 +3,11 @@ from typing import Optional, Dict, Any, List
 
 from fastapi import Request
 from src.utils import download_file
-from src.ip_address import is_valid_and_routable_ip, get_ip_address_type
+from src.ip_address import (
+    is_valid_and_routable_ip,
+    get_ip_address_type,
+    extract_ipv4_from_ipv6,
+)
 from src.geo_lookup import (
     process_country_states_cities_database,
     process_zip_codes_database,
@@ -90,8 +94,7 @@ ASN_LOOKUP_FIELDS = [
     "organization",
     "net",
     "country",
-    "country_code",
-    "state",
+    "region",
     "city",
     "latitude",
     "longitude",
@@ -156,11 +159,22 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
     if "ip" in fields:
         information["ip"] = ip_address
 
-    if "ipv4" in fields:
+    if ip_address_type == "ipv6":
+        ipv4_from_ipv6 = extract_ipv4_from_ipv6(ip_address)
+        if ipv4_from_ipv6 and ipv4_from_ipv6 != ip_address:
+            information["ipv4"] = ipv4_from_ipv6
+            ip_address = ipv4_from_ipv6
+            ip_address_type = "ipv4"
+        else:
+            information["ipv4"] = None
+
+    if check_missing_information(information, ["ipv4"], fields):
         if ip_address_type == "ipv6":
             ipv4_from_ipv6 = get_ipv4_from_ipv6(ip_address)
             if ipv4_from_ipv6 and ipv4_from_ipv6 != ip_address:
                 information["ipv4"] = ipv4_from_ipv6
+                ip_address = ipv4_from_ipv6
+                ip_address_type = "ipv4"
             else:
                 information["ipv4"] = None
         else:
@@ -182,6 +196,13 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
         if asn_info:
             information.update(asn_info)
 
+    if check_missing_information(information, ASN_LOOKUP_FIELDS, fields):
+        lookup_result = lookup_asn_from_ip(ip_address)
+        if lookup_result:
+            if not information.get("latitude") or not information.get("longitude"):
+                information["accuracy_radius"] = 1000
+            information.update(lookup_result)
+
     if (
         information.get("latitude")
         and information.get("longitude")
@@ -190,13 +211,6 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
         information.update(
             get_geocoder_data((information["latitude"], information["longitude"]))
         )
-
-    if check_missing_information(information, ASN_LOOKUP_FIELDS, fields):
-        lookup_result = lookup_asn_from_ip(ip_address)
-        if lookup_result:
-            if not information.get("latitude") or not information.get("longitude"):
-                information["accuracy_radius"] = 1000
-            information.update(lookup_result)
 
     def fill_in_region_and_postal_code(
         information: Dict[str, Any], fields: List[str]

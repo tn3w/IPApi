@@ -357,3 +357,92 @@ def get_ip_address_type(address: str) -> Optional[str]:
         pass
 
     return None
+
+
+@lru_cache(maxsize=1000)
+def extract_ipv4_from_ipv6(ipv6_address: str) -> Optional[str]:
+    """
+    Extract an IPv4 address from an IPv6 address if possible.
+
+    Handles several cases:
+    1. IPv4-mapped IPv6 addresses (::ffff:a.b.c.d)
+    2. 6to4 addresses (2002:AABB:CCDD::)
+    3. IPv6 addresses with embedded IPv4 (like 2001:67c:e60:c0c:192:42:116:202)
+    4. IPv6 addresses with direct decimal notation (like 2001:db8::192:168:0:1)
+
+    Args:
+        ipv6_address: The IPv6 address to extract from
+
+    Returns:
+        The extracted IPv4 address or None if extraction isn't possible
+    """
+    try:
+        ip = netaddr.IPAddress(ipv6_address)
+        if ip.version != 6:
+            return None
+
+        if ip.is_ipv4_mapped():
+            ipv4_int = int(ip) & 0xFFFFFFFF
+            return str(netaddr.IPAddress(ipv4_int, version=4))
+
+        if ipv6_address.lower().startswith("2002:"):
+            parts = ipv6_address.split(":")
+            if len(parts) >= 3:
+                hex_ip = parts[1] + parts[2]
+                if len(hex_ip) == 8:
+                    try:
+                        ipv4_int = int(hex_ip, 16)
+                        return str(netaddr.IPAddress(ipv4_int, version=4))
+                    except (ValueError, netaddr.AddrFormatError):
+                        pass
+
+        parts = ipv6_address.split(":")
+
+        if len(parts) >= 8:
+            try:
+                last_four = parts[-4:]
+                if all(0 <= int(p) <= 255 for p in last_four):
+                    return ".".join(last_four)
+            except ValueError:
+                pass
+
+        valid_segments = [p for p in parts if p]
+        if len(valid_segments) >= 4:
+            last_four_valid = valid_segments[-4:]
+            try:
+                as_decimals = [int(p) for p in last_four_valid]
+                if all(0 <= d <= 255 for d in as_decimals):
+                    return ".".join(str(d) for d in as_decimals)
+            except ValueError:
+                pass
+
+        if len(parts) >= 4:
+            last_four = parts[-4:]
+            if all(p for p in last_four):
+                try:
+                    decimal_values = [int(p, 16) for p in last_four]
+                    if all(0 <= d <= 255 for d in decimal_values):
+                        return ".".join(str(d) for d in decimal_values)
+                except ValueError:
+                    pass
+
+        for i in range(len(parts) - 3):
+            possible_ipv4_segments = parts[i : i + 4]
+            if all(p for p in possible_ipv4_segments):
+                try:
+                    if all(
+                        p.isdigit() and 0 <= int(p) <= 255
+                        for p in possible_ipv4_segments
+                    ):
+                        return ".".join(possible_ipv4_segments)
+
+                    decimal_values = [int(p, 16) for p in possible_ipv4_segments]
+                    if all(0 <= d <= 255 for d in decimal_values):
+                        return ".".join(str(d) for d in decimal_values)
+                except (ValueError, TypeError):
+                    continue
+
+    except (netaddr.AddrFormatError, ValueError):
+        pass
+
+    return None
