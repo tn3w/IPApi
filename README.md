@@ -1,12 +1,15 @@
 # IPApi
+
 A fast, efficient, and free Rust-powered API for retrieving IP address information.
 
 ## Example Usage
+
 ```bash
 curl http://localhost:5000/8.8.8.8 | jq
 ```
 
 Output:
+
 ```json
 {
     "ip": "8.8.8.8",
