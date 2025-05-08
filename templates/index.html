@@ -32,6 +32,78 @@
                 --code-background: #f5f7f9;
             }
 
+            .leaflet-control-zoom a {
+                background-color: #ffffff !important;
+                color: #333 !important;
+                border: 1px solid #ccc !important;
+            }
+            .leaflet-control-zoom a:hover {
+                background-color: #f4f4f4 !important;
+            }
+            .leaflet-control-attribution {
+                background-color: rgba(255, 255, 255, 0.8) !important;
+                color: #333 !important;
+            }
+            .leaflet-control-attribution a {
+                color: #0078a8 !important;
+            }
+            .leaflet-popup-content-wrapper,
+            .leaflet-popup-tip {
+                background-color: #ffffff !important;
+                color: #333 !important;
+                box-shadow: 0 3px 14px rgba(0, 0, 0, 0.2) !important;
+            }
+            .leaflet-bar,
+            .leaflet-control {
+                background-color: #ffffff !important;
+                border-color: #ccc !important;
+            }
+            .leaflet-bar a {
+                background-color: #ffffff !important;
+                color: #333 !important;
+                border-bottom: 1px solid #ccc !important;
+            }
+            .leaflet-bar a:hover {
+                background-color: #f4f4f4 !important;
+            }
+
+            @media (prefers-color-scheme: dark) {
+                .leaflet-control-zoom a {
+                    background-color: #090909 !important;
+                    color: #eee !important;
+                    border: 1px solid #262626 !important;
+                }
+                .leaflet-control-zoom a:hover {
+                    background-color: #262626 !important;
+                }
+                .leaflet-control-attribution {
+                    background-color: rgba(9, 9, 9, 0.8) !important;
+                    color: #ccc !important;
+                }
+                .leaflet-control-attribution a {
+                    color: #8ab4f8 !important;
+                }
+                .leaflet-popup-content-wrapper,
+                .leaflet-popup-tip {
+                    background-color: #090909 !important;
+                    color: #eee !important;
+                    box-shadow: 0 3px 14px rgba(0, 0, 0, 0.5) !important;
+                }
+                .leaflet-bar,
+                .leaflet-control {
+                    background-color: #090909 !important;
+                    border-color: #262626 !important;
+                }
+                .leaflet-bar a {
+                    background-color: #090909 !important;
+                    color: #eee !important;
+                    border-bottom: 1px solid #262626 !important;
+                }
+                .leaflet-bar a:hover {
+                    background-color: #262626 !important;
+                }
+            }
+
             @media (prefers-color-scheme: dark) {
                 :root {
                     --background: #121212;
@@ -524,6 +596,36 @@
 
                 #try-endpoint {
                     width: 100%;
+                }
+
+                .results-header {
+                    padding-top: 1rem;
+                    padding-bottom: 1rem;
+                }
+
+                .results-logo h1 {
+                    font-size: 1.8rem;
+                }
+
+                .results-actions {
+                    margin-top: 5px;
+                }
+
+                .result-item {
+                    text-align: center;
+                }
+
+                .result-label,
+                .result-value {
+                    text-align: center;
+                }
+
+                .results-primary-info {
+                    text-align: center;
+                }
+
+                .results-section h3 {
+                    text-align: center;
                 }
             }
 
@@ -1031,10 +1133,6 @@
                     font-size: 1.8rem;
                 }
 
-                #close-results {
-                    margin-top: -45px;
-                }
-
                 .results-actions {
                     margin-top: 5px;
                 }
@@ -1288,16 +1386,18 @@
 
                         const tileUrl = prefersDarkMode
                             ? 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png'
-                            : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+                            : 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png';
 
                         L.tileLayer(tileUrl, {
                             attribution:
                                 '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' +
-                                (prefersDarkMode
-                                    ? ', &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                                    : ''),
+                                ', &copy; <a href="https://carto.com/attributions">CARTO</a>',
                             maxZoom: 19,
                         }).addTo(map);
+
+                        if (marker) {
+                            marker.openPopup();
+                        }
                     }
                 }
 
@@ -1730,23 +1830,21 @@
 
                 function createMap(lat, lon, ipAddress) {
                     const mapContainer = document.getElementById('ip-map');
+                    const prefersDarkMode = window.matchMedia(
+                        '(prefers-color-scheme: dark)'
+                    ).matches;
 
                     if (!map) {
                         map = L.map(mapContainer).setView([lat, lon], 10);
 
-                        const prefersDarkMode = window.matchMedia(
-                            '(prefers-color-scheme: dark)'
-                        ).matches;
                         const tileUrl = prefersDarkMode
                             ? 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png'
-                            : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+                            : 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png';
 
                         const tileLayer = L.tileLayer(tileUrl, {
                             attribution:
                                 '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' +
-                                (prefersDarkMode
-                                    ? ', &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                                    : ''),
+                                ', &copy; <a href="https://carto.com/attributions">CARTO</a>',
                             maxZoom: 19,
                         }).addTo(map);
 
