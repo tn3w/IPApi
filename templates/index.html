@@ -1,13 +1,22 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
     <head>
-        <meta charset="utf-8"/>
-        <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+        <meta charset="utf-8" />
+        <meta content="width=device-width, initial-scale=1.0" name="viewport" />
         <title>IPApi - IP Address Information</title>
-        <link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github.min.css" id="hljs-light-theme" rel="stylesheet"/>
-        <link disabled="" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css" id="hljs-dark-theme" rel="stylesheet"/>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/json.min.js"></script>
+        <link
+            href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css"
+            id="hljs-light-theme"
+            rel="stylesheet"
+        />
+        <link
+            disabled=""
+            href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css"
+            id="hljs-dark-theme"
+            rel="stylesheet"
+        />
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/json.min.js"></script>
         <style>
             :root {
                 --background: #f8f9fa;
@@ -18,8 +27,8 @@
                 --accent: #fbbc05;
                 --danger: #ea4335;
                 --surface: #ffffff;
-                --border: #dee2e6;
-                --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                --border: #c9cfd6;
+                --card-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
                 --code-background: #f5f7f9;
             }
 
@@ -46,11 +55,18 @@
             }
 
             body {
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+                font-family:
+                    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu,
+                    Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
                 background-color: var(--background);
                 color: var(--text);
                 line-height: 1.6;
-                transition: background-color 0.3s, color 0.3s;
+                transition:
+                    background-color 0.3s,
+                    color 0.3s;
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
             }
 
             .container {
@@ -58,6 +74,11 @@
                 max-width: 1200px;
                 margin: 0 auto;
                 padding: 0 20px;
+            }
+
+            main {
+                flex: 1;
+                position: relative;
             }
 
             .hero {
@@ -100,6 +121,7 @@
                 font-size: 1.1rem;
                 transition: all 0.3s ease;
                 outline: none;
+                min-width: 300px;
             }
 
             #search-input:focus {
@@ -159,6 +181,7 @@
                 transition: all 0.2s ease;
                 border: 1px solid var(--border);
                 position: relative;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
             }
 
             .spinner {
@@ -174,12 +197,15 @@
             }
 
             @keyframes spinner {
-                to { transform: rotate(360deg); }
+                to {
+                    transform: rotate(360deg);
+                }
             }
 
             .action-buttons button:hover {
                 background-color: var(--primary);
                 color: white;
+                box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
             }
 
             .documentation {
@@ -207,6 +233,14 @@
                 border: 1px solid var(--border);
                 box-shadow: var(--card-shadow);
                 margin-bottom: 2rem;
+                transition:
+                    transform 0.2s ease,
+                    box-shadow 0.2s ease;
+            }
+
+            .endpoint-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
             }
 
             .endpoint-header {
@@ -248,7 +282,8 @@
                 color: var(--text);
                 font-family: monospace;
                 font-size: 1rem;
-                width: 120px;
+                width: 200px;
+                max-width: 100%;
             }
 
             #try-endpoint {
@@ -314,6 +349,9 @@
                 padding: 2rem 0;
                 background-color: var(--background);
                 border-top: 1px solid var(--border);
+                position: relative;
+                z-index: 1;
+                margin-top: auto;
             }
 
             footer .container {
@@ -358,7 +396,9 @@
                 max-width: 350px;
                 opacity: 0;
                 transform: translateX(30px);
-                transition: opacity 0.3s, transform 0.3s;
+                transition:
+                    opacity 0.3s,
+                    transform 0.3s;
                 pointer-events: auto;
                 position: relative;
                 overflow: hidden;
@@ -446,21 +486,21 @@
                     height: auto;
                     padding: 4rem 0;
                 }
-                
+
                 .logo h1 {
                     font-size: 2.5rem;
                 }
-                
+
                 .endpoint-header {
                     flex-direction: column;
                     align-items: flex-start;
                 }
-                
+
                 .endpoint-url-container {
                     width: 100%;
                     margin-top: 0.5rem;
                 }
-                
+
                 footer .container {
                     flex-direction: column;
                     gap: 1rem;
@@ -472,18 +512,531 @@
                     flex-direction: column;
                     gap: 0.5rem;
                 }
-                
+
                 .endpoint-url-container {
                     flex-direction: column;
                     align-items: flex-start;
                 }
-                
+
                 #endpoint-input {
                     width: 100%;
                 }
-                
+
                 #try-endpoint {
                     width: 100%;
+                }
+            }
+
+            .results-view {
+                display: none;
+                background-color: var(--background);
+                min-height: calc(100vh - 80px);
+                opacity: 0;
+                transition: opacity 0.4s ease;
+                padding-bottom: 2rem;
+            }
+
+            .results-view.active {
+                display: block;
+                opacity: 1;
+                min-height: calc(100vh - 80px);
+                height: 100%;
+            }
+
+            .results-header {
+                padding: 1.5rem 0;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .results-logo h1 {
+                font-size: 2rem;
+                color: var(--primary);
+                margin: 0;
+            }
+
+            .results-actions {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .results-search-wrapper {
+                position: relative;
+                display: flex;
+                align-items: center;
+                max-width: 550px;
+                width: 100%;
+            }
+
+            #results-search-input {
+                width: 100%;
+                padding: 12px 16px;
+                border-radius: 50px;
+                border: 2px solid var(--border);
+                background-color: var(--surface);
+                color: var(--text);
+                font-size: 1rem;
+                transition: all 0.3s ease;
+                outline: none;
+                padding-right: 50px;
+                min-width: 300px;
+            }
+
+            #results-search-input:focus {
+                border-color: var(--primary);
+                box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.3);
+            }
+
+            #results-search-button {
+                position: absolute;
+                right: 8px;
+                background-color: var(--primary);
+                color: white;
+                border: none;
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                transition: all 0.3s ease;
+            }
+
+            #results-search-button:hover {
+                background-color: var(--primary-dark);
+                transform: scale(1.05);
+            }
+
+            #results-search-button svg {
+                fill: white;
+                width: 20px;
+                height: 20px;
+            }
+
+            #close-results {
+                background-color: var(--surface);
+                color: var(--text);
+                border: 1px solid var(--border);
+                width: 50px;
+                height: 40px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+                margin-left: 5px;
+                text-decoration: none;
+            }
+
+            #close-results:hover {
+                background-color: var(--danger);
+                color: white;
+                transform: scale(1.05);
+                box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+            }
+
+            #close-results:active {
+                transform: scale(0.95);
+            }
+
+            #close-results svg {
+                fill: currentColor;
+                width: 18px;
+                height: 18px;
+            }
+
+            .results-content {
+                margin-top: 1rem;
+                min-height: calc(100vh - 100px);
+            }
+
+            .results-loading {
+                display: none;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                height: 50vh;
+            }
+
+            .results-loading.active {
+                display: flex;
+            }
+
+            .results-spinner {
+                width: 50px;
+                height: 50px;
+                border: 4px solid rgba(66, 133, 244, 0.2);
+                border-top-color: var(--primary);
+                border-radius: 50%;
+                animation: spinner 1s linear infinite;
+                margin-bottom: 1rem;
+            }
+
+            .results-data {
+                display: none;
+                flex-direction: column;
+                gap: 2rem;
+            }
+
+            .results-data.active {
+                display: flex;
+            }
+
+            .results-map-container {
+                width: 100%;
+                height: 300px;
+                background-color: var(--surface);
+                border-radius: 12px;
+                overflow: hidden;
+                box-shadow: var(--card-shadow);
+                border: 1px solid var(--border);
+            }
+
+            #ip-map {
+                width: 100%;
+                height: 100%;
+            }
+
+            .results-info-container {
+                display: flex;
+                flex-direction: column;
+                gap: 1.5rem;
+            }
+
+            .results-primary-info {
+                background-color: var(--surface);
+                padding: 1.5rem;
+                border-radius: 12px;
+                box-shadow: var(--card-shadow);
+                text-align: center;
+                border: 1px solid var(--border);
+                transition:
+                    transform 0.2s ease,
+                    box-shadow 0.2s ease;
+            }
+
+            .results-primary-info:hover {
+                box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+            }
+
+            .ip-badge {
+                display: inline-block;
+                background-color: var(--primary);
+                color: white;
+                padding: 4px 10px;
+                border-radius: 50px;
+                font-size: 0.8rem;
+                font-weight: 500;
+                margin-bottom: 0.5rem;
+            }
+
+            .results-primary-info h2 {
+                font-size: 2.5rem;
+                margin: 0;
+                margin-bottom: 0.25rem;
+                color: var(--text);
+                word-break: break-all;
+                transition: font-size 0.2s;
+            }
+
+            .results-primary-info h2.long-ip {
+                font-size: 1.5rem;
+            }
+
+            .results-primary-info p {
+                font-size: 1.2rem;
+                margin: 0;
+                color: var(--text);
+                opacity: 0.8;
+            }
+
+            .results-details {
+                display: flex;
+                flex-direction: column;
+                gap: 1.5rem;
+            }
+
+            .results-section {
+                background-color: var(--surface);
+                padding: 1.5rem;
+                border-radius: 12px;
+                box-shadow: var(--card-shadow);
+                border: 1px solid var(--border);
+                transition:
+                    transform 0.2s ease,
+                    box-shadow 0.2s ease;
+            }
+
+            .results-section:hover {
+                box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+            }
+
+            .results-section h3 {
+                margin-top: 0;
+                margin-bottom: 1rem;
+                color: var(--primary);
+                font-size: 1.2rem;
+                border-bottom: 1px solid var(--border);
+                padding-bottom: 0.5rem;
+            }
+
+            .results-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                gap: 1rem;
+            }
+
+            .result-item {
+                display: flex;
+                flex-direction: column;
+            }
+
+            .result-label {
+                font-size: 0.9rem;
+                color: var(--text);
+                opacity: 0.7;
+                margin-bottom: 0.25rem;
+            }
+
+            .result-value {
+                font-size: 1.1rem;
+                font-weight: 500;
+                word-break: break-word;
+            }
+
+            .hero.transitioning {
+                animation: fadeOutUp 0.5s forwards;
+            }
+
+            .hero.hidden {
+                display: none;
+            }
+
+            @keyframes fadeOutUp {
+                from {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+                to {
+                    opacity: 0;
+                    transform: translateY(-20px);
+                }
+            }
+
+            @keyframes fadeInDown {
+                from {
+                    opacity: 0;
+                    transform: translateY(-20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            @media (min-width: 768px) {
+                .results-content {
+                    margin-top: 2rem;
+                }
+
+                .results-data.active {
+                    flex-direction: row;
+                    flex-wrap: wrap;
+                }
+
+                .results-map-container {
+                    flex-basis: 100%;
+                    height: 400px;
+                }
+
+                .results-info-container {
+                    flex-direction: row;
+                    flex-basis: 100%;
+                }
+
+                .results-primary-info {
+                    flex: 1;
+                }
+
+                .results-details {
+                    flex: 2;
+                }
+            }
+
+            .hero-loading-spinner {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.4);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                z-index: 10;
+                -webkit-backdrop-filter: blur(3px);
+                backdrop-filter: blur(3px);
+            }
+
+            .hero-loading-spinner .spinner {
+                width: 50px;
+                height: 50px;
+                border: 4px solid rgba(66, 133, 244, 0.2);
+                border-top-color: var(--primary);
+                border-radius: 50%;
+                animation: spinner 1s linear infinite;
+                margin-bottom: 1rem;
+            }
+
+            .hero-loading-spinner p {
+                color: var(--text);
+                font-size: 1.1rem;
+                font-weight: 500;
+            }
+
+            html,
+            body {
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu,
+                    Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+                background-color: var(--background);
+                color: var(--text);
+                line-height: 1.6;
+                transition:
+                    background-color 0.3s,
+                    color 0.3s;
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }
+
+            main {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+            }
+
+            @keyframes fadeOut {
+                from {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+                to {
+                    opacity: 0;
+                    transform: translateY(-20px);
+                }
+            }
+
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            .fade-out {
+                animation: fadeOut 0.4s ease forwards;
+            }
+
+            .fade-in {
+                animation: fadeIn 0.4s ease forwards;
+            }
+
+            .ipv4-mapping {
+                font-size: 0.9rem;
+                color: var(--text);
+                opacity: 0.7;
+                margin-top: 0.5rem;
+            }
+
+            @media (max-width: 768px) {
+                .results-header {
+                    flex-direction: column;
+                    align-items: stretch;
+                    gap: 15px;
+                }
+
+                .results-logo-nav {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    width: 100%;
+                }
+
+                .results-logo {
+                    text-align: left;
+                }
+
+                .results-actions {
+                    flex-direction: column;
+                    width: 100%;
+                    align-items: center;
+                }
+
+                .results-search-wrapper {
+                    order: 2;
+                    width: 100%;
+                    max-width: none;
+                    margin-top: 10px;
+                }
+
+                #close-results {
+                    order: 1;
+                    margin: 0;
+                    width: 40px;
+                }
+
+                #results-search-input {
+                    width: 100%;
+                    max-width: 100%;
+                    min-width: unset;
+                }
+
+                .search-container {
+                    width: 100%;
+                }
+
+                #search-input {
+                    min-width: unset;
+                }
+
+                #endpoint-input {
+                    width: 100%;
+                }
+            }
+
+            @media (max-width: 480px) {
+                .results-header {
+                    padding-top: 1rem;
+                    padding-bottom: 1rem;
+                }
+
+                .results-logo h1 {
+                    font-size: 1.8rem;
+                }
+
+                #close-results {
+                    margin-top: -45px;
+                }
+
+                .results-actions {
+                    margin-top: 5px;
                 }
             }
         </style>
@@ -497,13 +1050,20 @@
                     </div>
                     <div class="search-container">
                         <div class="search-wrapper">
-                            <input id="search-input" placeholder="Enter IP, IPv6 or Domain" type="text"/>
+                            <input
+                                id="search-input"
+                                placeholder="Enter IP, IPv6 or Domain"
+                                type="text"
+                            />
                             <button class="hidden" id="search-button">
-                                <svg height="24" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M0 0h24v24H0z" fill="none">
-                                    </path>
-                                    <path d="M16.01 11H4v2h12.01v3L20 12l-3.99-4z">
-                                    </path>
+                                <svg
+                                    height="24"
+                                    viewbox="0 0 24 24"
+                                    width="24"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path d="M0 0h24v24H0z" fill="none"></path>
+                                    <path d="M16.01 11H4v2h12.01v3L20 12l-3.99-4z"></path>
                                 </svg>
                             </button>
                         </div>
@@ -514,16 +1074,99 @@
                     </div>
                 </div>
             </section>
+            <section class="results-view" id="results-view">
+                <div class="container">
+                    <div class="results-header">
+                        <div class="results-logo">
+                            <h1>IPApi</h1>
+                        </div>
+                        <div class="results-actions">
+                            <div class="results-search-wrapper">
+                                <input
+                                    id="results-search-input"
+                                    type="text"
+                                    placeholder="Enter IP, IPv6 or Domain"
+                                />
+                                <button id="results-search-button">
+                                    <svg
+                                        height="24"
+                                        viewbox="0 0 24 24"
+                                        width="24"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <path d="M0 0h24v24H0z" fill="none"></path>
+                                        <path d="M16.01 11H4v2h12.01v3L20 12l-3.99-4z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <a href="#" id="close-results" aria-label="Close results">
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    height="24"
+                                    width="24"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path d="M0 0h24v24H0z" fill="none" />
+                                    <path
+                                        d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+                                    />
+                                </svg>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="results-content">
+                        <div class="results-loading">
+                            <div class="results-spinner"></div>
+                            <p>Loading IP data...</p>
+                        </div>
+                        <div class="results-data">
+                            <div class="results-map-container">
+                                <div id="ip-map"></div>
+                            </div>
+                            <div class="results-info-container">
+                                <div class="results-primary-info">
+                                    <div class="ip-badge">
+                                        <span id="result-ip-type">IPv4</span>
+                                    </div>
+                                    <h2 id="result-ip">8.8.8.8</h2>
+                                    <p id="result-hostname">dns.google</p>
+                                </div>
+                                <div class="results-details">
+                                    <div class="results-section">
+                                        <h3>Location</h3>
+                                        <div class="results-grid" id="location-grid">
+                                            <!-- Will be populated by JS -->
+                                        </div>
+                                    </div>
+                                    <div class="results-section">
+                                        <h3>Network</h3>
+                                        <div class="results-grid" id="network-grid">
+                                            <!-- Will be populated by JS -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
             <section class="documentation">
                 <div class="container">
                     <h2>API Documentation</h2>
-                    <p>Get detailed information about any IP address or domain with our simple API.</p>
+                    <p>
+                        Get detailed information about any IP address or domain with our simple API.
+                    </p>
                     <div class="endpoint-card">
                         <div class="endpoint-header">
                             <span class="method">GET</span>
                             <div class="endpoint-url-container">
                                 <span class="base-url">{{ api_url }}/</span>
-                                <input id="endpoint-input" placeholder="8.8.8.8" type="text" value="8.8.8.8"/>
+                                <input
+                                    id="endpoint-input"
+                                    placeholder="8.8.8.8"
+                                    type="text"
+                                    value="8.8.8.8"
+                                />
                                 <button id="try-endpoint">Try it</button>
                             </div>
                         </div>
@@ -563,10 +1206,20 @@
             <div class="container">
                 <p>© 2025 IPApi. All rights reserved.</p>
                 <div class="github-link">
-                    <a href="https://github.com/tn3w/ipapi" rel="noopener noreferrer" target="_blank">
-                        <svg height="24" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z">
-                            </path>
+                    <a
+                        href="https://github.com/tn3w/ipapi"
+                        rel="noopener noreferrer"
+                        target="_blank"
+                    >
+                        <svg
+                            height="24"
+                            viewbox="0 0 24 24"
+                            width="24"
+                            xmlns="http://www.w3.org/2000/svg"
+                        >
+                            <path
+                                d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"
+                            ></path>
                         </svg>
                         GitHub
                     </a>
@@ -575,179 +1228,537 @@
         </footer>
 
         <div class="notification-container" id="notification-container"></div>
-        
+
         <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                const searchInput = document.getElementById('search-input');
-                const searchButton = document.getElementById('search-button');
-                const myIpButton = document.getElementById('my-ip');
-                const tryExampleButton = document.getElementById('try-example');
-                const endpointInput = document.getElementById('endpoint-input');
-                const tryEndpointButton = document.getElementById('try-endpoint');
-                const responseExample = document.getElementById('response-example');
+            document.addEventListener('DOMContentLoaded', () => {
+                const elements = {
+                    search: {
+                        input: document.getElementById('search-input'),
+                        button: document.getElementById('search-button'),
+                        myIpButton: document.getElementById('my-ip'),
+                        tryExampleButton: document.getElementById('try-example'),
+                    },
+                    endpoint: {
+                        input: document.getElementById('endpoint-input'),
+                        button: document.getElementById('try-endpoint'),
+                        responseExample: document.getElementById('response-example'),
+                    },
+                    results: {
+                        view: document.getElementById('results-view'),
+                        input: document.getElementById('results-search-input'),
+                        button: document.getElementById('results-search-button'),
+                        closeButton: document.getElementById('close-results'),
+                        loading: document.querySelector('.results-loading'),
+                        data: document.querySelector('.results-data'),
+                    },
+                    theme: {
+                        light: document.getElementById('hljs-light-theme'),
+                        dark: document.getElementById('hljs-dark-theme'),
+                    },
+                    hero: document.querySelector('.hero'),
+                    notification: document.getElementById('notification-container'),
+                };
 
-                const lightThemeLink = document.getElementById('hljs-light-theme');
-                const darkThemeLink = document.getElementById('hljs-dark-theme');
-                
+                const apiBaseUrl = '{{ api_url }}';
+
                 let cachedIP = null;
-
-                function updateCodeTheme() {
-                    const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                    
-                    if (prefersDarkMode) {
-                        lightThemeLink.disabled = true;
-                        darkThemeLink.disabled = false;
-                    } else {
-                        lightThemeLink.disabled = false;
-                        darkThemeLink.disabled = true;
-                    }
-                    
-                    if (window.hljs) {
-                        hljs.highlightAll();
-                    }
-                }
-
-                updateCodeTheme();
-
-                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateCodeTheme);
-
-                function updateSearchButtonVisibility() {
-                    if (searchInput.value.trim() !== '') {
-                        searchButton.classList.add('visible');
-                        searchButton.classList.remove('hidden');
-                    } else {
-                        searchButton.classList.remove('visible');
-                        searchButton.classList.add('hidden');
-                    }
-                }
-
-                updateSearchButtonVisibility();
-
-                searchInput.addEventListener('input', updateSearchButtonVisibility);
-                searchInput.addEventListener('change', updateSearchButtonVisibility);
-                searchInput.addEventListener('autocomplete', updateSearchButtonVisibility);
-                searchInput.addEventListener('animationstart', function(e) {
-                    if (e.animationName.indexOf('autofill') !== -1) {
-                        updateSearchButtonVisibility();
-                    }
-                });
-                
-                setTimeout(updateSearchButtonVisibility, 100);
-
-                searchButton.addEventListener('click', function() {
-                    const query = searchInput.value.trim();
-                    if (query) {
-                        const url = `{{ api_url }}/${encodeURIComponent(query)}`;
-                        window.location.href = url;
-                    }
-                });
-
-                searchInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter' && this.value.trim() !== '') {
-                        const query = this.value.trim();
-                        const url = `{{ api_url }}/${encodeURIComponent(query)}`;
-                        window.location.href = url;
-                    }
-                });
-
-                myIpButton.addEventListener('click', async function() {
-                    if (cachedIP) {
-                        searchInput.value = cachedIP;
-                        searchButton.classList.add('visible');
-                        searchButton.classList.remove('hidden');
-                        return;
-                    }
-                    
-                    const originalText = myIpButton.textContent;
-                    myIpButton.innerHTML = '<span class="spinner"></span> Loading...';
-                    myIpButton.disabled = true;
-                    
-                    try {
-                        const response = await fetch(`{{ api_url }}/self?fields=ip`);
-                        const data = await response.json();
-                        
-                        if (data.ip) {
-                            cachedIP = data.ip;
-                            
-                            searchInput.value = cachedIP;
-                            searchButton.classList.add('visible');
-                            searchButton.classList.remove('hidden');
-                        } else if (data.detail) {
-                            throw new Error(data.detail);
-                        } else {
-                            throw new Error('Unexpected response format');
-                        }
-                    } catch (error) {
-                        showNotification('Error', 'Error fetching your IP address: ' + error.message + '. Please try again.');
-                        console.error('Error fetching IP:', error);
-                    } finally {
-                        myIpButton.innerHTML = originalText;
-                        myIpButton.disabled = false;
-                    }
-                });
-
-                tryExampleButton.addEventListener('click', function() {
-                    searchInput.value = '8.8.8.8';
-                    searchButton.classList.add('visible');
-                    searchButton.classList.remove('hidden');
-                });
-
-                tryEndpointButton.addEventListener('click', async function() {
-                    const query = endpointInput.value.trim();
-                    if (!query) return;
-
-                    tryEndpointButton.textContent = 'Loading...';
-                    tryEndpointButton.disabled = true;
-
-                    try {
-                        const response = await fetch(`{{ api_url }}/${encodeURIComponent(query)}`);
-                        const data = await response.json();
-
-                        responseExample.textContent = JSON.stringify(data, null, 4);
-
-                        if (window.hljs) {
-                            hljs.highlightElement(responseExample);
-                        }
-                    } catch (error) {
-                        responseExample.textContent = JSON.stringify({
-                            error: "An error occurred while fetching data",
-                            message: error.message
-                        }, null, 4);
-
-                        if (window.hljs) {
-                            hljs.highlightElement(responseExample);
-                        }
-                    } finally {
-                        tryEndpointButton.textContent = 'Try it';
-                        tryEndpointButton.disabled = false;
-                    }
-                });
-
-                document.body.classList.add('loaded');
-
-                const notificationContainer = document.getElementById('notification-container');
+                let map = null;
+                let marker = null;
+                let currentQuery = null;
                 let activeNotification = null;
                 let notificationTimeout = null;
                 let lastErrorMessage = '';
                 let errorCounter = 1;
 
+                function updateCodeTheme() {
+                    const prefersDarkMode = window.matchMedia(
+                        '(prefers-color-scheme: dark)'
+                    ).matches;
+                    elements.theme.light.disabled = prefersDarkMode;
+                    elements.theme.dark.disabled = !prefersDarkMode;
+
+                    if (window.hljs) hljs.highlightAll();
+                }
+
+                updateCodeTheme();
+                window
+                    .matchMedia('(prefers-color-scheme: dark)')
+                    .addEventListener('change', updateCodeTheme);
+
+                function updateSearchButtonVisibility() {
+                    const isEmpty = elements.search.input.value.trim() === '';
+                    elements.search.button.classList.toggle('visible', !isEmpty);
+                    elements.search.button.classList.toggle('hidden', isEmpty);
+                }
+
+                function setupSearchEvents() {
+                    updateSearchButtonVisibility();
+
+                    ['input', 'change', 'autocomplete'].forEach(event => {
+                        elements.search.input.addEventListener(event, updateSearchButtonVisibility);
+                    });
+
+                    elements.search.input.addEventListener('animationstart', e => {
+                        if (e.animationName.indexOf('autofill') !== -1)
+                            updateSearchButtonVisibility();
+                    });
+
+                    elements.search.button.addEventListener('click', () => {
+                        const query = elements.search.input.value.trim();
+                        if (query) fetchIPData(query);
+                    });
+
+                    elements.search.input.addEventListener('keypress', e => {
+                        if (e.key === 'Enter' && e.target.value.trim()) {
+                            fetchIPData(e.target.value.trim());
+                        }
+                    });
+
+                    elements.results.button.addEventListener('click', () => {
+                        const query = elements.results.input.value.trim();
+                        if (query) {
+                            elements.search.input.value = query;
+                            showLoading();
+                            fetchIPData(query);
+                        }
+                    });
+
+                    elements.results.input.addEventListener('keypress', e => {
+                        if (e.key === 'Enter' && e.target.value.trim()) {
+                            elements.search.input.value = e.target.value.trim();
+                            showLoading();
+                            fetchIPData(e.target.value.trim());
+                        }
+                    });
+                }
+
+                function setupHelperButtons() {
+                    elements.search.myIpButton.addEventListener('click', async () => {
+                        if (cachedIP) {
+                            elements.search.input.value = cachedIP;
+                            updateSearchButtonVisibility();
+                            return;
+                        }
+
+                        const originalText = elements.search.myIpButton.textContent;
+                        elements.search.myIpButton.innerHTML =
+                            '<span class="spinner"></span> Loading...';
+                        elements.search.myIpButton.disabled = true;
+
+                        try {
+                            const response = await fetch(`${apiBaseUrl}/self?fields=ip`);
+                            const data = await response.json();
+
+                            if (data.ip) {
+                                cachedIP = data.ip;
+                                elements.search.input.value = cachedIP;
+                                updateSearchButtonVisibility();
+                            } else if (data.detail) {
+                                throw new Error(data.detail);
+                            } else {
+                                throw new Error('Unexpected response format');
+                            }
+                        } catch (error) {
+                            showNotification(
+                                'Error',
+                                `Error fetching your IP address: ${error.message}. Please try again.`
+                            );
+                            console.error('Error fetching IP:', error);
+                        } finally {
+                            elements.search.myIpButton.innerHTML = originalText;
+                            elements.search.myIpButton.disabled = false;
+                        }
+                    });
+
+                    elements.search.tryExampleButton.addEventListener('click', () => {
+                        elements.search.input.value = '8.8.8.8';
+                        updateSearchButtonVisibility();
+                    });
+
+                    elements.endpoint.button.addEventListener('click', async () => {
+                        const query = elements.endpoint.input.value.trim();
+                        if (!query) return;
+
+                        elements.endpoint.button.textContent = 'Loading...';
+                        elements.endpoint.button.disabled = true;
+
+                        try {
+                            const response = await fetch(
+                                `${apiBaseUrl}/${encodeURIComponent(query)}`
+                            );
+                            const data = await response.json();
+                            elements.endpoint.responseExample.textContent = JSON.stringify(
+                                data,
+                                null,
+                                4
+                            );
+                            if (window.hljs)
+                                hljs.highlightElement(elements.endpoint.responseExample);
+                        } catch (error) {
+                            elements.endpoint.responseExample.textContent = JSON.stringify(
+                                {
+                                    error: 'An error occurred while fetching data',
+                                    message: error.message,
+                                },
+                                null,
+                                4
+                            );
+                            if (window.hljs)
+                                hljs.highlightElement(elements.endpoint.responseExample);
+                        } finally {
+                            elements.endpoint.button.textContent = 'Try it';
+                            elements.endpoint.button.disabled = false;
+                        }
+                    });
+                }
+
+                function showLoading() {
+                    elements.results.loading.classList.add('active');
+                    elements.results.data.classList.remove('active');
+                }
+
+                function hideLoading() {
+                    elements.results.loading.classList.remove('active');
+                }
+
+                function transitionToResultsView(ipData) {
+                    elements.results.input.value = elements.search.input.value;
+
+                    if (ipData) prePopulateResultsData(ipData);
+
+                    document.body.classList.add('results-active');
+                    elements.results.view.style.display = 'block';
+                    elements.results.view.style.opacity = '0';
+
+                    const documentationSection = document.querySelector('.documentation');
+                    documentationSection.style.display = 'none';
+
+                    elements.hero.classList.add('fade-out');
+
+                    setTimeout(() => {
+                        elements.hero.classList.add('hidden');
+                        elements.hero.style.display = 'none';
+
+                        elements.results.view.style.opacity = '';
+                        elements.results.view.classList.add('active');
+                        elements.results.view.classList.add('fade-in');
+
+                        if (ipData) displayIPData(ipData);
+
+                        window.history.pushState(
+                            { view: 'results', query: currentQuery },
+                            '',
+                            `?ip=${encodeURIComponent(currentQuery)}`
+                        );
+                    }, 400);
+                }
+
+                function transitionToHeroView() {
+                    document.body.classList.remove('results-active');
+                    elements.results.view.style.display = 'block';
+                    elements.results.view.classList.remove('fade-in');
+                    elements.results.view.classList.add('fade-out');
+                    elements.hero.style.display = 'none';
+                    elements.hero.classList.remove('fade-out');
+
+                    setTimeout(() => {
+                        elements.results.view.classList.remove('active');
+                        elements.results.view.classList.remove('fade-out');
+                        elements.results.view.style.display = 'none';
+
+                        const documentationSection = document.querySelector('.documentation');
+                        documentationSection.style.display = 'block';
+
+                        elements.hero.classList.remove('hidden');
+                        elements.hero.style.display = 'flex';
+                        void elements.hero.offsetWidth;
+                        elements.hero.classList.add('fade-in');
+
+                        window.history.pushState({ view: 'hero' }, '', window.location.pathname);
+
+                        setTimeout(() => {
+                            elements.hero.classList.remove('fade-in');
+                        }, 400);
+                    }, 400);
+                }
+
+                async function fetchIPData(ip) {
+                    currentQuery = ip;
+
+                    const isResultsView = elements.results.view.classList.contains('active');
+                    if (isResultsView) {
+                        showLoading();
+                    } else {
+                        const loadingSpinner = document.createElement('div');
+                        loadingSpinner.className = 'hero-loading-spinner';
+                        loadingSpinner.innerHTML =
+                            '<div class="spinner"></div><p>Loading IP data...</p>';
+
+                        elements.hero.style.position = 'relative';
+                        elements.hero.appendChild(loadingSpinner);
+                    }
+
+                    try {
+                        const response = await fetch(
+                            `${apiBaseUrl}/${encodeURIComponent(ip)}?fields=all`
+                        );
+                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                        const data = await response.json();
+                        if (ip !== currentQuery) return;
+
+                        window.ipDataCache = data;
+
+                        if (isResultsView) {
+                            displayIPData(data);
+                        } else {
+                            const loadingSpinner =
+                                elements.hero.querySelector('.hero-loading-spinner');
+                            if (loadingSpinner) elements.hero.removeChild(loadingSpinner);
+                            transitionToResultsView(data);
+                        }
+                    } catch (error) {
+                        if (ip !== currentQuery) return;
+
+                        if (isResultsView) {
+                            hideLoading();
+                        } else {
+                            const loadingSpinner =
+                                elements.hero.querySelector('.hero-loading-spinner');
+                            if (loadingSpinner) elements.hero.removeChild(loadingSpinner);
+                        }
+
+                        showNotification(
+                            'Error',
+                            `Error fetching IP data: ${error.message}. Please try again.`
+                        );
+                        console.error('Error fetching IP data:', error);
+                    }
+                }
+
+                function isValidValue(value) {
+                    return (
+                        value !== null &&
+                        value !== undefined &&
+                        value !== 'none' &&
+                        value !== 'None' &&
+                        value !== ''
+                    );
+                }
+
+                function prePopulateResultsData(ipData) {
+                    const ipTypeEl = document.getElementById('result-ip-type');
+                    const ipEl = document.getElementById('result-ip');
+                    const hostnameEl = document.getElementById('result-hostname');
+
+                    if (ipTypeEl && ipData.type) ipTypeEl.textContent = ipData.type.toUpperCase();
+
+                    if (ipEl) {
+                        ipEl.textContent = ipData.ip || '';
+                        ipEl.classList.toggle('long-ip', ipData.ip && ipData.ip.length > 20);
+                    }
+
+                    if (hostnameEl)
+                        hostnameEl.textContent = isValidValue(ipData.hostname)
+                            ? ipData.hostname
+                            : 'No hostname available';
+                }
+
+                function displayIPData(data) {
+                    hideLoading();
+
+                    const resultsDataContainer = document.querySelector('.results-data');
+                    if (resultsDataContainer) resultsDataContainer.classList.add('active');
+
+                    const ipTypeEl = document.getElementById('result-ip-type');
+                    const ipEl = document.getElementById('result-ip');
+                    const hostnameEl = document.getElementById('result-hostname');
+
+                    if (ipTypeEl) ipTypeEl.textContent = data.type?.toUpperCase() || 'IP';
+
+                    if (ipEl) {
+                        ipEl.textContent = data.ip || '';
+                        ipEl.classList.toggle('long-ip', data.ip && data.ip.length > 20);
+
+                        const ipv4Container = document.querySelector('.ipv4-mapping');
+                        if (data.type === 'ipv6' && isValidValue(data.ipv4)) {
+                            if (!ipv4Container) {
+                                const container = document.createElement('div');
+                                container.className = 'ipv4-mapping';
+                                container.textContent = `IPv4 mapping: ${data.ipv4}`;
+                                ipEl.parentNode.insertBefore(container, ipEl.nextSibling);
+                            } else {
+                                ipv4Container.textContent = `IPv4 mapping: ${data.ipv4}`;
+                                ipv4Container.style.display = 'block';
+                            }
+                        } else if (ipv4Container) {
+                            ipv4Container.style.display = 'none';
+                        }
+                    }
+
+                    if (hostnameEl)
+                        hostnameEl.textContent = isValidValue(data.hostname)
+                            ? data.hostname
+                            : 'No hostname available';
+
+                    const locationGrid = document.getElementById('location-grid');
+                    if (locationGrid) {
+                        locationGrid.innerHTML = '';
+
+                        const locationFields = [
+                            { key: 'continent', label: 'Continent' },
+                            { key: 'country', label: 'Country' },
+                            { key: 'region', label: 'Region' },
+                            { key: 'city', label: 'City' },
+                            { key: 'county', label: 'County' },
+                            { key: 'postal_code', label: 'Postal Code' },
+                            { key: 'timezone', label: 'Timezone' },
+                            { key: 'currency', label: 'Currency' },
+                            { key: 'accuracy_radius', label: 'Accuracy Radius' },
+                        ];
+
+                        locationFields.forEach(field => {
+                            if (isValidValue(data[field.key])) {
+                                addResultItem(locationGrid, field.label, data[field.key]);
+                            }
+                        });
+                    }
+
+                    const networkGrid = document.getElementById('network-grid');
+                    if (networkGrid) {
+                        networkGrid.innerHTML = '';
+
+                        const networkFields = [
+                            { key: 'asn', label: 'ASN' },
+                            { key: 'asn_name', label: 'ASN Name' },
+                            { key: 'organization', label: 'Organization' },
+                            { key: 'net', label: 'Network' },
+                        ];
+
+                        networkFields.forEach(field => {
+                            if (isValidValue(data[field.key])) {
+                                addResultItem(networkGrid, field.label, data[field.key]);
+                            }
+                        });
+                    }
+
+                    initializeMap(data.latitude, data.longitude, data.ip);
+                }
+
+                function addResultItem(container, label, value) {
+                    const item = document.createElement('div');
+                    item.className = 'result-item';
+
+                    const labelEl = document.createElement('div');
+                    labelEl.className = 'result-label';
+                    labelEl.textContent = label;
+
+                    const valueEl = document.createElement('div');
+                    valueEl.className = 'result-value';
+                    valueEl.textContent = value;
+
+                    item.appendChild(labelEl);
+                    item.appendChild(valueEl);
+                    container.appendChild(item);
+                }
+
+                function initializeMap(lat, lon, ipAddress) {
+                    if (
+                        !isValidValue(lat) ||
+                        !isValidValue(lon) ||
+                        isNaN(parseFloat(lat)) ||
+                        isNaN(parseFloat(lon))
+                    ) {
+                        document.getElementById('ip-map').innerHTML =
+                            '<div style="height:100%;display:flex;align-items:center;justify-content:center;padding:1rem;text-align:center;">Location coordinates not available for this IP address.</div>';
+                        return;
+                    }
+
+                    try {
+                        lat = parseFloat(lat);
+                        lon = parseFloat(lon);
+
+                        if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+                            document.getElementById('ip-map').innerHTML =
+                                '<div style="height:100%;display:flex;align-items:center;justify-content:center;padding:1rem;text-align:center;">Invalid location coordinates for this IP address.</div>';
+                            return;
+                        }
+
+                        if (!window.L) {
+                            const linkElement = document.createElement('link');
+                            linkElement.rel = 'stylesheet';
+                            linkElement.href =
+                                'https://cdn.jsdelivr.net/npm/leaflet@latest/dist/leaflet.css';
+                            document.head.appendChild(linkElement);
+
+                            const scriptElement = document.createElement('script');
+                            scriptElement.src =
+                                'https://cdn.jsdelivr.net/npm/leaflet@latest/dist/leaflet.js';
+                            document.head.appendChild(scriptElement);
+
+                            scriptElement.onload = () => createMap(lat, lon, ipAddress);
+                        } else {
+                            createMap(lat, lon, ipAddress);
+                        }
+                    } catch (error) {
+                        console.error('Error initializing map:', error);
+                        document.getElementById('ip-map').innerHTML =
+                            '<div style="height:100%;display:flex;align-items:center;justify-content:center;padding:1rem;text-align:center;">Error loading map.</div>';
+                    }
+                }
+
+                function createMap(lat, lon, ipAddress) {
+                    const mapContainer = document.getElementById('ip-map');
+
+                    if (!map) {
+                        map = L.map(mapContainer).setView([lat, lon], 10);
+
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                            attribution:
+                                '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                        }).addTo(map);
+
+                        marker = L.marker([lat, lon])
+                            .addTo(map)
+                            .bindPopup(`IP: ${ipAddress}<br>Lat: ${lat}<br>Lon: ${lon}`)
+                            .openPopup();
+                    } else {
+                        map.setView([lat, lon], 10);
+
+                        if (marker) {
+                            marker
+                                .setLatLng([lat, lon])
+                                .bindPopup(`IP: ${ipAddress}<br>Lat: ${lat}<br>Lon: ${lon}`)
+                                .openPopup();
+                        } else {
+                            marker = L.marker([lat, lon])
+                                .addTo(map)
+                                .bindPopup(`IP: ${ipAddress}<br>Lat: ${lat}<br>Lon: ${lon}`)
+                                .openPopup();
+                        }
+                    }
+                }
+
                 function showNotification(title, message, duration = 4000) {
                     if (message === lastErrorMessage) {
                         errorCounter++;
-                        
+
                         if (activeNotification) {
-                            const counterElement = activeNotification.querySelector('.notification-counter');
+                            const counterElement =
+                                activeNotification.querySelector('.notification-counter');
                             if (counterElement) {
                                 counterElement.textContent = `x${errorCounter}`;
                             } else {
-                                const titleElement = activeNotification.querySelector('.notification-title');
+                                const titleElement =
+                                    activeNotification.querySelector('.notification-title');
                                 const counter = document.createElement('span');
                                 counter.className = 'notification-counter';
                                 counter.textContent = `x${errorCounter}`;
                                 titleElement.appendChild(counter);
                             }
-                            
-                            const progressBar = activeNotification.querySelector('.notification-progress');
+
+                            const progressBar =
+                                activeNotification.querySelector('.notification-progress');
                             if (progressBar) {
                                 progressBar.style.transition = 'none';
                                 progressBar.style.width = '100%';
@@ -756,28 +1767,22 @@
                                     progressBar.style.width = '0';
                                 }, 50);
                             }
-                            
-                            if (notificationTimeout) {
-                                clearTimeout(notificationTimeout);
-                            }
-                            notificationTimeout = setTimeout(() => {
-                                hideNotification();
-                            }, duration);
-                            
+
+                            if (notificationTimeout) clearTimeout(notificationTimeout);
+                            notificationTimeout = setTimeout(hideNotification, duration);
+
                             return;
                         }
                     } else {
                         lastErrorMessage = message;
                         errorCounter = 1;
                     }
-                    
-                    if (activeNotification) {
-                        hideNotification();
-                    }
-                    
+
+                    if (activeNotification) hideNotification();
+
                     const notification = document.createElement('div');
                     notification.className = 'notification';
-                    
+
                     notification.innerHTML = `
                         <div class="notification-header">
                             <div class="notification-title">
@@ -789,47 +1794,130 @@
                         <div class="notification-message">${message}</div>
                         <div class="notification-progress"></div>
                     `;
-                    
-                    notificationContainer.appendChild(notification);
-                    
+
+                    elements.notification.appendChild(notification);
                     notification.offsetHeight;
-                    
                     notification.classList.add('show');
-                    
+
                     const progressBar = notification.querySelector('.notification-progress');
                     progressBar.style.width = '100%';
                     setTimeout(() => {
                         progressBar.style.transition = `width ${duration}ms linear`;
                         progressBar.style.width = '0';
                     }, 50);
-                    
+
                     const closeButton = notification.querySelector('.notification-close');
                     closeButton.addEventListener('click', hideNotification);
-                    
-                    notificationTimeout = setTimeout(() => {
-                        hideNotification();
-                    }, duration);
-                    
+
+                    notificationTimeout = setTimeout(hideNotification, duration);
                     activeNotification = notification;
                 }
-                
+
                 function hideNotification() {
                     if (activeNotification) {
                         activeNotification.classList.remove('show');
-                        
+
                         setTimeout(() => {
                             if (activeNotification && activeNotification.parentNode) {
                                 activeNotification.parentNode.removeChild(activeNotification);
                             }
                             activeNotification = null;
                         }, 300);
-                        
+
                         if (notificationTimeout) {
                             clearTimeout(notificationTimeout);
                             notificationTimeout = null;
                         }
                     }
                 }
+
+                function updateHeaderStructure() {
+                    const resultsHeader = document.querySelector('.results-header');
+                    const resultsLogo = document.querySelector('.results-logo');
+                    const resultsActions = document.querySelector('.results-actions');
+                    const closeButton = document.getElementById('close-results');
+
+                    if (window.innerWidth <= 768) {
+                        if (!document.querySelector('.results-logo-nav')) {
+                            const logoNav = document.createElement('div');
+                            logoNav.className = 'results-logo-nav';
+
+                            if (resultsLogo && closeButton) {
+                                resultsHeader.insertBefore(logoNav, resultsActions);
+                                logoNav.appendChild(resultsLogo);
+                                logoNav.appendChild(closeButton);
+                            }
+                        }
+                    } else {
+                        const logoNav = document.querySelector('.results-logo-nav');
+                        if (logoNav) {
+                            const resultsLogo = logoNav.querySelector('.results-logo');
+                            const closeButton = logoNav.querySelector('#close-results');
+
+                            if (resultsLogo && closeButton && resultsHeader && resultsActions) {
+                                resultsHeader.insertBefore(resultsLogo, resultsActions);
+                                resultsActions.appendChild(closeButton);
+                                logoNav.remove();
+                            }
+                        }
+                    }
+                }
+
+                function checkUrlForIp() {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const ipParam = urlParams.get('ip');
+
+                    if (ipParam) {
+                        elements.hero.style.display = 'none';
+                        elements.hero.classList.add('hidden');
+
+                        const documentationSection = document.querySelector('.documentation');
+                        if (documentationSection) documentationSection.style.display = 'none';
+
+                        elements.results.view.style.display = 'block';
+                        elements.results.view.classList.add('active');
+                        showLoading();
+
+                        elements.search.input.value = ipParam;
+                        elements.results.input.value = ipParam;
+                        updateSearchButtonVisibility();
+
+                        document.body.classList.add('results-active');
+
+                        window.history.replaceState(
+                            { view: 'results', query: ipParam },
+                            '',
+                            `?ip=${encodeURIComponent(ipParam)}`
+                        );
+
+                        fetchIPData(ipParam);
+                    }
+                }
+
+                elements.results.closeButton.addEventListener('click', e => {
+                    e.preventDefault();
+                    transitionToHeroView();
+                });
+
+                window.addEventListener('resize', updateHeaderStructure);
+
+                window.addEventListener('popstate', event => {
+                    if (event.state && event.state.view === 'results') {
+                        const query = event.state.query;
+                        if (query) {
+                            elements.search.input.value = query;
+                            fetchIPData(query);
+                        }
+                    } else if (elements.results.view.classList.contains('active')) {
+                        transitionToHeroView();
+                    }
+                });
+
+                document.body.classList.add('loaded');
+                setupSearchEvents();
+                setupHelperButtons();
+                setTimeout(updateHeaderStructure, 100);
+                setTimeout(checkUrlForIp, 0);
             });
         </script>
     </body>

@@ -19,3 +19,12 @@ assets/
 
 # Test
 test*
+
+# npm
+node_modules/
+dist/
+eslint.config.mjs
+.prettierrc
+.prettierignore
+package-lock.json
+package.json

@@ -177,7 +177,6 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
         if ipv4_from_ipv6 and ipv4_from_ipv6 != ip_address:
             information["ipv4"] = ipv4_from_ipv6
             ip_address = ipv4_from_ipv6
-            ip_address_type = "ipv4"
         else:
             information["ipv4"] = None
 
@@ -187,7 +186,6 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
             if ipv4_from_ipv6 and ipv4_from_ipv6 != ip_address:
                 information["ipv4"] = ipv4_from_ipv6
                 ip_address = ipv4_from_ipv6
-                ip_address_type = "ipv4"
             else:
                 information["ipv4"] = None
         else:
