@@ -13,6 +13,8 @@ import uvicorn
 from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.exception_handlers import http_exception_handler
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from src.ip_address import is_valid_and_routable_ip
 from src.schemas import (
     IPAPIResponse,
@@ -47,14 +49,13 @@ async def index(request: Request):
     """
     Return the index HTML page.
     """
-    api_url = str(request.base_url).rstrip("/")
     return templates.TemplateResponse(
-        "index.html", {"request": request, "api_url": api_url}
+        "index.html", {"request": request}
     )
 
 
 @app.get(
-    "/self",
+    "/json/self",
     response_model=IPAPIResponse,
     responses={
         status.HTTP_400_BAD_REQUEST: {
@@ -64,7 +65,7 @@ async def index(request: Request):
     },
     summary="Get current IP geolocation",
     description="Returns geolocation and ASN information for the current client IP address",
-    tags=["IP"],
+    tags=["JSON"],
 )
 def self(request: Request):
     """
@@ -84,7 +85,7 @@ def self(request: Request):
 
 
 @app.get(
-    "/{ip_address}",
+    "/json/{ip_address}",
     response_model=IPAPIResponse,
     responses={
         status.HTTP_400_BAD_REQUEST: {
@@ -94,7 +95,7 @@ def self(request: Request):
     },
     summary="Get specific IP geolocation",
     description="Returns geolocation and ASN information for the specified IP address",
-    tags=["IP"],
+    tags=["JSON"],
 )
 def ip(ip_address: str, request: Request):
     """
@@ -165,6 +166,20 @@ async def number_to_field_names(number: int):
         "fields": field_names,
         "fields_str": ",".join(field_names),
     }
+
+
+@app.exception_handler(StarletteHTTPException)
+async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
+    """
+    Custom handler for HTTP exceptions.
+    For 404 errors, render the custom 404.html template.
+    For other HTTP exceptions, use the default handler.
+    """
+    if exc.status_code == 404:
+        return templates.TemplateResponse(
+            "404.html", {"request": request}
+        )
+    return await http_exception_handler(request, exc)
 
 
 def main() -> None:

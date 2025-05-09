@@ -4,6 +4,29 @@
         <meta charset="utf-8" />
         <meta content="width=device-width, initial-scale=1.0" name="viewport" />
         <title>IPApi - IP Address Information</title>
+        <meta
+            name="description"
+            content="Get detailed information about any IP address or domain. Lookup location, network, and more with our free IP geolocation API."
+        />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="{{ request.base_url }}" />
+        <meta property="og:title" content="IPApi - IP Address Information Tool" />
+        <meta
+            property="og:description"
+            content="Free IP geolocation service. Find location data, network information, and more for any IP address or domain."
+        />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content="{{ request.base_url }}" />
+        <meta name="twitter:title" content="IPApi - IP Address Information" />
+        <meta
+            name="twitter:description"
+            content="Get detailed information about any IP address or domain. Free IP geolocation API with no rate limits."
+        />
+        <link rel="canonical" href="{{ request.base_url }}" />
+        <meta
+            name="keywords"
+            content="IP lookup, geolocation, IP address information, IP API, IP geolocation, domain lookup, network information"
+        />
         <link
             href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css"
             id="hljs-light-theme"
@@ -33,15 +56,15 @@
             }
 
             .leaflet-control-zoom a {
-                background-color: #ffffff !important;
+                background-color: #f9f9f7 !important;
                 color: #333 !important;
-                border: 1px solid #ccc !important;
+                border: 1px solid #d4dadc !important;
             }
             .leaflet-control-zoom a:hover {
-                background-color: #f4f4f4 !important;
+                background-color: #d4dadc !important;
             }
             .leaflet-control-attribution {
-                background-color: rgba(255, 255, 255, 0.8) !important;
+                background-color: rgba(249, 249, 247, 0.8) !important;
                 color: #333 !important;
             }
             .leaflet-control-attribution a {
@@ -49,22 +72,22 @@
             }
             .leaflet-popup-content-wrapper,
             .leaflet-popup-tip {
-                background-color: #ffffff !important;
+                background-color: #f9f9f7 !important;
                 color: #333 !important;
                 box-shadow: 0 3px 14px rgba(0, 0, 0, 0.2) !important;
             }
             .leaflet-bar,
             .leaflet-control {
-                background-color: #ffffff !important;
-                border-color: #ccc !important;
+                background-color: #f9f9f7 !important;
+                border-color: #d4dadc !important;
             }
             .leaflet-bar a {
-                background-color: #ffffff !important;
+                background-color: #f9f9f7 !important;
                 color: #333 !important;
-                border-bottom: 1px solid #ccc !important;
+                border-bottom: 1px solid #d4dadc !important;
             }
             .leaflet-bar a:hover {
-                background-color: #f4f4f4 !important;
+                background-color: #d4dadc !important;
             }
 
             @media (prefers-color-scheme: dark) {
@@ -1258,7 +1281,7 @@
                         <div class="endpoint-header">
                             <span class="method">GET</span>
                             <div class="endpoint-url-container">
-                                <span class="base-url">{{ api_url }}/</span>
+                                <span class="base-url">{{ request.base_url }}json/</span>
                                 <input
                                     id="endpoint-input"
                                     placeholder="8.8.8.8"
@@ -1357,7 +1380,7 @@
                     notification: document.getElementById('notification-container'),
                 };
 
-                const apiBaseUrl = '{{ api_url }}';
+                const apiBaseUrl = '{{ request.base_url }}json';
 
                 let cachedIP = null;
                 let map = null;
@@ -1374,6 +1397,10 @@
                     ).matches;
                     elements.theme.light.disabled = prefersDarkMode;
                     elements.theme.dark.disabled = !prefersDarkMode;
+
+                    document.querySelectorAll('[data-highlighted]').forEach(el => {
+                        delete el.dataset.highlighted;
+                    });
 
                     if (window.hljs) hljs.highlightAll();
 
@@ -1513,8 +1540,12 @@
                                 null,
                                 4
                             );
-                            if (window.hljs)
+                            if (window.hljs) {
+                                if (elements.endpoint.responseExample.dataset.highlighted) {
+                                    delete elements.endpoint.responseExample.dataset.highlighted;
+                                }
                                 hljs.highlightElement(elements.endpoint.responseExample);
+                            }
                         } catch (error) {
                             elements.endpoint.responseExample.textContent = JSON.stringify(
                                 {
@@ -1524,8 +1555,12 @@
                                 null,
                                 4
                             );
-                            if (window.hljs)
+                            if (window.hljs) {
+                                if (elements.endpoint.responseExample.dataset.highlighted) {
+                                    delete elements.endpoint.responseExample.dataset.highlighted;
+                                }
                                 hljs.highlightElement(elements.endpoint.responseExample);
+                            }
                         } finally {
                             elements.endpoint.button.textContent = 'Try it';
                             elements.endpoint.button.disabled = false;

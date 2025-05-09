@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+        <title>404 - Page Not Found | IPApi</title>
+        <meta
+            name="description"
+            content="Page not found. Try our IP lookup tool to get detailed information about any IP address or domain."
+        />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="{{ request.base_url }}" />
+        <meta property="og:title" content="404 - Page Not Found | IPApi" />
+        <meta
+            property="og:description"
+            content="Page not found. Use our free IP geolocation service to find information about any IP address or domain."
+        />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content="{{ request.base_url }}" />
+        <meta name="twitter:title" content="404 - Page Not Found | IPApi" />
+        <meta
+            name="twitter:description"
+            content="Page not found. Try our IP lookup tool to get information about any IP address."
+        />
+        <link rel="canonical" href="{{ request.base_url }}" />
+        <style>
+            :root {
+                --background: #f8f9fa;
+                --text: #212529;
+                --primary: #4285f4;
+                --primary-dark: #3367d6;
+                --secondary: #34a853;
+                --accent: #fbbc05;
+                --danger: #ea4335;
+                --surface: #ffffff;
+                --border: #c9cfd6;
+                --card-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                --code-background: #f5f7f9;
+            }
+
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --background: #121212;
+                    --text: #e9ecef;
+                    --primary: #5c9aff;
+                    --primary-dark: #4285f4;
+                    --secondary: #4ecca3;
+                    --accent: #ffcc40;
+                    --danger: #ff5c5c;
+                    --surface: #1e1e1e;
+                    --border: #333333;
+                    --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+                    --code-background: #2a2a2a;
+                }
+            }
+
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu,
+                    Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+                background-color: var(--background);
+                color: var(--text);
+                line-height: 1.6;
+                transition:
+                    background-color 0.3s,
+                    color 0.3s;
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .container {
+                width: 100%;
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 0 20px;
+            }
+
+            main {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 2rem 0;
+            }
+
+            .logo {
+                text-align: center;
+                margin-bottom: 1rem;
+            }
+
+            .logo h1 {
+                font-size: 2.5rem;
+                font-weight: 800;
+                color: var(--primary);
+                letter-spacing: -1px;
+            }
+
+            .error-container {
+                text-align: center;
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 2rem;
+                border-radius: 12px;
+                box-shadow: var(--card-shadow);
+                border: 1px solid var(--border);
+                margin-bottom: 2rem;
+            }
+
+            .error-code {
+                font-size: 8rem;
+                font-weight: 900;
+                color: var(--primary);
+                line-height: 1;
+                margin-bottom: 1rem;
+                position: relative;
+                display: inline-block;
+            }
+
+            .error-code::after {
+                content: '';
+                position: absolute;
+                width: 100%;
+                height: 10px;
+                background-color: var(--primary);
+                opacity: 0.2;
+                bottom: 20px;
+                left: 0;
+                border-radius: 5px;
+                z-index: -1;
+            }
+
+            .error-description {
+                font-size: 1.1rem;
+                color: var(--text);
+                opacity: 0.8;
+                margin-bottom: 2rem;
+            }
+
+            .search-container {
+                max-width: 600px;
+                width: 100%;
+                margin: 0 auto;
+            }
+
+            .search-wrapper {
+                display: flex;
+                position: relative;
+                margin-bottom: 1rem;
+            }
+
+            #search-input {
+                width: 100%;
+                padding: 16px 20px;
+                border-radius: 50px;
+                border: 2px solid var(--border);
+                background-color: var(--surface);
+                color: var(--text);
+                font-size: 1.1rem;
+                transition: all 0.3s ease;
+                outline: none;
+            }
+
+            #search-input:focus {
+                border-color: var(--primary);
+                box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.3);
+            }
+
+            #search-button {
+                position: absolute;
+                right: 8px;
+                top: 50%;
+                transform: translateY(-50%);
+                background-color: var(--primary);
+                color: white;
+                border: none;
+                width: 44px;
+                height: 44px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                transition: all 0.3s ease;
+            }
+
+            #search-button.hidden {
+                opacity: 0;
+                pointer-events: none;
+            }
+
+            #search-button.visible {
+                opacity: 1;
+                pointer-events: auto;
+                animation: slideIn 0.3s forwards;
+            }
+
+            #search-button:hover {
+                background-color: var(--primary-dark);
+                transform: translateY(-50%) scale(1.05);
+            }
+
+            #search-button svg {
+                fill: white;
+            }
+
+            @keyframes slideIn {
+                from {
+                    transform: translateY(-50%) translateX(20px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateY(-50%) translateX(0);
+                    opacity: 1;
+                }
+            }
+
+            .button {
+                display: inline-block;
+                padding: 12px 24px;
+                background-color: var(--primary);
+                color: white;
+                border: none;
+                border-radius: 50px;
+                font-size: 1rem;
+                font-weight: 500;
+                cursor: pointer;
+                text-decoration: none;
+                transition: all 0.3s ease;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            }
+
+            .button:hover {
+                background-color: var(--primary-dark);
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            }
+
+            .button:active {
+                transform: translateY(0);
+            }
+
+            @media (max-width: 768px) {
+                .error-code {
+                    font-size: 6rem;
+                }
+            }
+
+            @media (max-width: 480px) {
+                .error-code {
+                    font-size: 5rem;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <main>
+            <div class="container">
+                <div class="logo">
+                    <h1>IPApi</h1>
+                </div>
+                <div class="error-container">
+                    <div class="error-code">404</div>
+                    <h2 class="error-title">Connection Lost</h2>
+                    <p class="error-description">
+                        The page or resource you're looking for couldn't be found on our server. It
+                        might have been moved, deleted, or never existed in the first place.
+                    </p>
+                    <a href="/" class="button">Return Home</a>
+                </div>
+                <div class="search-container">
+                    <div class="search-wrapper">
+                        <input
+                            id="search-input"
+                            placeholder="Try another IP, IPv6 or Domain"
+                            type="text"
+                        />
+                        <button id="search-button" class="hidden">
+                            <svg
+                                height="24"
+                                viewbox="0 0 24 24"
+                                width="24"
+                                xmlns="http://www.w3.org/2000/svg"
+                            >
+                                <path d="M0 0h24v24H0z" fill="none"></path>
+                                <path d="M16.01 11H4v2h12.01v3L20 12l-3.99-4z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const searchInput = document.getElementById('search-input');
+                const searchButton = document.getElementById('search-button');
+
+                function updateSearchButtonVisibility() {
+                    const isEmpty = searchInput.value.trim() === '';
+                    searchButton.classList.toggle('visible', !isEmpty);
+                    searchButton.classList.toggle('hidden', isEmpty);
+                }
+
+                function handleSearch() {
+                    const query = searchInput.value.trim();
+                    if (query) {
+                        window.location.href = `/?ip=${encodeURIComponent(query)}`;
+                    }
+                }
+
+                ['input', 'change', 'autocomplete'].forEach(event => {
+                    searchInput.addEventListener(event, updateSearchButtonVisibility);
+                });
+
+                searchInput.addEventListener('animationstart', e => {
+                    if (e.animationName.indexOf('autofill') !== -1) updateSearchButtonVisibility();
+                });
+
+                updateSearchButtonVisibility();
+
+                searchButton.addEventListener('click', handleSearch);
+
+                searchInput.addEventListener('keypress', e => {
+                    if (e.key === 'Enter' && searchInput.value.trim()) {
+                        handleSearch();
+                    }
+                });
+            });
+        </script>
+    </body>
+</html>

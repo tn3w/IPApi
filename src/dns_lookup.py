@@ -13,7 +13,6 @@ format detection and conversion.
 import socket
 from functools import lru_cache
 from typing import Optional
-import netaddr
 import dns.resolver
 import dns.reversename
 
@@ -46,28 +45,6 @@ def get_ipv4_from_ipv6(ipv6_address: str) -> Optional[str]:
     Returns:
         Optional[str]: IPv4 address if conversion successful, None otherwise
     """
-    try:
-        ip = netaddr.IPAddress(ipv6_address)
-        if ip.version != 6:
-            return None
-
-        if ip.is_ipv4_mapped():
-            ipv4_int = int(ip) & 0xFFFFFFFF
-            return str(netaddr.IPAddress(ipv4_int, version=4))
-
-        if ipv6_address.lower().startswith("2002:"):
-            parts = ipv6_address.split(":")
-            if len(parts) >= 3:
-                hex_ip = parts[1] + parts[2]
-                if len(hex_ip) == 8:
-                    try:
-                        ipv4_int = int(hex_ip, 16)
-                        return str(netaddr.IPAddress(ipv4_int, version=4))
-                    except (ValueError, netaddr.AddrFormatError):
-                        pass
-
-    except (netaddr.AddrFormatError, ValueError):
-        pass
 
     try:
         resolver = dns.resolver.Resolver()
