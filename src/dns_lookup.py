@@ -110,7 +110,9 @@ def get_ipv4_from_ipv6(ipv6_address: str) -> Optional[str]:
         dns.resolver.NoAnswer,
         dns.resolver.NoNameservers,
         dns.resolver.YXDOMAIN,
+        dns.resolver.LifetimeTimeout,
         ValueError,
+        OSError,
     ):
         pass
 
