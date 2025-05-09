@@ -1734,24 +1734,49 @@
                             { key: 'county', label: 'County' },
                             { key: 'postal_code', label: 'Postal Code' },
                             { key: 'timezone', label: 'Timezone' },
-                            { key: 'currency', label: 'Currency' },
-                            { key: 'accuracy_radius', label: 'Accuracy Radius' },
                         ];
 
                         locationFields.forEach(field => {
                             if (isValidValue(data[field.key])) {
                                 addResultItem(locationGrid, field.label, data[field.key]);
+
+                                if (field.key === 'timezone' && isValidValue(data.offset)) {
+                                    const offsetHours = data.offset / 3600;
+                                    const sign = offsetHours >= 0 ? '+' : '';
+                                    const formattedOffset = `GMT${sign}${offsetHours}`;
+                                    addResultItem(locationGrid, 'GMT Offset', formattedOffset);
+                                }
                             }
                         });
+
+                        const remainingFields = [
+                            { key: 'currency', label: 'Currency' },
+                            { key: 'accuracy_radius', label: 'Accuracy Radius' },
+                        ];
+
+                        remainingFields.forEach(field => {
+                            if (isValidValue(data[field.key])) {
+                                addResultItem(locationGrid, field.label, data[field.key]);
+                            }
+                        });
+
+                        if (isValidValue(data.latitude)) {
+                            addResultItem(locationGrid, 'Latitude', data.latitude);
+                        }
+                        if (isValidValue(data.longitude)) {
+                            addResultItem(locationGrid, 'Longitude', data.longitude);
+                        }
                     }
 
                     const networkGrid = document.getElementById('network-grid');
                     if (networkGrid) {
                         networkGrid.innerHTML = '';
 
+                        const showAsnName = data.asn_name !== data.organization;
+
                         const networkFields = [
                             { key: 'asn', label: 'ASN' },
-                            { key: 'asn_name', label: 'ASN Name' },
+                            ...(showAsnName ? [{ key: 'asn_name', label: 'ASN Name' }] : []),
                             { key: 'organization', label: 'Organization' },
                             { key: 'net', label: 'Network' },
                         ];

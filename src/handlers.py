@@ -192,7 +192,9 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
             information["ipv4"] = ip_address
 
     if "hostname" in fields:
-        information["hostname"] = get_dns_info(ip_address)
+        hostname = get_dns_info(ip_address)
+        if hostname and hostname != ip_address:
+            information["hostname"] = hostname
 
     if "type" in fields:
         information["type"] = ip_address_type
@@ -211,7 +213,7 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
         lookup_result = lookup_asn_from_ip(ip_address)
         if lookup_result:
             if not information.get("latitude") or not information.get("longitude"):
-                information["accuracy_radius"] = 1000
+                information["accuracy_radius"] = 100
             information.update(lookup_result)
 
     if (
