@@ -35,6 +35,7 @@ from src.geo_lookup import (
 )
 from src.asn_lookup import lookup_asn_from_ip, get_asn_from_maxmind
 from src.dns_lookup import get_dns_info, get_ipv4_from_ipv6
+from src.abuse_lookup import process_tor_exit_nodes_database, is_tor_exit_node
 
 
 DATASETS_DIR = "assets"
@@ -47,14 +48,18 @@ DATASETS = {
             "countries-states-cities-database/refs/heads/master/"
             "json/countries%2Bstates%2Bcities.json"
         ),
-        "countries_states_cities.json",
+        "countries-states-cities.json",
     ),
     "Zip-Codes": (
         (
             "https://raw.githubusercontent.com/wouterdebie/"
             "zip_codes_plus/refs/heads/main/data/zip_codes.csv"
         ),
-        "zip_codes.csv",
+        "zip-codes.csv",
+    ),
+    "Tor-Exit-Nodes": (
+        "https://onionoo.torproject.org/details?flag=exit",
+        "tor-exit-nodes.json",
     ),
 }
 
@@ -171,6 +176,10 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
 
     if "ip" in fields:
         information["ip"] = ip_address
+
+    if "tor_exit_node" in fields:
+        tor_nodes_file = os.path.join(DATASETS_DIR, DATASETS["Tor-Exit-Nodes"][1])
+        information["tor_exit_node"] = is_tor_exit_node(ip_address, tor_nodes_file)
 
     if ip_address_type == "ipv6":
         ipv4_from_ipv6 = extract_ipv4_from_ipv6(ip_address)
@@ -303,6 +312,9 @@ def download_and_process_datasets() -> None:
     zip_codes_json_path = zip_codes_path.replace(".csv", ".json")
     does_zip_codes_database_exist = os.path.exists(zip_codes_json_path)
 
+    tor_exit_nodes_path = os.path.join(DATASETS_DIR, DATASETS["Tor-Exit-Nodes"][1])
+    does_tor_exit_nodes_database_exist = os.path.exists(tor_exit_nodes_path)
+
     for dataset_name, (dataset_url, dataset_filename) in DATASETS.items():
         if dataset_name == "Zip-Codes" and does_zip_codes_database_exist:
             continue
@@ -318,3 +330,9 @@ def download_and_process_datasets() -> None:
     if not does_zip_codes_database_exist:
         print("Processing zip codes database...")
         process_zip_codes_database(zip_codes_path, zip_codes_json_path)
+
+    if not does_tor_exit_nodes_database_exist:
+        print("Processing tor exit nodes database...")
+        process_tor_exit_nodes_database(
+            os.path.join(DATASETS_DIR, DATASETS["Tor-Exit-Nodes"][1])
+        )

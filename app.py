@@ -49,9 +49,7 @@ async def index(request: Request):
     """
     Return the index HTML page.
     """
-    return templates.TemplateResponse(
-        "index.html", {"request": request}
-    )
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
 @app.get(
@@ -176,9 +174,7 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
     For other HTTP exceptions, use the default handler.
     """
     if exc.status_code == 404:
-        return templates.TemplateResponse(
-            "404.html", {"request": request}
-        )
+        return templates.TemplateResponse("404.html", {"request": request})
     return await http_exception_handler(request, exc)
 
 

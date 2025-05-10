@@ -31,6 +31,7 @@ DEFAULT_FIELDS: Final[List[str]] = [
     "accuracy_radius",
     "asn",
     "organization",
+    "tor_exit_node",
 ]
 
 ALL_FIELDS: Final[List[str]] = [
@@ -57,6 +58,7 @@ ALL_FIELDS: Final[List[str]] = [
     "asn_name",
     "organization",
     "net",
+    "tor_exit_node",
 ]
 
 FIELD_BITS: Final[Dict[str, int]] = {

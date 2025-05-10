@@ -59,8 +59,14 @@ class IPAPIResponse(BaseModel):
     organization: Optional[str] = Field(None, description="Organization name")
     net: Optional[str] = Field(None, description="Network range")
 
+    # Abuse information
+    tor_exit_node: Optional[bool] = Field(
+        None, description="If the IP is a Tor exit node"
+    )
+
     class Config:
         """Config for the IPAPIResponse model."""
+
         json_schema_extra = {
             "example": {
                 "ip": "1.1.1.1",
@@ -81,6 +87,7 @@ class IPAPIResponse(BaseModel):
                 "accuracy_radius": 1000,
                 "asn": 13335,
                 "organization": "Cloudflare, Inc.",
+                "tor_exit_node": False,
             }
         }
 
@@ -92,6 +99,7 @@ class FieldsListResponse(BaseModel):
 
     class Config:
         """Config for the FieldsListResponse model."""
+
         json_schema_extra = {"example": {"fields": ALL_FIELDS}}
 
 
@@ -103,6 +111,7 @@ class FieldToNumberResponse(BaseModel):
 
     class Config:
         """Config for the FieldToNumberResponse model."""
+
         json_schema_extra = {
             "example": {
                 "fields": ["ip", "country", "city"],
@@ -120,6 +129,7 @@ class NumberToFieldsResponse(BaseModel):
 
     class Config:
         """Config for the NumberToFieldsResponse model."""
+
         @staticmethod
         def json_schema_extra(schema: Dict[str, Any], _model: type) -> None:
             """Dynamically calculate the example values based on current FIELDS."""
