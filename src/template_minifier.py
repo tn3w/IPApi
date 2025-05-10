@@ -112,7 +112,7 @@ def minify_html_file(file_path: str) -> str:
         content_with_style_placeholders
     )
 
-    minified_html = htmlmin.minify( # type: ignore
+    minified_html = htmlmin.minify(  # type: ignore
         content_with_placeholders,
         remove_comments=False,
         remove_empty_space=True,
@@ -124,7 +124,7 @@ def minify_html_file(file_path: str) -> str:
 
     result = reinsert_content(minified_html, minified_styles, minified_scripts)
 
-    final_result = htmlmin.minify( # type: ignore
+    final_result = htmlmin.minify(  # type: ignore
         result,
         remove_comments=True,
         remove_empty_space=True,
