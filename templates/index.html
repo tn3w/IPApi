@@ -379,7 +379,7 @@
                 gap: 1rem;
             }
 
-            .action-buttons button {
+            .action-buttons a {
                 padding: 10px 16px;
                 border: none;
                 border-radius: 20px;
@@ -391,6 +391,11 @@
                 border: 1px solid var(--border);
                 position: relative;
                 box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+                text-decoration: none;
+                display: inline-block;
+                text-align: center;
+                font-size: 1rem;
+                text-decoration: none;
             }
 
             .spinner {
@@ -411,7 +416,7 @@
                 }
             }
 
-            .action-buttons button:hover {
+            .action-buttons a:hover {
                 background-color: var(--primary);
                 color: white;
                 box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
@@ -1406,8 +1411,8 @@
                             </button>
                         </form>
                         <div class="action-buttons">
-                            <button id="my-ip">My IP</button>
-                            <button id="try-example">Try Example</button>
+                            <a href="/json/self" id="my-ip">My IP</a>
+                            <a href="/json/8.8.8.8" id="try-example">Try Example</a>
                         </div>
                     </div>
                 </div>
@@ -1693,6 +1698,7 @@
             document.addEventListener('DOMContentLoaded', () => {
                 const elements = {
                     search: {
+                        form: document.getElementById('search-form'),
                         input: document.getElementById('search-input'),
                         button: document.getElementById('search-button'),
                         myIpButton: document.getElementById('my-ip'),
@@ -1734,6 +1740,12 @@
                 let notificationTimeout = null;
                 let lastErrorMessage = '';
                 let errorCounter = 1;
+
+                const actionButtons = document.querySelectorAll('.action-buttons a');
+                actionButtons.forEach(button => {
+                    button.dataset.href = button.getAttribute('href');
+                    button.removeAttribute('href');
+                });
 
                 function toggleTheme() {
                     const savedTheme = localStorage.getItem('theme');
@@ -1846,6 +1858,10 @@
                             updateSearchButtonVisibility();
                     });
 
+                    elements.search.form.addEventListener('submit', e => {
+                        e.preventDefault();
+                    });
+
                     elements.search.button.addEventListener('click', () => {
                         const query = elements.search.input.value.trim();
                         if (query) fetchIPData(query);
@@ -1876,7 +1892,9 @@
                 }
 
                 function setupHelperButtons() {
-                    elements.search.myIpButton.addEventListener('click', async () => {
+                    elements.search.myIpButton.addEventListener('click', async e => {
+                        e.preventDefault();
+
                         const originalText = elements.search.myIpButton.textContent;
                         elements.search.myIpButton.innerHTML =
                             '<span class="spinner"></span> Loading...';
@@ -1920,10 +1938,19 @@
                         }
                     });
 
-                    elements.search.tryExampleButton.addEventListener('click', () => {
+                    elements.search.tryExampleButton.addEventListener('click', e => {
+                        e.preventDefault();
+
                         elements.search.input.value = '8.8.8.8';
                         updateSearchButtonVisibility();
                     });
+
+                    const endpointForm = document.querySelector('.endpoint-url-container');
+                    if (endpointForm) {
+                        endpointForm.addEventListener('submit', e => {
+                            e.preventDefault();
+                        });
+                    }
 
                     elements.endpoint.button.addEventListener('click', async () => {
                         const query = elements.endpoint.input.value.trim();
