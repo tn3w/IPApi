@@ -126,6 +126,9 @@ DATASETS = {
 
 
 def get_parsed_file_path(file_path: str) -> str:
+    """
+    Get the parsed file path for the given file path.
+    """
     return file_path.replace(".json", ".parsed.json").replace(".csv", ".parsed.csv")
 
 
@@ -430,7 +433,10 @@ def download_and_process_datasets() -> None:
     """
     for dataset_name, (dataset_url, dataset_filename) in DATASETS.items():
         file_path = os.path.join(DATASETS_DIR, dataset_filename)
-        if not os.path.exists(get_parsed_file_path(file_path)) and not 'Surfshark-Hostnames' in dataset_name:
+        if (
+            not os.path.exists(get_parsed_file_path(file_path))
+            and not "Surfshark-Hostnames" in dataset_name
+        ):
             download_file(dataset_url, file_path, dataset_name)
 
     standard_processors = {

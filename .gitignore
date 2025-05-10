@@ -28,3 +28,6 @@ eslint.config.mjs
 .prettierignore
 package-lock.json
 package.json
+
+# Minified Templates
+templates/minified

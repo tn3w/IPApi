@@ -36,8 +36,9 @@ from src.handlers import (
     get_ip_information,
     download_and_process_datasets,
 )
+from src.template_minifier import minify_templates
 
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory="templates/minified")
 
 app = FastAPI(
     title="IPApi",
@@ -102,7 +103,7 @@ def self(request: Request):
     description="Returns geolocation and ASN information for the specified IP address",
     tags=["JSON"],
 )
-def ip(request: Request,ip_address: Optional[str] = None):
+def ip(request: Request, ip_address: Optional[str] = None):
     """
     Return the GeoIP and ASN information for the given IP address.
     """
@@ -193,8 +194,8 @@ def main() -> None:
     """
     Main function to run the app.
     """
-
     download_and_process_datasets()
+    minify_templates()
 
     uvicorn.run(
         "app:app",
