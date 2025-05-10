@@ -9,6 +9,8 @@ for IP addresses. It includes endpoints for current client IP lookup, specific I
 field management, and serves a web interface.
 """
 
+from typing import Optional
+
 import uvicorn
 from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -83,6 +85,11 @@ def self(request: Request):
 
 
 @app.get(
+    "/json/",
+    response_model=IPAPIResponse,
+    include_in_schema=False,
+)
+@app.get(
     "/json/{ip_address}",
     response_model=IPAPIResponse,
     responses={
@@ -95,11 +102,15 @@ def self(request: Request):
     description="Returns geolocation and ASN information for the specified IP address",
     tags=["JSON"],
 )
-def ip(ip_address: str, request: Request):
+def ip(request: Request,ip_address: Optional[str] = None):
     """
     Return the GeoIP and ASN information for the given IP address.
     """
-    if not is_valid_and_routable_ip(ip_address):
+
+    if not ip_address:
+        ip_address = request.query_params.get("ip")
+
+    if not ip_address or not is_valid_and_routable_ip(ip_address):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid IP address",

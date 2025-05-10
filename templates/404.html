@@ -276,9 +276,10 @@
                     <a href="/" class="button">Return Home</a>
                 </div>
                 <div class="search-container">
-                    <div class="search-wrapper">
+                    <form id="search-form" class="search-wrapper" action="/json/" method="get">
                         <input
                             id="search-input"
+                            name="ip"
                             placeholder="Try another IP, IPv6 or Domain"
                             type="text"
                         />
@@ -293,13 +294,24 @@
                                 <path d="M16.01 11H4v2h12.01v3L20 12l-3.99-4z"></path>
                             </svg>
                         </button>
-                    </div>
+                    </form>
                 </div>
             </div>
         </main>
 
+        <noscript>
+            <style>
+                #search-button {
+                    opacity: 1;
+                    pointer-events: auto;
+                    animation: slideIn 0.3s forwards;
+                }
+            </style>
+        </noscript>
+
         <script>
             document.addEventListener('DOMContentLoaded', () => {
+                const searchForm = document.getElementById('search-form');
                 const searchInput = document.getElementById('search-input');
                 const searchButton = document.getElementById('search-button');
 
@@ -318,6 +330,10 @@
 
                 ['input', 'change', 'autocomplete'].forEach(event => {
                     searchInput.addEventListener(event, updateSearchButtonVisibility);
+                });
+
+                searchForm.addEventListener('submit', event => {
+                    event.preventDefault();
                 });
 
                 searchInput.addEventListener('animationstart', e => {

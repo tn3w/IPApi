@@ -1386,13 +1386,14 @@
                         <h1>IPApi</h1>
                     </div>
                     <div class="search-container">
-                        <div class="search-wrapper">
+                        <form id="search-form" class="search-wrapper" action="/json/" method="get">
                             <input
                                 id="search-input"
+                                name="ip"
                                 placeholder="Enter IP, IPv6 or Domain"
                                 type="text"
                             />
-                            <button class="hidden" id="search-button">
+                            <button type="submit" class="hidden" id="search-button">
                                 <svg
                                     height="24"
                                     viewbox="0 0 24 24"
@@ -1403,7 +1404,7 @@
                                     <path d="M16.01 11H4v2h12.01v3L20 12l-3.99-4z"></path>
                                 </svg>
                             </button>
-                        </div>
+                        </form>
                         <div class="action-buttons">
                             <button id="my-ip">My IP</button>
                             <button id="try-example">Try Example</button>
@@ -1541,22 +1542,48 @@
                     <div class="endpoint-card">
                         <div class="endpoint-header">
                             <span class="method">GET</span>
-                            <div class="endpoint-url-container">
+                            <form class="endpoint-url-container" action="/json/" method="get">
                                 <span class="base-url">{{ request.base_url }}json/</span>
                                 <input
                                     id="endpoint-input"
+                                    name="ip"
                                     placeholder="1.1.1.1"
                                     type="text"
                                     value="1.1.1.1"
                                 />
-                                <button id="try-endpoint">Try it</button>
-                            </div>
+                                <button type="submit" id="try-endpoint">Try it</button>
+                            </form>
                         </div>
                         <div class="endpoint-response">
                             <div class="response-header">
                                 <span>Response</span>
                             </div>
                             <pre><code class="language-json" id="response-example"></code></pre>
+                            <noscript>
+                                <pre><code class="language-json">{
+    "ip": "1.1.1.1",
+    "hostname": "one.one.one.one",
+    "type": "ipv4",
+    "continent": "North America",
+    "continent_code": "NA",
+    "country": "United States",
+    "country_code": "US",
+    "region": "California",
+    "region_code": "CA",
+    "city": "Los Angeles",
+    "postal_code": "90001",
+    "latitude": 34.052571,
+    "longitude": -118.243907,
+    "timezone": "America/Los_Angeles",
+    "currency": "USD",
+    "accuracy_radius": 100,
+    "asn": 13335,
+    "organization": "Cloudflare, Inc.",
+    "tor_exit_node": false,
+    "vpn": false,
+    "vpn_name": null
+}</code></pre>
+                            </noscript>
                             <script>
                                 document.addEventListener('DOMContentLoaded', () => {
                                     const exampleJsonData = {
@@ -1626,7 +1653,7 @@
                 </div>
                 <div class="github-link">
                     <a
-                        href="https://github.com/tn3w/ipapi"
+                        href="https://github.com/tn3w/IPApi"
                         rel="noopener noreferrer"
                         target="_blank"
                     >
@@ -1647,6 +1674,20 @@
         </footer>
 
         <div class="notification-container" id="notification-container"></div>
+
+        <noscript>
+            <style>
+                #search-button {
+                    opacity: 1;
+                    pointer-events: auto;
+                    animation: slideIn 0.3s forwards;
+                }
+
+                .theme-toggle {
+                    display: none !important;
+                }
+            </style>
+        </noscript>
 
         <script>
             document.addEventListener('DOMContentLoaded', () => {
