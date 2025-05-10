@@ -159,6 +159,9 @@
                 --code-background: #2a2a2a;
                 --tor-badge-color: #59316b;
                 --text-rgb: 233, 236, 239;
+                transition:
+                    background-color 0.3s,
+                    color 0.3s;
             }
 
             html.dark-theme .leaflet-control-zoom a {
@@ -210,6 +213,9 @@
                 --code-background: #f5f7f9;
                 --tor-badge-color: #9b59b6;
                 --text-rgb: 33, 37, 41;
+                transition:
+                    background-color 0.3s,
+                    color 0.3s;
             }
 
             html.light-theme .leaflet-control-zoom a {
@@ -1534,7 +1540,8 @@
     "currency": "USD",
     "accuracy_radius": 100,
     "asn": 13335,
-    "organization": "Cloudflare, Inc."
+    "organization": "Cloudflare, Inc.",
+    "tor_exit_node": false
 }</code></pre>
                         </div>
                     </div>
