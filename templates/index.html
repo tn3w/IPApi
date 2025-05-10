@@ -2193,12 +2193,10 @@
                         '(prefers-color-scheme: dark)'
                     ).matches;
 
-                    // Use saved theme or system preference
                     const savedTheme = localStorage.getItem('theme');
                     const useDarkMode =
                         savedTheme === 'dark' || (savedTheme !== 'light' && prefersDarkMode);
 
-                    // Check for direct class assignment only if there's a saved preference
                     const htmlElement = document.documentElement;
                     const hasDarkClass = htmlElement.classList.contains('dark-theme');
                     const finalUseDarkMode =
