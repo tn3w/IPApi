@@ -11,7 +11,6 @@ supplementary data for enhanced location details like currencies and timezones.
 """
 
 import json
-import os
 import csv
 import unicodedata
 from functools import lru_cache
@@ -645,16 +644,15 @@ def get_country_states_cities_data(
     return country_info
 
 
-def process_zip_codes_database(csv_file_path: str, json_file_path: str) -> None:
+def process_zip_codes_database(file_path: str) -> None:
     """
     Process ZIP codes CSV data and convert it to a more efficient JSON format for lookups.
 
     Args:
-        csv_file_path: Path to the ZIP codes CSV file
-        json_file_path: Path to save the processed JSON data
+        file_path: Path to save the processed JSON data
     """
     try:
-        with open(csv_file_path, "r", encoding="utf-8") as file:
+        with open(file_path, "r", encoding="utf-8") as file:
             csv_reader: Iterator[List[str]] = csv.reader(file)  # type: ignore
             csv_reader = cast(Iterator[List[str]], csv_reader)
 
@@ -682,12 +680,10 @@ def process_zip_codes_database(csv_file_path: str, json_file_path: str) -> None:
                 ):
                     zip_codes_data[key] = zip_code
 
-        with open(json_file_path, "w", encoding="utf-8") as json_file:
+        with open(file_path, "w", encoding="utf-8") as json_file:
             json.dump(zip_codes_data, json_file, ensure_ascii=False)
 
-        os.remove(csv_file_path)
-
-        print(f"Successfully processed ZIP codes data to {json_file_path}")
+        print(f"Successfully processed ZIP codes data to {file_path}")
 
     except (IOError, json.JSONDecodeError, csv.Error, OSError) as e:
         print(f"Error processing ZIP codes data: {e}")

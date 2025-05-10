@@ -12,7 +12,7 @@ format detection and conversion.
 
 import socket
 from functools import lru_cache
-from typing import Optional
+from typing import Optional, Tuple, List
 import dns.resolver
 import dns.reversename
 
@@ -33,6 +33,24 @@ def get_dns_info(addr: str) -> Optional[str]:
         return socket.getfqdn(addr)
     except (socket.error, OSError):
         return None
+
+
+def resolve_hostname(hostname: str) -> Tuple[str, List[str]]:
+    """
+    Resolve a hostname to its IP addresses.
+
+    Args:
+        hostname: The hostname to resolve
+
+    Returns:
+        A tuple containing the hostname and its resolved IP addresses
+    """
+    try:
+        ip_info = socket.getaddrinfo(hostname, None)
+        ips = set(addr[4][0] for addr in ip_info)
+        return hostname, list(ips)
+    except socket.gaierror:
+        return hostname, []
 
 
 def get_ipv4_from_ipv6(ipv6_address: str) -> Optional[str]:

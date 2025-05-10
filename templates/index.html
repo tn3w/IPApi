@@ -54,6 +54,7 @@
                 --card-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
                 --code-background: #f5f7f9;
                 --tor-badge-color: #9b59b6;
+                --vpn-badge-color: #2ecc71;
                 --text-rgb: 33, 37, 41;
             }
 
@@ -106,6 +107,7 @@
                     --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
                     --code-background: #2a2a2a;
                     --tor-badge-color: #59316b;
+                    --vpn-badge-color: #27ae60;
                     --text-rgb: 233, 236, 239;
                 }
 
@@ -158,6 +160,7 @@
                 --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
                 --code-background: #2a2a2a;
                 --tor-badge-color: #59316b;
+                --vpn-badge-color: #27ae60;
                 --text-rgb: 233, 236, 239;
                 transition:
                     background-color 0.3s,
@@ -212,6 +215,7 @@
                 --card-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
                 --code-background: #f5f7f9;
                 --tor-badge-color: #9b59b6;
+                --vpn-badge-color: #2ecc71;
                 --text-rgb: 33, 37, 41;
                 transition:
                     background-color 0.3s,
@@ -1054,6 +1058,24 @@
                 height: 16px;
             }
 
+            .vpn-badge {
+                display: inline-flex;
+                align-items: center;
+                background-color: var(--vpn-badge-color);
+                color: white;
+                padding: 4px 10px;
+                border-radius: 50px;
+                font-size: 0.8rem;
+                font-weight: 500;
+                gap: 4px;
+                height: 24px;
+            }
+
+            .vpn-badge svg {
+                width: 16px;
+                height: 16px;
+            }
+
             .results-primary-info h2 {
                 font-size: 2.5rem;
                 margin: 0;
@@ -1469,6 +1491,18 @@
                                             </svg>
                                             <span>Tor</span>
                                         </div>
+                                        <div class="vpn-badge" id="vpn-badge" style="display: none">
+                                            <svg
+                                                viewBox="0 0 24 24"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                            >
+                                                <path
+                                                    d="M17 9V7c0-2.8-2.2-5-5-5S7 4.2 7 7v2c-1.7 0-3 1.3-3 3v7c0 1.7 1.3 3 3 3h10c1.7 0 3-1.3 3-3v-7c0-1.7-1.3-3-3-3M9 7c0-1.7 1.3-3 3-3s3 1.3 3 3v2H9z"
+                                                    fill="#FFFFFF"
+                                                />
+                                            </svg>
+                                            <span>VPN</span>
+                                        </div>
                                     </div>
                                     <h2 id="result-ip">8.8.8.8</h2>
                                     <p id="result-hostname">dns.google</p>
@@ -1637,7 +1671,6 @@
 
                 const apiBaseUrl = '{{ request.base_url }}json';
 
-                let cachedIP = null;
                 let map = null;
                 let marker = null;
                 let currentQuery = null;
@@ -1771,27 +1804,34 @@
 
                 function setupHelperButtons() {
                     elements.search.myIpButton.addEventListener('click', async () => {
-                        if (cachedIP) {
-                            elements.search.input.value = cachedIP;
-                            updateSearchButtonVisibility();
-                            return;
-                        }
-
                         const originalText = elements.search.myIpButton.textContent;
                         elements.search.myIpButton.innerHTML =
                             '<span class="spinner"></span> Loading...';
                         elements.search.myIpButton.disabled = true;
 
                         try {
-                            const response = await fetch(`${apiBaseUrl}/self?fields=ip`);
-                            const data = await response.json();
+                            const isLocalhost =
+                                window.location.hostname === 'localhost' ||
+                                window.location.hostname === '127.0.0.1' ||
+                                window.location.hostname === '0.0.0.0';
 
-                            if (data.ip) {
-                                cachedIP = data.ip;
-                                elements.search.input.value = cachedIP;
+                            let ipData;
+
+                            if (isLocalhost) {
+                                const ipifyResponse = await fetch(
+                                    'https://api.ipify.org?format=json'
+                                );
+                                ipData = await ipifyResponse.json();
+                            } else {
+                                const response = await fetch(`${apiBaseUrl}/self?fields=ip`);
+                                ipData = await response.json();
+                            }
+
+                            if (ipData.ip) {
+                                elements.search.input.value = ipData.ip;
                                 updateSearchButtonVisibility();
-                            } else if (data.detail) {
-                                throw new Error(data.detail);
+                            } else if (ipData.detail) {
+                                throw new Error(ipData.detail);
                             } else {
                                 throw new Error('Unexpected response format');
                             }
@@ -2019,6 +2059,7 @@
                     const ipEl = document.getElementById('result-ip');
                     const hostnameEl = document.getElementById('result-hostname');
                     const torBadgeEl = document.getElementById('tor-badge');
+                    const vpnBadgeEl = document.getElementById('vpn-badge');
 
                     if (ipTypeEl) ipTypeEl.textContent = data.type?.toUpperCase() || 'IP';
 
@@ -2045,6 +2086,10 @@
                     if (torBadgeEl) {
                         torBadgeEl.style.display =
                             data.tor_exit_node === true ? 'inline-flex' : 'none';
+                    }
+
+                    if (vpnBadgeEl) {
+                        vpnBadgeEl.style.display = data.vpn === true ? 'inline-flex' : 'none';
                     }
 
                     if (hostnameEl)
@@ -2121,6 +2166,14 @@
                     const abuseGrid = document.getElementById('abuse-grid');
                     if (abuseGrid) {
                         abuseGrid.innerHTML = '';
+
+                        let vpnDisplay = 'No';
+                        if (data.vpn === true) {
+                            vpnDisplay = isValidValue(data.vpn_name)
+                                ? `Yes (${data.vpn_name})`
+                                : 'Yes';
+                        }
+                        addResultItem(abuseGrid, 'VPN', vpnDisplay);
 
                         addResultItem(
                             abuseGrid,

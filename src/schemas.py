@@ -63,6 +63,8 @@ class IPAPIResponse(BaseModel):
     tor_exit_node: Optional[bool] = Field(
         None, description="If the IP is a Tor exit node"
     )
+    vpn: Optional[bool] = Field(None, description="If the IP is a VPN server")
+    vpn_name: Optional[str] = Field(None, description="Name of the VPN server")
 
     class Config:
         """Config for the IPAPIResponse model."""
