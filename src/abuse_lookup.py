@@ -254,7 +254,7 @@ def resolve_and_save_surfshark_hostnames_to_json(
         json.dump(all_ips, json_file)
 
 
-def download_surfshark_servers_database(url: str, file_path: str) -> None:
+def download_surfshark_hostnames_database(url: str, file_path: str) -> None:
     """
     Download Surfshark server data and write extracted IP addresses to a JSON file.
 
@@ -265,6 +265,7 @@ def download_surfshark_servers_database(url: str, file_path: str) -> None:
     configs = download_and_extract_surfshark_configs(url)
 
     if not configs:
+        print("Error processing Surfshark hostnames to server IPs data.")
         return
 
     remote_addresses = extract_surfshark_remote_addresses(configs)

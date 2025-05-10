@@ -44,7 +44,7 @@ from src.abuse_lookup import (
     process_cyberghost_servers_database,
     process_mullvad_servers_database,
     is_vpn_server,
-    download_surfshark_servers_database,
+    download_surfshark_hostnames_database,
 )
 
 
@@ -158,9 +158,7 @@ VPN_SERVERS_FILES = (
     ),
     (
         "Surfshark",
-        get_parsed_file_path(
-            os.path.join(DATASETS_DIR, DATASETS["Surfshark-Hostnames"][1])
-        ),
+        os.path.join(DATASETS_DIR, DATASETS["Surfshark-Hostnames"][1]),
     ),
     (
         "Private Internet Access",
@@ -326,9 +324,9 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
 
     if check_missing_information(information, ["vpn", "vpn_name"], fields):
         vpn_name = is_vpn_server(ip_address, VPN_SERVERS_FILES)
-        if vpn_name:
-            information["vpn"] = True
-            information["vpn_name"] = vpn_name
+
+        information["vpn"] = bool(vpn_name)
+        information["vpn_name"] = vpn_name
 
     if "hostname" in fields:
         hostname = get_dns_info(ip_address)
@@ -432,7 +430,7 @@ def download_and_process_datasets() -> None:
     """
     for dataset_name, (dataset_url, dataset_filename) in DATASETS.items():
         file_path = os.path.join(DATASETS_DIR, dataset_filename)
-        if not os.path.exists(get_parsed_file_path(file_path)):
+        if not os.path.exists(get_parsed_file_path(file_path)) and not 'Surfshark-Hostnames' in dataset_name:
             download_file(dataset_url, file_path, dataset_name)
 
     standard_processors = {
@@ -457,6 +455,6 @@ def download_and_process_datasets() -> None:
     file_path = os.path.join(DATASETS_DIR, DATASETS["Surfshark-Hostnames"][1])
     if not os.path.exists(file_path):
         print("Processing surfshark by hostname database...")
-        download_surfshark_servers_database(
+        download_surfshark_hostnames_database(
             DATASETS["Surfshark-Hostnames"][0], file_path
         )

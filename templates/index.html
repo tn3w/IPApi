@@ -1556,27 +1556,42 @@
                             <div class="response-header">
                                 <span>Response</span>
                             </div>
-                            <pre><code class="language-json" id="response-example">{
-    "ip": "1.1.1.1",
-    "hostname": "one.one.one.one",
-    "type": "ipv4",
-    "continent": "North America",
-    "continent_code": "NA",
-    "country": "United States",
-    "country_code": "US",
-    "region": "California",
-    "region_code": "CA",
-    "city": "Los Angeles",
-    "postal_code": "90001",
-    "latitude": 34.052571,
-    "longitude": -118.243907,
-    "timezone": "America/Los_Angeles",
-    "currency": "USD",
-    "accuracy_radius": 100,
-    "asn": 13335,
-    "organization": "Cloudflare, Inc.",
-    "tor_exit_node": false
-}</code></pre>
+                            <pre><code class="language-json" id="response-example"></code></pre>
+                            <script>
+                                document.addEventListener('DOMContentLoaded', () => {
+                                    const exampleJsonData = {
+                                        ip: '1.1.1.1',
+                                        hostname: 'one.one.one.one',
+                                        type: 'ipv4',
+                                        continent: 'North America',
+                                        continent_code: 'NA',
+                                        country: 'United States',
+                                        country_code: 'US',
+                                        region: 'California',
+                                        region_code: 'CA',
+                                        city: 'Los Angeles',
+                                        postal_code: '90001',
+                                        latitude: 34.052571,
+                                        longitude: -118.243907,
+                                        timezone: 'America/Los_Angeles',
+                                        currency: 'USD',
+                                        accuracy_radius: 100,
+                                        asn: 13335,
+                                        organization: 'Cloudflare, Inc.',
+                                        tor_exit_node: false,
+                                        vpn: false,
+                                        vpn_name: null,
+                                    };
+
+                                    const codeElement = document.getElementById('response-example');
+                                    if (codeElement) {
+                                        const jsonString = JSON.stringify(exampleJsonData, null, 4);
+                                        codeElement.appendChild(
+                                            document.createTextNode(jsonString)
+                                        );
+                                    }
+                                });
+                            </script>
                         </div>
                     </div>
                     <div class="docs-link">
@@ -1729,7 +1744,24 @@
                         delete el.dataset.highlighted;
                     });
 
-                    if (window.hljs) hljs.highlightAll();
+                    if (window.hljs) {
+                        document.querySelectorAll('pre code').forEach(codeElement => {
+                            if (codeElement.dataset.highlighted) {
+                                delete codeElement.dataset.highlighted;
+                            }
+
+                            if (codeElement.textContent) {
+                                const content = codeElement.textContent;
+
+                                while (codeElement.firstChild) {
+                                    codeElement.removeChild(codeElement.firstChild);
+                                }
+
+                                codeElement.appendChild(document.createTextNode(content));
+                                hljs.highlightElement(codeElement);
+                            }
+                        });
+                    }
 
                     if (map && typeof L !== 'undefined') {
                         map.eachLayer(layer => {
@@ -1864,19 +1896,22 @@
                                 `${apiBaseUrl}/${encodeURIComponent(query)}`
                             );
                             const data = await response.json();
-                            elements.endpoint.responseExample.textContent = JSON.stringify(
-                                data,
-                                null,
-                                4
-                            );
+                            const jsonString = JSON.stringify(data, null, 4);
+
+                            const codeElement = elements.endpoint.responseExample;
+                            while (codeElement.firstChild) {
+                                codeElement.removeChild(codeElement.firstChild);
+                            }
+                            codeElement.appendChild(document.createTextNode(jsonString));
+
                             if (window.hljs) {
-                                if (elements.endpoint.responseExample.dataset.highlighted) {
-                                    delete elements.endpoint.responseExample.dataset.highlighted;
+                                if (codeElement.dataset.highlighted) {
+                                    delete codeElement.dataset.highlighted;
                                 }
-                                hljs.highlightElement(elements.endpoint.responseExample);
+                                hljs.highlightElement(codeElement);
                             }
                         } catch (error) {
-                            elements.endpoint.responseExample.textContent = JSON.stringify(
+                            const jsonString = JSON.stringify(
                                 {
                                     error: 'An error occurred while fetching data',
                                     message: error.message,
@@ -1884,11 +1919,18 @@
                                 null,
                                 4
                             );
+
+                            const codeElement = elements.endpoint.responseExample;
+                            while (codeElement.firstChild) {
+                                codeElement.removeChild(codeElement.firstChild);
+                            }
+                            codeElement.appendChild(document.createTextNode(jsonString));
+
                             if (window.hljs) {
-                                if (elements.endpoint.responseExample.dataset.highlighted) {
-                                    delete elements.endpoint.responseExample.dataset.highlighted;
+                                if (codeElement.dataset.highlighted) {
+                                    delete codeElement.dataset.highlighted;
                                 }
-                                hljs.highlightElement(elements.endpoint.responseExample);
+                                hljs.highlightElement(codeElement);
                             }
                         } finally {
                             elements.endpoint.button.textContent = 'Try it';
