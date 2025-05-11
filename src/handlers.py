@@ -77,9 +77,9 @@ DATASETS = {
     ),
     "ProtonVPN-Servers": (
         (
-            "https://gist.githubusercontent.com/tn3w/a361987176d8818c0485fd5a9ae82131/"
-            "raw/5aad230aa86e131bb7728778960b5368b31280dd/protonvpn_ips.json"
-        ),  # FIXME: Update to dynamic Repository
+            "https://raw.githubusercontent.com/tn3w/ProtonVPN-IPs/"
+            "refs/heads/master/protonvpn_ips.json"
+        ),
         "protonvpn-servers.json",
     ),
     "ExpressVPN-Servers": (
