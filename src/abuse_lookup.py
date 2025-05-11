@@ -4,15 +4,14 @@
 import json
 from typing import Set, List, Tuple, Optional, Dict
 from functools import lru_cache
+from concurrent.futures import ThreadPoolExecutor
 import csv
-from netaddr import IPAddress
 import urllib.request
 import zipfile
 import io
 import re
-from concurrent.futures import ThreadPoolExecutor
+from netaddr import IPAddress, IPNetwork
 from src.dns_lookup import resolve_hostname
-
 
 def process_tor_exit_nodes_database(file_path: str) -> None:
     """
@@ -432,3 +431,71 @@ def is_vpn_server(ip: str, vpn_servers_files: Tuple[Tuple[str, str]]) -> Optiona
             return vpn_name
 
     return None
+
+
+def process_firehol_proxies_database(file_path: str) -> None:
+    """
+    Process FireHOL proxies database and write extracted IP addresses to a JSON file.
+    Expands CIDR notation to individual IP addresses.
+
+    Args:
+        file_path: Path to the FireHOL proxies database file
+
+    Returns:
+        None
+    """
+    try:
+        ip_addresses: List[str] = []
+
+        with open(file_path, "r", encoding="utf-8") as file:
+            for line in file:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+
+                if '/' in line:
+                    try:
+                        for ip in IPNetwork(line):
+                            ip_addresses.append(str(ip))
+                    except Exception as e:
+                        print(f"Error processing CIDR {line}: {e}")
+                else:
+                    # Regular IP address
+                    ip_addresses.append(line)
+
+        with open(file_path, "w", encoding="utf-8") as output_file:
+            json.dump(ip_addresses, output_file, ensure_ascii=False)
+
+        print(f"Successfully wrote {len(ip_addresses)} proxy IPs to {file_path}")
+
+    except IOError as e:
+        print(f"Error processing FireHOL proxies database: {e}")
+        return
+
+
+@lru_cache(maxsize=1000)
+def is_proxy_server(ip: str, proxy_servers_files: Tuple[str]) -> bool:
+    """
+    Check if an IP address is a known proxy server.
+
+    Args:
+        ip: The IP address to check
+        proxy_servers_files: List of file paths containing the proxy server data
+
+    Returns:
+        True if the IP is a known proxy server, False otherwise
+    """
+    if ":" in ip:
+        try:
+            ip = str(IPAddress(ip, version=6))
+        except Exception:
+            pass
+
+    for proxy_file in proxy_servers_files:
+        with open(proxy_file, "r", encoding="utf-8") as file:
+            proxy_servers = json.load(file)
+
+        if ip in proxy_servers:
+            return True
+
+    return False

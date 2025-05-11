@@ -11,7 +11,7 @@ various sources and handles dataset management.
 """
 
 import os
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union, Tuple
 
 from fastapi import Request
 from src.utils import download_file
@@ -45,11 +45,15 @@ from src.abuse_lookup import (
     process_mullvad_servers_database,
     is_vpn_server,
     download_surfshark_hostnames_database,
+    process_firehol_proxies_database,
+    is_proxy_server,
+    #process_awesome_lists_proxies_database,
 )
 
 
 DATASETS_DIR = "assets"
-DATASETS = {
+DATASETS: Dict[str, Union[str, Tuple[Union[str, list[str]], str]]] = {
+    # Geolocation
     "GeoLite2-ASN": ("https://git.io/GeoLite2-ASN.mmdb", "GeoLite2-ASN.mmdb"),
     "GeoLite2-City": ("https://git.io/GeoLite2-City.mmdb", "GeoLite2-City.mmdb"),
     "Country-States-Cities": (
@@ -71,6 +75,7 @@ DATASETS = {
         "https://onionoo.torproject.org/details?flag=exit",
         "tor-exit-nodes.json",
     ),
+    # Abuse: VPN Servers
     "NordVPN-Servers": (
         "https://api.nordvpn.com/v1/servers?limit=10000",
         "nordvpn-servers.json",
@@ -122,6 +127,19 @@ DATASETS = {
         "https://api.mullvad.net/www/relays/all",
         "mullvad-servers.json",
     ),
+
+    # Abuse: Proxy Servers
+    "Firehol-Proxies": (
+        "https://iplists.firehol.org/files/firehol_proxies.netset",
+        "firehol_proxies.json",
+    ),
+    # "Awesome-Lists-Proxies": (
+    #     (
+    #         "https://raw.githubusercontent.com/mthcht/awesome-lists/"
+    #         "refs/heads/main/Lists/PROXY/ALL_PROXY_Lists.csv"
+    #     ),
+    #     "awesome-lists-proxies.json",
+    # )
 }
 
 
@@ -331,6 +349,9 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
         information["vpn"] = bool(vpn_name)
         information["vpn_name"] = vpn_name
 
+    if "proxy" in fields:
+        information["proxy"] = is_proxy_server(ip_address, (get_parsed_file_path(os.path.join(DATASETS_DIR, DATASETS["Firehol-Proxies"][1])),))
+
     if "hostname" in fields:
         hostname = get_dns_info(ip_address)
         if hostname and hostname != ip_address:
@@ -449,6 +470,8 @@ def download_and_process_datasets() -> None:
         "Private-Internet-Access-Servers": process_pia_servers_database,
         "CyberGhost-Servers": process_cyberghost_servers_database,
         "Mullvad": process_mullvad_servers_database,
+        "Firehol-Proxies": process_firehol_proxies_database,
+        #"Awesome-Lists-Proxies": process_awesome_lists_proxies_database,
     }
 
     for dataset_key, processor_func in standard_processors.items():
@@ -461,6 +484,7 @@ def download_and_process_datasets() -> None:
     file_path = os.path.join(DATASETS_DIR, DATASETS["Surfshark-Hostnames"][1])
     if not os.path.exists(file_path):
         print("Processing surfshark by hostname database...")
-        download_surfshark_hostnames_database(
-            DATASETS["Surfshark-Hostnames"][0], file_path
-        )
+        if not isinstance(DATASETS["Surfshark-Hostnames"][0], list):
+            download_surfshark_hostnames_database(
+                DATASETS["Surfshark-Hostnames"][0], file_path
+            )

@@ -65,6 +65,7 @@ class IPAPIResponse(BaseModel):
     )
     vpn: Optional[bool] = Field(None, description="If the IP is a VPN server")
     vpn_name: Optional[str] = Field(None, description="Name of the VPN server")
+    proxy: Optional[bool] = Field(None, description="If the IP is a proxy server")
 
     class Config:
         """Config for the IPAPIResponse model."""
@@ -90,6 +91,9 @@ class IPAPIResponse(BaseModel):
                 "asn": 13335,
                 "organization": "Cloudflare, Inc.",
                 "tor_exit_node": False,
+                "vpn": False,
+                "vpn_name": None,
+                "proxy": False,
             }
         }
 
