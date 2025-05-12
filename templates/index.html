@@ -2287,10 +2287,10 @@
                             if (!ipv4Container) {
                                 const container = document.createElement('div');
                                 container.className = 'ipv4-mapping';
-                                container.textContent = `IPv4 mapping: ${data.ipv4}`;
+                                container.textContent = 'IPv4: ' + data.ipv4;
                                 ipEl.parentNode.insertBefore(container, ipEl.nextSibling);
                             } else {
-                                ipv4Container.textContent = `IPv4 mapping: ${data.ipv4}`;
+                                ipv4Container.textContent = 'Ipv4: ' + data.ipv4;
                                 ipv4Container.style.display = 'block';
                             }
                         } else if (ipv4Container) {
