@@ -63,6 +63,7 @@ ALL_FIELDS: Final[List[str]] = [
     "org",
     "net",
     "prefix",
+    "abuse_contact",
     "vpn",
     "vpn_name",
     "proxy",

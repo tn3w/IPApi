@@ -33,7 +33,7 @@ from src.geo_lookup import (
     find_zip_code,
     get_geo_from_maxmind,
 )
-from src.asn_lookup import lookup_asn_from_ip, get_asn_from_maxmind
+from src.asn_lookup import lookup_ip_pwhois, get_abuse_contact, get_asn_from_maxmind
 from src.dns_lookup import get_dns_info, get_ipv4_from_ipv6
 from src.abuse_lookup import (
     process_tor_exit_nodes_database,
@@ -369,6 +369,9 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
             ),
         )
 
+    if "abuse_contact" in fields:
+        information["abuse_contact"] = get_abuse_contact(ip_address)
+
     if "hostname" in fields:
         hostname = get_dns_info(ip_address)
         if hostname and hostname != ip_address:
@@ -385,9 +388,9 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
             information.update(asn_info)
 
     if check_missing_information(information, ASN_LOOKUP_FIELDS, fields):
-        lookup_result = lookup_asn_from_ip(ip_address)
+        lookup_result = lookup_ip_pwhois(ip_address)
         if lookup_result:
-            if not information.get("latitude") or not information.get("longitude"):
+            if information.get("latitude") or information.get("longitude"):
                 information["accuracy_radius"] = 100
             information.update(lookup_result)
 

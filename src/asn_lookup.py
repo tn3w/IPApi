@@ -11,8 +11,10 @@ using caching to improve performance.
 """
 
 import socket
+import json
 from functools import lru_cache
-from typing import Optional, Dict, Any, Tuple, cast
+from typing import Optional, Dict, Any, cast
+import urllib.request
 import maxminddb
 import maxminddb.errors
 
@@ -44,151 +46,34 @@ def query_whois(server: str, query: str) -> Optional[str]:
         s.close()
 
 
-def _parse_asn_fields(key: str, value: str) -> Tuple[int, Optional[str]]:
-    """Parse ASN-related fields and return ASN code and name."""
+def parse_pwhois_data(data: str) -> Dict[str, Any]:
+    """
+    Parse Team pwhois WHOIS data and extract specific information.
+
+    Args:
+        data: pwhois WHOIS response
+
+    Returns:
+        Dictionary containing extracted information including:
+        - asn: Autonomous System Number
+        - asn_name: Autonomous System Name (if available)
+        - org: Organization name
+        - net: Network name
+        - prefix: IP range in CIDR notation
+        - country: Country name
+        - country_code: Two-letter country code
+        - region: State/region
+        - city: City
+        - latitude: Latitude coordinate
+        - longitude: Longitude coordinate
+    """
     asn_code = 0
-    asn_name = None
+    asn_name: Optional[str] = None
+    organization: Optional[str] = None
+    net: Optional[str] = None
+    prefix: Optional[str] = None
 
-    if key == "as" and value:
-        parts = value.split(" ", 1)
-        if parts and parts[0].startswith("AS"):
-            try:
-                asn_code = int(parts[0][2:])
-            except ValueError:
-                pass
-    elif key == "origin-as" and value:
-        try:
-            asn_code = int(value.replace("AS", ""))
-        except ValueError:
-            pass
-
-    return asn_code, asn_name
-
-
-def _parse_org_fields(
-    key: str,
-    value: str,
-    current_org: Optional[str] = None,
-    current_asn_name: Optional[str] = None,
-) -> Tuple[Optional[str], Optional[str], Optional[str]]:
-    """Parse organization and ISP related fields."""
-    organization = current_org
-    asn_name = current_asn_name
-    net = None
-
-    if key == "net-name" and value:
-        net = value
-    elif key == "as-org-name" and value and value != r"\(^_^)/":
-        asn_name = value
-    elif key == "org-name" and value:
-        organization = value
-
-    return organization, asn_name, net
-
-
-def _parse_location_field(
-    key: str,
-    value: str,
-    is_geo: bool,
-    location_data: Dict[str, Any],
-    geo_flags: Dict[str, bool],
-) -> None:
-    """Parse and update location data fields."""
-    if key in location_data and value:
-        if is_geo or not geo_flags[key]:
-            if key in ["latitude", "longitude"]:
-                try:
-                    location_data[key] = float(value)
-                except ValueError:
-                    return
-            else:
-                location_data[key] = value
-
-            if is_geo:
-                geo_flags[key] = True
-
-
-def _parse_mapped_key(
-    key: str,
-    value: str,
-    is_geo: bool,
-    key_mapping: Dict[str, str],
-    location_data: Dict[str, Any],
-    geo_flags: Dict[str, bool],
-) -> None:
-    """Parse keys that are mapped to other field names."""
-    if key in key_mapping and value:
-        mapped_key = key_mapping[key]
-        if (is_geo or not geo_flags[mapped_key]) and location_data[mapped_key] is None:
-            location_data[mapped_key] = value
-            if is_geo:
-                geo_flags[mapped_key] = True
-
-
-def _clean_field(field: Optional[str]) -> Optional[str]:
-    """Clean organization and ISP fields."""
-    if not field:
-        return None
-
-    parts = field.split("-")
-    if len(parts) >= 3 and all(len(part.strip()) > 0 for part in parts):
-        if parts[0].strip().upper().startswith("AS") and parts[0].strip()[2:].isdigit():
-            return parts[1]
-    return field
-
-
-def _process_line(
-    line: str,
-    asn_code: int,
-    asn_name: Optional[str],
-    organization: Optional[str],
-    net: Optional[str],
-    prefix: Optional[str],
-    location_data: Dict[str, Any],
-    geo_flags: Dict[str, bool],
-    key_mapping: Dict[str, str],
-) -> Tuple[int, Optional[str], Optional[str], Optional[str], Optional[str]]:
-    """Process a single line from the whois response."""
-    if ":" not in line:
-        return asn_code, asn_name, organization, net, prefix
-
-    key, value = line.split(":", 1)
-    original_key = key.strip().lower()
-    key = original_key.replace("geo-", "")
-    value = value.strip()
-
-    is_geo = original_key.startswith("geo-")
-
-    code, _ = _parse_asn_fields(key, value)
-    if code > 0:
-        asn_code = code
-
-    org, org_asn_name, net_name = _parse_org_fields(key, value, organization, asn_name)
-    if org:
-        organization = org
-    if org_asn_name:
-        asn_name = org_asn_name
-    if net_name:
-        net = net_name
-
-    if key == "prefix" and value:
-        prefix = value
-
-    _parse_location_field(key, value, is_geo, location_data, geo_flags)
-    _parse_mapped_key(key, value, is_geo, key_mapping, location_data, geo_flags)
-
-    return asn_code, asn_name, organization, net, prefix
-
-
-def parse_pwhois_response(response: str) -> Optional[Dict[str, Any]]:
-    """Parse the response from pwhois.org to extract ASN information."""
-    asn_code = 0
-    asn_name = None
-    organization = None
-    net = None
-    prefix = None
-
-    location_data = {
+    location_data: Dict[str, Any] = {
         "country": None,
         "country_code": None,
         "city": None,
@@ -204,34 +89,88 @@ def parse_pwhois_response(response: str) -> Optional[Dict[str, Any]]:
         "country-code": "country_code",
     }
 
-    for line in response.splitlines():
-        asn_code, asn_name, organization, net, prefix = _process_line(
-            line.strip(),
-            asn_code,
-            asn_name,
-            organization,
-            net,
-            prefix,
-            location_data,
-            geo_flags,
-            key_mapping,
-        )
+    for line in data.splitlines():
+        line = line.strip()
+        if ":" not in line:
+            continue
 
-    if asn_code == 0:
-        return None
+        key, value = line.split(":", 1)
+        original_key = key.strip().lower()
+        key = original_key.replace("geo-", "")
+        value = value.strip()
 
-    organization = _clean_field(organization)
-    net = _clean_field(net)
+        is_geo = original_key.startswith("geo-")
+
+        if key == "as" and value:
+            parts = value.split(" ", 1)
+            if parts and parts[0].startswith("AS"):
+                try:
+                    asn_code = int(parts[0][2:])
+                except ValueError:
+                    pass
+        elif key == "origin-as" and value:
+            try:
+                asn_code = int(value.replace("AS", ""))
+            except ValueError:
+                pass
+
+        if key == "net-name" and value:
+            net = value
+        elif key == "as-org-name" and value and value != r"\(^_^)/":
+            asn_name = value
+        elif key == "org-name" and value:
+            organization = value
+
+        if key == "prefix" and value:
+            prefix = value
+
+        if key in location_data and value:
+            if is_geo or not geo_flags[key]:
+                if key in ["latitude", "longitude"]:
+                    try:
+                        location_data[key] = float(value)
+                    except ValueError:
+                        pass
+                else:
+                    location_data[key] = value
+
+                if is_geo:
+                    geo_flags[key] = True
+
+        if key in key_mapping and value:
+            mapped_key = key_mapping[key]
+            if (is_geo or not geo_flags[mapped_key]) and location_data[
+                mapped_key
+            ] is None:
+                location_data[mapped_key] = value
+                if is_geo:
+                    geo_flags[mapped_key] = True
+
+    def clean_field(field: Optional[str]) -> Optional[str]:
+        """Clean organization and ISP fields."""
+        if not field:
+            return None
+
+        parts = field.split("-")
+        if len(parts) >= 3 and all(len(part.strip()) > 0 for part in parts):
+            if (
+                parts[0].strip().upper().startswith("AS")
+                and parts[0].strip()[2:].isdigit()
+            ):
+                return parts[1]
+        return field
+
+    organization = clean_field(organization)
+    net = clean_field(net)
 
     country = location_data.get("country")
-    if country and len(country) == 2 and country.isupper():
+    if isinstance(country, str) and len(country) == 2 and country.isupper():
         if not location_data.get("country_code"):
             location_data["country_code"] = country
         location_data["country"] = None
-        country = None
 
-    return {
-        "asn": asn_code,
+    result = {
+        "asn": str(asn_code) if asn_code > 0 else None,
         "asn_name": asn_name,
         "org": organization,
         "net": net,
@@ -244,18 +183,51 @@ def parse_pwhois_response(response: str) -> Optional[Dict[str, Any]]:
         "longitude": location_data.get("longitude"),
     }
 
+    if asn_code == 0:
+        return {}
+
+    result = {key: value for key, value in result.items() if key}
+    return result
+
 
 @lru_cache(maxsize=1000)
-def lookup_asn_from_ip(ip_address: str) -> Optional[Dict[str, Any]]:
+def lookup_ip_pwhois(ip_address: str) -> Optional[Dict[str, Any]]:
     """Get detailed ASN information for an IP address using pwhois.org"""
-    pwhois_response = query_whois("whois.pwhois.org", ip_address)
+    pwhois_data = query_whois("whois.pwhois.org", ip_address)
 
-    if not pwhois_response:
+    if not pwhois_data:
         return None
 
-    result = parse_pwhois_response(pwhois_response)
+    return parse_pwhois_data(pwhois_data)
 
-    return result
+
+@lru_cache(maxsize=1000)
+def get_abuse_contact(ip: str) -> Optional[str]:
+    """Get abuse contact information for an IP/ASN"""
+    try:
+        url = (
+            "https://stat.ripe.net/data/abuse-contact-finder/data.json"
+            f"?resource={ip}&sourceapp=tn3w-IPApi"
+        )
+        with urllib.request.urlopen(urllib.request.Request(url), timeout=5) as response:
+            data = json.loads(response.read().decode())
+            contacts = data["data"]["abuse_contacts"]
+            if contacts:
+                return contacts[0]
+    except Exception:
+        pass
+
+    try:
+        url = f"https://isc.sans.edu/api/ip/{ip}?json"
+        req = urllib.request.Request(url, headers={"User-Agent": "tn3w-IPApi"})
+        with urllib.request.urlopen(req, timeout=15) as response:
+            data = json.loads(response.read().decode())
+            if "asabusecontact" in data["ip"]:
+                return data["ip"]["asabusecontact"]
+    except Exception:
+        pass
+
+    return None
 
 
 @lru_cache(maxsize=1000)

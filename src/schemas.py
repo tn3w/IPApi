@@ -59,6 +59,7 @@ class IPAPIResponse(BaseModel):
     org: Optional[str] = Field(None, description="Organization name")
     net: Optional[str] = Field(None, description="Network range")
     prefix: Optional[str] = Field(None, description="Prefix")
+    abuse_contact: Optional[str] = Field(None, description="Abuse contact email")
 
     # Abuse information
     vpn: Optional[bool] = Field(None, description="If the IP is a VPN server")
