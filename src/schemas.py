@@ -61,12 +61,13 @@ class IPAPIResponse(BaseModel):
     prefix: Optional[str] = Field(None, description="Prefix")
 
     # Abuse information
-    tor_exit_node: Optional[bool] = Field(
-        None, description="If the IP is a Tor exit node"
-    )
     vpn: Optional[bool] = Field(None, description="If the IP is a VPN server")
     vpn_name: Optional[str] = Field(None, description="Name of the VPN server")
     proxy: Optional[bool] = Field(None, description="If the IP is a proxy server")
+    data_center: Optional[bool] = Field(None, description="If the IP is a data center")
+    tor_exit_node: Optional[bool] = Field(
+        None, description="If the IP is a Tor exit node"
+    )
 
     class Config:
         """Config for the IPAPIResponse model."""
@@ -91,10 +92,11 @@ class IPAPIResponse(BaseModel):
                 "accuracy_radius": 1000,
                 "asn": 13335,
                 "asn_name": "Cloudflare, Inc.",
-                "tor_exit_node": False,
                 "vpn": False,
                 "vpn_name": None,
                 "proxy": False,
+                "data_center": False,
+                "tor_exit_node": False,
             }
         }
 

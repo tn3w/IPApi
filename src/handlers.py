@@ -48,6 +48,8 @@ from src.abuse_lookup import (
     process_firehol_proxies_database,
     is_proxy_server,
     # process_awesome_lists_proxies_database,
+    process_data_center_asns_database,
+    is_data_center_asn,
 )
 
 
@@ -139,6 +141,14 @@ DATASETS: Dict[str, Union[str, Tuple[Union[str, list[str]], str]]] = {
     #     ),
     #     "awesome-lists-proxies.json",
     # )
+    # Abuse: Data Center
+    "Data-Center-ASNS": (
+        (
+            "https://raw.githubusercontent.com/brianhama/bad-asn-list/"
+            "refs/heads/master/bad-asn-list.csv"
+        ),
+        "data-center-asns.json",
+    ),
 }
 
 
@@ -381,6 +391,17 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
                 information["accuracy_radius"] = 100
             information.update(lookup_result)
 
+    if "data_center" in fields:
+        if information.get("asn"):
+            information["data_center"] = is_data_center_asn(
+                str(information["asn"]),
+                get_parsed_file_path(
+                    os.path.join(DATASETS_DIR, DATASETS["Data-Center-ASNS"][1])
+                ),
+            )
+        else:
+            information["data_center"] = False
+
     if (
         information.get("latitude")
         and information.get("longitude")
@@ -479,6 +500,7 @@ def download_and_process_datasets() -> None:
         "Mullvad": process_mullvad_servers_database,
         "Firehol-Proxies": process_firehol_proxies_database,
         # "Awesome-Lists-Proxies": process_awesome_lists_proxies_database,
+        "Data-Center-ASNS": process_data_center_asns_database,
     }
 
     for dataset_key, processor_func in standard_processors.items():

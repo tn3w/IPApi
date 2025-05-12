@@ -500,3 +500,51 @@ def is_proxy_server(ip: str, proxy_servers_files: Tuple[str]) -> bool:
             return True
 
     return False
+
+
+def process_data_center_asns_database(file_path: str) -> None:
+    """
+    Process Data Center ASNs database and write extracted ASNs to a JSON file.
+
+    Args:
+        file_path: Path to the CSV file containing Data Center ASNs
+
+    Returns:
+        None
+    """
+    try:
+        asns: Set[str] = set()
+
+        with open(file_path, "r", encoding="utf-8") as file:
+            csv_reader = csv.reader(file)
+            next(csv_reader, None)
+            for row in csv_reader:
+                if row and len(row) > 0:
+                    asn = row[0].strip()
+                    asns.add(asn)
+
+        with open(file_path, "w", encoding="utf-8") as output_file:
+            json.dump(list(asns), output_file, ensure_ascii=False)
+
+        print(f"Successfully wrote {len(asns)} data center ASNs to {file_path}")
+
+    except (IOError, csv.Error) as e:
+        print(f"Error processing data center ASNs database: {e}")
+        return
+
+
+@lru_cache(maxsize=1000)
+def is_data_center_asn(asn: str, data_center_asn_file_path: str) -> bool:
+    """
+    Check if an ASN is a known data center ASN.
+
+    Args:
+        asn: The ASN to check
+
+    Returns:
+        True if the ASN is a known data center ASN, False otherwise
+    """
+    with open(data_center_asn_file_path, "r", encoding="utf-8") as file:
+        data_center_asns = json.load(file)
+
+    return asn in data_center_asns

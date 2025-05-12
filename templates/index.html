@@ -56,6 +56,7 @@
                 --tor-badge-color: #9b59b6;
                 --vpn-badge-color: #2ecc71;
                 --proxy-badge-color: #fbbc05;
+                --data-center-badge-color: #1abc9c;
                 --text-rgb: 33, 37, 41;
             }
 
@@ -1058,26 +1059,10 @@
                 justify-content: center;
             }
 
-            .tor-badge {
-                display: inline-flex;
-                align-items: center;
-                background-color: var(--tor-badge-color);
-                color: white;
-                padding: 4px 10px;
-                border-radius: 50px;
-                font-size: 0.8rem;
-                font-weight: 500;
-                gap: 4px;
-                height: 24px;
-            }
-
-            .tor-badge svg {
-                width: 16px;
-                height: 16px;
-            }
-
             .vpn-badge,
-            .proxy-badge {
+            .proxy-badge,
+            .data-center-badge,
+            .tor-badge {
                 display: inline-flex;
                 align-items: center;
                 color: white;
@@ -1090,7 +1075,9 @@
             }
 
             .vpn-badge svg,
-            .proxy-badge svg {
+            .proxy-badge svg,
+            .data-center-badge svg,
+            .tor-badge svg {
                 width: 16px;
                 height: 16px;
             }
@@ -1101,6 +1088,14 @@
 
             .proxy-badge {
                 background-color: var(--proxy-badge-color);
+            }
+
+            .data-center-badge {
+                background-color: var(--data-center-badge-color);
+            }
+
+            .tor-badge {
+                background-color: var(--tor-badge-color);
             }
 
             .results-primary-info h2 {
@@ -1494,31 +1489,6 @@
                                         <div class="ip-badge">
                                             <span id="result-ip-type">IPv4</span>
                                         </div>
-                                        <div class="tor-badge" id="tor-badge" style="display: none">
-                                            <svg
-                                                viewBox="0 0 512 512"
-                                                xmlns="http://www.w3.org/2000/svg"
-                                            >
-                                                <circle fill="#9B59B6" cx="256" cy="256" r="256" />
-                                                <path
-                                                    d="M256.5,465.4v-31c98.3-0.3,177.9-80.1,177.9-178.4c0-98.4-79.6-178.1-177.9-178.4v-31c115.4,0.3,208.9,93.9,208.9,209.4 C465.4,371.5,372,465.2,256.5,465.4z"
-                                                    fill="#FFFFFF"
-                                                />
-                                                <path
-                                                    d="M256.5,356.8c55.4-0.3,100.3-45.3,100.3-100.8c0-55.5-44.9-100.5-100.3-100.8v-31c72.6,0.3,131.4,59.2,131.4,131.8 c0,72.7-58.8,131.6-131.4,131.9V356.8z"
-                                                    fill="#FFFFFF"
-                                                />
-                                                <path
-                                                    d="M256.5,201.7c29.7,0.3,53.8,24.5,53.8,54.3c0,29.8-24,54-53.8,54.3V201.7z"
-                                                    fill="#FFFFFF"
-                                                />
-                                                <path
-                                                    d="M256,0 A256,256 0 0 0 256,512 Z"
-                                                    fill="#9B59B6"
-                                                />
-                                            </svg>
-                                            <span>Tor</span>
-                                        </div>
                                         <div class="vpn-badge" id="vpn-badge" style="display: none">
                                             <svg
                                                 viewBox="0 0 16 16"
@@ -1550,6 +1520,49 @@
                                                 />
                                             </svg>
                                             <span>Proxy</span>
+                                        </div>
+                                        <div
+                                            class="data-center-badge"
+                                            id="data-center-badge"
+                                            style="display: none"
+                                        >
+                                            <svg
+                                                viewBox="0 0 24 24"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                            >
+                                                <path
+                                                    fill="#FFFFFF"
+                                                    fill-rule="evenodd"
+                                                    d="M2 8a3 3 0 0 1 3-3h14a3 3 0 0 1 3 3v3H2zm0 5v3a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-3zm4-6a1 1 0 0 0 0 2h.01a1 1 0 0 0 0-2zm-1 9a1 1 0 0 1 1-1h.01a1 1 0 1 1 0 2H6a1 1 0 0 1-1-1m4-9a1 1 0 0 0 0 2h.01a1 1 0 0 0 0-2zm-1 9a1 1 0 0 1 1-1h.01a1 1 0 1 1 0 2H9a1 1 0 0 1-1-1"
+                                                    clip-rule="evenodd"
+                                                />
+                                            </svg>
+                                            <span>Data Center</span>
+                                        </div>
+                                        <div class="tor-badge" id="tor-badge" style="display: none">
+                                            <svg
+                                                viewBox="0 0 512 512"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                            >
+                                                <circle fill="#9B59B6" cx="256" cy="256" r="256" />
+                                                <path
+                                                    d="M256.5,465.4v-31c98.3-0.3,177.9-80.1,177.9-178.4c0-98.4-79.6-178.1-177.9-178.4v-31c115.4,0.3,208.9,93.9,208.9,209.4 C465.4,371.5,372,465.2,256.5,465.4z"
+                                                    fill="#FFFFFF"
+                                                />
+                                                <path
+                                                    d="M256.5,356.8c55.4-0.3,100.3-45.3,100.3-100.8c0-55.5-44.9-100.5-100.3-100.8v-31c72.6,0.3,131.4,59.2,131.4,131.8 c0,72.7-58.8,131.6-131.4,131.9V356.8z"
+                                                    fill="#FFFFFF"
+                                                />
+                                                <path
+                                                    d="M256.5,201.7c29.7,0.3,53.8,24.5,53.8,54.3c0,29.8-24,54-53.8,54.3V201.7z"
+                                                    fill="#FFFFFF"
+                                                />
+                                                <path
+                                                    d="M256,0 A256,256 0 0 0 256,512 Z"
+                                                    fill="#9B59B6"
+                                                />
+                                            </svg>
+                                            <span>Tor</span>
                                         </div>
                                     </div>
                                     <h2 id="result-ip">8.8.8.8</h2>
@@ -1626,10 +1639,11 @@
     "accuracy_radius": 100,
     "asn": 13335,
     "asn_name": "Cloudflare, Inc.",
-    "tor_exit_node": false,
     "vpn": false,
     "vpn_name": null,
-    "proxy": false
+    "proxy": false,
+    "data_center": false,
+    "tor_exit_node": false
 }</code></pre>
                             </noscript>
                             <script>
@@ -1653,10 +1667,11 @@
                                         accuracy_radius: 100,
                                         asn: 13335,
                                         asn_name: 'Cloudflare, Inc.',
-                                        tor_exit_node: false,
                                         vpn: false,
                                         vpn_name: null,
                                         proxy: false,
+                                        data_center: false,
+                                        tor_exit_node: false,
                                     };
 
                                     const codeElement = document.getElementById('response-example');
@@ -2212,9 +2227,10 @@
                     const ipTypeEl = document.getElementById('result-ip-type');
                     const ipEl = document.getElementById('result-ip');
                     const hostnameEl = document.getElementById('result-hostname');
-                    const torBadgeEl = document.getElementById('tor-badge');
                     const vpnBadgeEl = document.getElementById('vpn-badge');
                     const proxyBadgeEl = document.getElementById('proxy-badge');
+                    const dataCenterBadgeEl = document.getElementById('data-center-badge');
+                    const torBadgeEl = document.getElementById('tor-badge');
 
                     if (ipTypeEl) ipTypeEl.textContent = data.type?.toUpperCase() || 'IP';
 
@@ -2238,17 +2254,22 @@
                         }
                     }
 
-                    if (torBadgeEl) {
-                        torBadgeEl.style.display =
-                            data.tor_exit_node === true ? 'inline-flex' : 'none';
-                    }
-
                     if (vpnBadgeEl) {
                         vpnBadgeEl.style.display = data.vpn === true ? 'inline-flex' : 'none';
                     }
 
                     if (proxyBadgeEl) {
                         proxyBadgeEl.style.display = data.proxy === true ? 'inline-flex' : 'none';
+                    }
+
+                    if (dataCenterBadgeEl) {
+                        dataCenterBadgeEl.style.display =
+                            data.data_center === true ? 'inline-flex' : 'none';
+                    }
+
+                    if (torBadgeEl) {
+                        torBadgeEl.style.display =
+                            data.tor_exit_node === true ? 'inline-flex' : 'none';
                     }
 
                     if (hostnameEl)
@@ -2357,6 +2378,11 @@
                         addResultItem(abuseGrid, 'VPN', vpnDisplay);
 
                         addResultItem(abuseGrid, 'Proxy', data.proxy === true ? 'Yes' : 'No');
+                        addResultItem(
+                            abuseGrid,
+                            'Data Center',
+                            data.data_center === true ? 'Yes' : 'No'
+                        );
                         addResultItem(
                             abuseGrid,
                             'Tor Exit Node',

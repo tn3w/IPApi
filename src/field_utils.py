@@ -31,10 +31,11 @@ DEFAULT_FIELDS: Final[List[str]] = [
     "accuracy_radius",
     "asn",
     "asn_name",
-    "tor_exit_node",
     "vpn",
     "vpn_name",
     "proxy",
+    "data_center",
+    "tor_exit_node",
 ]
 
 ALL_FIELDS: Final[List[str]] = [
@@ -62,10 +63,11 @@ ALL_FIELDS: Final[List[str]] = [
     "org",
     "net",
     "prefix",
-    "tor_exit_node",
     "vpn",
     "vpn_name",
     "proxy",
+    "data_center",
+    "tor_exit_node",
 ]
 
 FIELD_BITS: Final[Dict[str, int]] = {
