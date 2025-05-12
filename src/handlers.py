@@ -33,7 +33,12 @@ from src.geo_lookup import (
     find_zip_code,
     get_geo_from_maxmind,
 )
-from src.asn_lookup import lookup_ip_pwhois, get_abuse_contact, get_asn_from_maxmind
+from src.asn_lookup import (
+    lookup_ip_pwhois,
+    get_abuse_contact,
+    get_rpki_validity,
+    get_asn_from_maxmind,
+)
 from src.dns_lookup import get_dns_info, get_ipv4_from_ipv6
 from src.abuse_lookup import (
     process_tor_exit_nodes_database,
@@ -387,12 +392,21 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
         if asn_info:
             information.update(asn_info)
 
-    if check_missing_information(information, ASN_LOOKUP_FIELDS, fields):
+    if (
+        check_missing_information(information, ASN_LOOKUP_FIELDS, fields)
+        or "rpki" in fields
+        or "rpki_count" in fields
+    ):
         lookup_result = lookup_ip_pwhois(ip_address)
         if lookup_result:
             if information.get("latitude") or information.get("longitude"):
                 information["accuracy_radius"] = 100
             information.update(lookup_result)
+
+    if check_missing_information(information, ["rpki", "rpki_count"], fields):
+        information["rpki"], information["rpki_count"] = get_rpki_validity(
+            information.get("asn"), information.get("prefix")
+        )
 
     if "data_center" in fields:
         if information.get("asn"):
@@ -473,6 +487,9 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
         information["continent_code"] = get_continent_code_from_name(
             information["continent"]
         )
+
+    if check_missing_information(information, ["accuracy_radius"], fields):
+        information["accuracy_radius"] = 1000
 
     information = {field: information.get(field) for field in fields}
 

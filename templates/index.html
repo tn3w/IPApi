@@ -2400,11 +2400,36 @@
                             ...(showOrgName ? [{ key: 'org', label: 'Organization' }] : []),
                             ...(showNet ? [{ key: 'net', label: 'Network' }] : []),
                             { key: 'prefix', label: 'Prefix' },
-                            { key: 'abuse_contact', label: 'Abuse Contact'},
+                            { key: 'abuse_contact', label: 'Abuse Contact' },
+                            {
+                                key: 'rpki',
+                                label: 'RPKI',
+                                format: data => {
+                                    if (!isValidValue(data.rpki)) return null;
+
+                                    switch (data.rpki) {
+                                        case 'valid':
+                                            return 'Valid (' + data.rpki_count + ' ROA found)';
+                                        case 'unknown':
+                                            return 'Unknown';
+                                        case 'invalid_asn':
+                                            return 'Invalid ASN';
+                                        case 'invalid_length':
+                                            return 'Invalid length';
+                                        default:
+                                            return data.rpki;
+                                    }
+                                },
+                            },
                         ];
 
                         networkFields.forEach(field => {
-                            if (isValidValue(data[field.key])) {
+                            if (field.format) {
+                                const value = field.format(data);
+                                if (value) {
+                                    addResultItem(networkGrid, field.label, value);
+                                }
+                            } else if (isValidValue(data[field.key])) {
                                 addResultItem(networkGrid, field.label, data[field.key]);
                             }
                         });

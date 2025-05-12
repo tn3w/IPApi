@@ -13,7 +13,7 @@ using caching to improve performance.
 import socket
 import json
 from functools import lru_cache
-from typing import Optional, Dict, Any, cast
+from typing import Optional, Dict, Any, Tuple, cast
 import urllib.request
 import maxminddb
 import maxminddb.errors
@@ -228,6 +228,26 @@ def get_abuse_contact(ip: str) -> Optional[str]:
         pass
 
     return None
+
+
+@lru_cache(maxsize=1000)
+def get_rpki_validity(asn: str, prefix: str) -> Tuple[Optional[str], Optional[int]]:
+    """Get RPKI validity status for ASN and prefix"""
+    try:
+        url = (
+            "https://stat.ripe.net/data/rpki-validation/data.json"
+            f"?resource={asn}&prefix={prefix}&sourceapp=tn3w-IPApi"
+        )
+        with urllib.request.urlopen(urllib.request.Request(url), timeout=5) as response:
+            data = json.loads(response.read().decode())
+            status = data["data"]["status"].lower()
+            roa_count = len(data["data"]["validating_roas"])
+
+            return status, roa_count
+    except Exception:
+        pass
+
+    return None, None
 
 
 @lru_cache(maxsize=1000)
