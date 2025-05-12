@@ -47,7 +47,7 @@ from src.abuse_lookup import (
     download_surfshark_hostnames_database,
     process_firehol_proxies_database,
     is_proxy_server,
-    #process_awesome_lists_proxies_database,
+    # process_awesome_lists_proxies_database,
 )
 
 
@@ -127,7 +127,6 @@ DATASETS: Dict[str, Union[str, Tuple[Union[str, list[str]], str]]] = {
         "https://api.mullvad.net/www/relays/all",
         "mullvad-servers.json",
     ),
-
     # Abuse: Proxy Servers
     "Firehol-Proxies": (
         "https://iplists.firehol.org/files/firehol_proxies.netset",
@@ -239,14 +238,15 @@ GEO_FIELDS = [
 
 ASN_FIELDS = [
     "asn",
-    "organization",
+    "asn_name",
 ]
 
 ASN_LOOKUP_FIELDS = [
     "asn",
     "asn_name",
-    "organization",
+    "org",
     "net",
+    "prefix",
     "country",
     "region",
     "city",
@@ -350,7 +350,14 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
         information["vpn_name"] = vpn_name
 
     if "proxy" in fields:
-        information["proxy"] = is_proxy_server(ip_address, (get_parsed_file_path(os.path.join(DATASETS_DIR, DATASETS["Firehol-Proxies"][1])),))
+        information["proxy"] = is_proxy_server(
+            ip_address,
+            (
+                get_parsed_file_path(
+                    os.path.join(DATASETS_DIR, DATASETS["Firehol-Proxies"][1])
+                ),
+            ),
+        )
 
     if "hostname" in fields:
         hostname = get_dns_info(ip_address)
@@ -471,7 +478,7 @@ def download_and_process_datasets() -> None:
         "CyberGhost-Servers": process_cyberghost_servers_database,
         "Mullvad": process_mullvad_servers_database,
         "Firehol-Proxies": process_firehol_proxies_database,
-        #"Awesome-Lists-Proxies": process_awesome_lists_proxies_database,
+        # "Awesome-Lists-Proxies": process_awesome_lists_proxies_database,
     }
 
     for dataset_key, processor_func in standard_processors.items():

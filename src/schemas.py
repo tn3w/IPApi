@@ -56,8 +56,9 @@ class IPAPIResponse(BaseModel):
     # ASN information
     asn: Optional[int] = Field(None, description="Autonomous System Number")
     asn_name: Optional[str] = Field(None, description="Autonomous System name")
-    organization: Optional[str] = Field(None, description="Organization name")
+    org: Optional[str] = Field(None, description="Organization name")
     net: Optional[str] = Field(None, description="Network range")
+    prefix: Optional[str] = Field(None, description="Prefix")
 
     # Abuse information
     tor_exit_node: Optional[bool] = Field(
@@ -89,7 +90,7 @@ class IPAPIResponse(BaseModel):
                 "currency": "USD",
                 "accuracy_radius": 1000,
                 "asn": 13335,
-                "organization": "Cloudflare, Inc.",
+                "asn_name": "Cloudflare, Inc.",
                 "tor_exit_node": False,
                 "vpn": False,
                 "vpn_name": None,

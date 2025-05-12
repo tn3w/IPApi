@@ -13,6 +13,7 @@ import re
 from netaddr import IPAddress, IPNetwork
 from src.dns_lookup import resolve_hostname
 
+
 def process_tor_exit_nodes_database(file_path: str) -> None:
     """
     Process Tor exit node data and write extracted IP addresses to a JSON file.
@@ -450,10 +451,10 @@ def process_firehol_proxies_database(file_path: str) -> None:
         with open(file_path, "r", encoding="utf-8") as file:
             for line in file:
                 line = line.strip()
-                if not line or line.startswith('#'):
+                if not line or line.startswith("#"):
                     continue
 
-                if '/' in line:
+                if "/" in line:
                     try:
                         for ip in IPNetwork(line):
                             ip_addresses.append(str(ip))

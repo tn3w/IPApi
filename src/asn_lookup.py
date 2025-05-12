@@ -61,27 +61,29 @@ def _parse_asn_fields(key: str, value: str) -> Tuple[int, Optional[str]]:
             asn_code = int(value.replace("AS", ""))
         except ValueError:
             pass
-    elif key.lower() == "as-name" and value:
-        asn_name = value
 
     return asn_code, asn_name
 
 
 def _parse_org_fields(
-    key: str, value: str, current_org: Optional[str] = None
-) -> Tuple[Optional[str], Optional[str]]:
+    key: str,
+    value: str,
+    current_org: Optional[str] = None,
+    current_asn_name: Optional[str] = None,
+) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     """Parse organization and ISP related fields."""
     organization = current_org
+    asn_name = current_asn_name
     net = None
 
     if key == "net-name" and value:
         net = value
     elif key == "as-org-name" and value and value != r"\(^_^)/":
-        organization = value
-    elif key == "org-name" and value and not organization:
+        asn_name = value
+    elif key == "org-name" and value:
         organization = value
 
-    return organization, net
+    return organization, asn_name, net
 
 
 def _parse_location_field(
@@ -129,8 +131,9 @@ def _clean_field(field: Optional[str]) -> Optional[str]:
         return None
 
     parts = field.split("-")
-    if len(parts) >= 3:
-        return parts[1]
+    if len(parts) >= 3 and all(len(part.strip()) > 0 for part in parts):
+        if parts[0].strip().upper().startswith("AS") and parts[0].strip()[2:].isdigit():
+            return parts[1]
     return field
 
 
@@ -140,13 +143,14 @@ def _process_line(
     asn_name: Optional[str],
     organization: Optional[str],
     net: Optional[str],
+    prefix: Optional[str],
     location_data: Dict[str, Any],
     geo_flags: Dict[str, bool],
     key_mapping: Dict[str, str],
-) -> Tuple[int, Optional[str], Optional[str], Optional[str]]:
+) -> Tuple[int, Optional[str], Optional[str], Optional[str], Optional[str]]:
     """Process a single line from the whois response."""
     if ":" not in line:
-        return asn_code, asn_name, organization, net
+        return asn_code, asn_name, organization, net, prefix
 
     key, value = line.split(":", 1)
     original_key = key.strip().lower()
@@ -155,22 +159,25 @@ def _process_line(
 
     is_geo = original_key.startswith("geo-")
 
-    code, name = _parse_asn_fields(key, value)
+    code, _ = _parse_asn_fields(key, value)
     if code > 0:
         asn_code = code
-    if name:
-        asn_name = name
 
-    org, net_name = _parse_org_fields(key, value, organization)
+    org, org_asn_name, net_name = _parse_org_fields(key, value, organization, asn_name)
     if org:
         organization = org
+    if org_asn_name:
+        asn_name = org_asn_name
     if net_name:
         net = net_name
+
+    if key == "prefix" and value:
+        prefix = value
 
     _parse_location_field(key, value, is_geo, location_data, geo_flags)
     _parse_mapped_key(key, value, is_geo, key_mapping, location_data, geo_flags)
 
-    return asn_code, asn_name, organization, net
+    return asn_code, asn_name, organization, net, prefix
 
 
 def parse_pwhois_response(response: str) -> Optional[Dict[str, Any]]:
@@ -179,6 +186,7 @@ def parse_pwhois_response(response: str) -> Optional[Dict[str, Any]]:
     asn_name = None
     organization = None
     net = None
+    prefix = None
 
     location_data = {
         "country": None,
@@ -197,12 +205,13 @@ def parse_pwhois_response(response: str) -> Optional[Dict[str, Any]]:
     }
 
     for line in response.splitlines():
-        asn_code, asn_name, organization, net = _process_line(
+        asn_code, asn_name, organization, net, prefix = _process_line(
             line.strip(),
             asn_code,
             asn_name,
             organization,
             net,
+            prefix,
             location_data,
             geo_flags,
             key_mapping,
@@ -214,9 +223,6 @@ def parse_pwhois_response(response: str) -> Optional[Dict[str, Any]]:
     organization = _clean_field(organization)
     net = _clean_field(net)
 
-    if not asn_name and organization:
-        asn_name = organization
-
     country = location_data.get("country")
     if country and len(country) == 2 and country.isupper():
         if not location_data.get("country_code"):
@@ -227,8 +233,9 @@ def parse_pwhois_response(response: str) -> Optional[Dict[str, Any]]:
     return {
         "asn": asn_code,
         "asn_name": asn_name,
-        "organization": organization,
+        "org": organization,
         "net": net,
+        "prefix": prefix,
         "country": location_data.get("country"),
         "country_code": location_data.get("country_code"),
         "region": location_data.get("state"),
@@ -276,7 +283,7 @@ def get_asn_from_maxmind(
 
             return {
                 "asn": get_nested(record, "autonomous_system_number"),
-                "organization": get_nested(record, "autonomous_system_organization"),
+                "asn_name": get_nested(record, "autonomous_system_organization"),
             }
 
     except (
