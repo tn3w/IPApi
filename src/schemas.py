@@ -54,7 +54,7 @@ class IPAPIResponse(BaseModel):
     )
 
     # ASN information
-    asn: Optional[int] = Field(None, description="Autonomous System Number")
+    asn: Optional[str] = Field(None, description="Autonomous System Number")
     asn_name: Optional[str] = Field(None, description="Autonomous System name")
     org: Optional[str] = Field(None, description="Organization name")
     net: Optional[str] = Field(None, description="Network range")
