@@ -2032,7 +2032,9 @@
                         } catch (error) {
                             showNotification(
                                 'Error',
-                                `Error fetching your IP address: ${error.message}. Please try again.`
+                                'Error fetching your IP address: ' +
+                                    error.message +
+                                    '. Please try again.'
                             );
                             console.error('Error fetching IP:', error);
                         } finally {
@@ -2122,7 +2124,10 @@
                 function transitionToResultsView(ipData) {
                     elements.results.input.value = elements.search.input.value;
 
-                    if (ipData) prePopulateResultsData(ipData);
+                    if (ipData) {
+                        prePopulateResultsData(ipData);
+                        document.title = ipData.ip + ' | IPApi';
+                    }
 
                     document.body.classList.add('results-active');
                     elements.results.view.style.display = 'block';
@@ -2152,6 +2157,8 @@
                 }
 
                 function transitionToHeroView() {
+                    document.title = 'IPApi - IP Address Information';
+
                     document.body.classList.remove('results-active');
                     elements.results.view.style.display = 'block';
                     elements.results.view.classList.remove('fade-in');
@@ -2220,6 +2227,7 @@
 
                         if (isResultsView) {
                             hideLoading();
+                            transitionToHeroView();
                         } else {
                             const loadingSpinner =
                                 elements.hero.querySelector('.hero-loading-spinner');
@@ -2228,7 +2236,7 @@
 
                         showNotification(
                             'Error',
-                            `Error fetching IP data: ${error.message}. Please try again.`
+                            'Error fetching IP data: ' + error.message + '. Please try again.'
                         );
                         console.error('Error fetching IP data:', error);
                     }
@@ -2267,6 +2275,8 @@
 
                     const resultsDataContainer = document.querySelector('.results-data');
                     if (resultsDataContainer) resultsDataContainer.classList.add('active');
+
+                    document.title = data.ip + ' | IPApi';
 
                     const ipTypeEl = document.getElementById('result-ip-type');
                     const ipEl = document.getElementById('result-ip');
@@ -2651,7 +2661,7 @@
                     }
                 }
 
-                function showNotification(title, message, duration = 4000) {
+                function showNotification(title, message, duration = 5000) {
                     if (message === lastErrorMessage) {
                         errorCounter++;
 
