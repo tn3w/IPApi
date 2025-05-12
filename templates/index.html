@@ -743,6 +743,28 @@
                 }
             }
 
+            @keyframes fadeOutUp {
+                from {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+                to {
+                    opacity: 0;
+                    transform: translateY(-20px);
+                }
+            }
+
+            @keyframes fadeInDown {
+                from {
+                    opacity: 0;
+                    transform: translateY(-20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
             @media (max-width: 768px) {
                 .hero {
                     height: auto;
@@ -1397,6 +1419,28 @@
                 .results-actions {
                     margin-top: 5px;
                 }
+            }
+
+            /* Custom map marker styles */
+            .custom-map-marker {
+                background: none;
+                border: none;
+                filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
+            }
+
+            .custom-map-marker svg {
+                transition: transform 0.2s ease;
+            }
+
+            .custom-map-marker:hover svg {
+                transform: scale(1.1);
+            }
+
+            .leaflet-popup-content {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu,
+                    Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+                padding: 5px;
             }
         </style>
     </head>
@@ -2455,6 +2499,24 @@
                     }
                 }
 
+                function createCustomMarker(color) {
+                    const markerColor =
+                        color ||
+                        getComputedStyle(document.documentElement)
+                            .getPropertyValue('--primary')
+                            .trim();
+
+                    return L.divIcon({
+                        className: 'custom-map-marker',
+                        html: `<svg width="36" height="48" viewBox="0 0 36 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M18 0C8.064 0 0 8.064 0 18C0 31.5 18 48 18 48C18 48 36 31.5 36 18C36 8.064 27.936 0 18 0ZM18 24.3C14.5 24.3 11.7 21.5 11.7 18C11.7 14.5 14.5 11.7 18 11.7C21.5 11.7 24.3 14.5 24.3 18C24.3 21.5 21.5 24.3 18 24.3Z" fill="${markerColor}"/>
+                              </svg>`,
+                        iconSize: [36, 48],
+                        iconAnchor: [18, 48],
+                        popupAnchor: [0, -48],
+                    });
+                }
+
                 function createMap(lat, lon, ipAddress) {
                     const mapContainer = document.getElementById('ip-map');
                     const prefersDarkMode = window.matchMedia(
@@ -2486,11 +2548,21 @@
                             maxZoom: 19,
                         }).addTo(map);
 
+                        const customIcon = createCustomMarker();
+
                         tileLayer.once('load', function () {
                             if (!marker) {
-                                marker = L.marker([lat, lon])
+                                marker = L.marker([lat, lon], { icon: customIcon })
                                     .addTo(map)
-                                    .bindPopup(`IP: ${ipAddress}<br>Lat: ${lat}<br>Lon: ${lon}`)
+                                    .bindPopup(
+                                        '<div style="text-align:center;"><strong>IP: ' +
+                                            ipAddress +
+                                            '</strong><br>Lat: ' +
+                                            lat +
+                                            '<br>Lon: ' +
+                                            lon +
+                                            '</div>'
+                                    )
                                     .openPopup();
 
                                 map.invalidateSize();
@@ -2499,9 +2571,17 @@
 
                         map.once('moveend', function () {
                             if (!marker) {
-                                marker = L.marker([lat, lon])
+                                marker = L.marker([lat, lon], { icon: customIcon })
                                     .addTo(map)
-                                    .bindPopup(`IP: ${ipAddress}<br>Lat: ${lat}<br>Lon: ${lon}`)
+                                    .bindPopup(
+                                        '<div style="text-align:center;"><strong>IP: ' +
+                                            ipAddress +
+                                            '</strong><br>Lat: ' +
+                                            lat +
+                                            '<br>Lon: ' +
+                                            lon +
+                                            '</div>'
+                                    )
                                     .openPopup();
 
                                 map.invalidateSize();
@@ -2510,15 +2590,34 @@
                     } else {
                         map.setView([lat, lon], 10);
 
+                        const customIcon = createCustomMarker();
+
                         if (marker) {
                             marker
                                 .setLatLng([lat, lon])
-                                .bindPopup(`IP: ${ipAddress}<br>Lat: ${lat}<br>Lon: ${lon}`)
+                                .setIcon(customIcon)
+                                .bindPopup(
+                                    '<div style="text-align:center;"><strong>IP: ' +
+                                        ipAddress +
+                                        '</strong><br>Lat: ' +
+                                        lat +
+                                        '<br>Lon: ' +
+                                        lon +
+                                        '</div>'
+                                )
                                 .openPopup();
                         } else {
-                            marker = L.marker([lat, lon])
+                            marker = L.marker([lat, lon], { icon: customIcon })
                                 .addTo(map)
-                                .bindPopup(`IP: ${ipAddress}<br>Lat: ${lat}<br>Lon: ${lon}`)
+                                .bindPopup(
+                                    '<div style="text-align:center;"><strong>IP: ' +
+                                        ipAddress +
+                                        '</strong><br>Lat: ' +
+                                        lat +
+                                        '<br>Lon: ' +
+                                        lon +
+                                        '</div>'
+                                )
                                 .openPopup();
                         }
 

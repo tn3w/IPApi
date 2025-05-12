@@ -49,7 +49,7 @@
 ## Todo
 
 - [ ] Implement multiple ASN data sources for IP addresses like 2.2.2.2 that lack network information (improve coverage and reliability)
-- [ ] Add proper spacing and formatting to the location marker popup content on the map to improve readability
+- [x] Add proper spacing and formatting to the location marker popup content on the map to improve readability
 
 ## License
 
