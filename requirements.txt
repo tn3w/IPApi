@@ -9,3 +9,4 @@ dnspython>=2.7.0
 htmlmin>=0.1.12
 csscompressor>=0.9.5
 jsmin>=3.0.1
+redis>=6.1.0

@@ -16,6 +16,7 @@ import unicodedata
 from functools import lru_cache
 from typing import Dict, List, Optional, Any, cast, Iterator, Tuple, Union
 
+from redis import Redis
 import maxminddb
 import maxminddb.errors
 import reverse_geocode  # type: ignore
@@ -739,11 +740,19 @@ def find_zip_code(
     return None
 
 
-@lru_cache(maxsize=1000)
-def get_geocoder_data(coordinates: Tuple[float, float]) -> Dict[str, str]:
+def get_geocoder_data(
+    coordinates: Tuple[float, float], redis: Optional[Redis] = None
+) -> Dict[str, str]:
     """
     Get geocoder data for a given set of coordinates.
     """
+
+    if redis:
+        cache_key = f"geocoder:{coordinates}"
+        cached_data = redis.get(cache_key)
+        if cached_data:
+            return json.loads(cached_data)  # type: ignore
+
     result = reverse_geocode.search([coordinates])[0]  # type: ignore
     result = cast(Dict[str, str], result)
 
@@ -753,6 +762,10 @@ def get_geocoder_data(coordinates: Tuple[float, float]) -> Dict[str, str]:
             result.pop(key)
         except KeyError:
             pass
+
+    if redis:
+        cache_key = f"geocoder:{coordinates}"
+        redis.set(cache_key, json.dumps(result), ex=86400)
 
     return result
 

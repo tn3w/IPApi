@@ -13,10 +13,11 @@ maps country codes to appropriate registries and handles the different query for
 
 import re
 import socket
-from functools import lru_cache
 from typing import Callable, Final, Optional, Tuple, Any, Dict
 from netaddr import IPRange, cidr_merge
 import netaddr
+import json
+from redis import Redis
 
 
 ARIN: Final[str] = "whois.arin.net"
@@ -592,27 +593,70 @@ def query_whois(server: str, query: str) -> Optional[str]:
         s.close()
 
 
-@lru_cache(maxsize=1000)
-def ip_whois(ip_address: str, country_code: str) -> Dict[str, Any]:
-    """Return the WHOIS data for a given IP address."""
+def ip_whois(
+    ip_address: str, country_code: str, redis: Optional[Redis] = None
+) -> Dict[str, Any]:
+    """
+    Return the WHOIS data for a given IP address.
+
+    Args:
+        ip_address: The IP address to query
+        country_code: The country code for determining RIR
+        redis: Optional Redis client for caching results
+
+    Returns:
+        Dictionary containing the parsed WHOIS data
+    """
+    if redis:
+        cache_key = f"whois:{ip_address}:{country_code}"
+        cached_data = redis.get(cache_key)
+        if cached_data:
+            return json.loads(cached_data)  # type: ignore
+
     rir, prefix = get_rir_and_prefix(country_code)
 
     whois_data = query_whois(rir, f"{prefix} {ip_address}".strip())
-    if not whois_data:
-        raise ValueError(f"No WHOIS data found for IP: {ip_address}")
 
-    parser_function = get_parser_func_from_rir(rir)
-    if not parser_function:
-        raise ValueError(f"No parser function found for RIR: {rir}")
+    result = {}
+    if whois_data:
+        parser_function = get_parser_func_from_rir(rir)
+        if not parser_function:
+            raise ValueError(f"No parser function found for RIR: {rir}")
 
-    return parser_function(whois_data)
+        result = parser_function(whois_data)
+
+    if redis:
+        cache_key = f"whois:{ip_address}:{country_code}"
+        redis.set(cache_key, json.dumps(result), ex=86400)
+
+    return result
 
 
-@lru_cache(maxsize=1000)
-def ip_whois_pwhois(ip_address: str) -> Dict[str, Any]:
-    """Return the pwhois WHOIS data for a given IP address."""
+def ip_whois_pwhois(ip_address: str, redis: Optional[Redis] = None) -> Dict[str, Any]:
+    """
+    Return the pwhois WHOIS data for a given IP address.
+
+    Args:
+        ip_address: The IP address to query
+        redis: Optional Redis client for caching results
+
+    Returns:
+        Dictionary containing the parsed WHOIS data
+    """
+    if redis:
+        cache_key = f"pwhois:{ip_address}"
+        cached_data = redis.get(cache_key)
+        if cached_data:
+            return json.loads(cached_data)  # type: ignore
+
     whois_data = query_whois(PWHOIS, ip_address)
-    if not whois_data:
-        raise ValueError(f"No WHOIS data found for IP: {ip_address}")
 
-    return parse_pwhois_data(whois_data)
+    result = {}
+    if whois_data:
+        result = parse_pwhois_data(whois_data)
+
+    if redis:
+        cache_key = f"pwhois:{ip_address}"
+        redis.set(cache_key, json.dumps(result), ex=86400)
+
+    return result

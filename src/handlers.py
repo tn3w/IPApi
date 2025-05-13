@@ -14,6 +14,7 @@ import os
 from typing import Optional, Dict, Any, List, Union, Tuple
 
 from fastapi import Request
+from redis import Redis
 from src.utils import download_file
 from src.ip_address import (
     is_valid_and_routable_ip,
@@ -263,7 +264,6 @@ ASN_LOOKUP_FIELDS = [
     "net",
     "prefix",
     "country",
-    "region",
     "city",
     "latitude",
     "longitude",
@@ -311,13 +311,16 @@ def check_missing_information(
     )
 
 
-def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
+def get_ip_information(
+    ip_address: str, fields: List[str], redis: Redis
+) -> Dict[str, Any]:
     """
     Get the information for the given IP address.
 
     Args:
         ip_address: The IP address to get information for
         fields: The fields to get information for
+        redis: The Redis client to use for caching
 
     Returns:
         A dictionary with the information for the given IP address
@@ -390,36 +393,44 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
             information.update(asn_info)
 
     if (
-        check_missing_information(information, ASN_LOOKUP_FIELDS, fields)
-        or "rpki" in fields
-        or "rpki_count" in fields
+        information.get("latitude")
+        and information.get("longitude")
+        and check_missing_information(information, GEOCODER_FIELDS, fields)
     ):
-        try:
-            lookup_result = ip_whois_pwhois(ip_address)
-            if lookup_result:
-                if information.get("latitude") or information.get("longitude"):
-                    information["accuracy_radius"] = 100
-                information.update(lookup_result)
-        except ValueError:
-            pass
+        information.update(
+            get_geocoder_data(
+                (information["latitude"], information["longitude"]), redis
+            )
+        )
 
-    if check_missing_information(information, ["org", "abuse_contact"], fields):
+    if check_missing_information(information, ["abuse_contact"], fields):
         country_code = information.get("country_code")
         if isinstance(country_code, str):
             try:
-                lookup_result = ip_whois(ip_address, country_code.upper())
+                lookup_result = ip_whois(ip_address, country_code.upper(), redis)
                 if lookup_result:
                     information.update(lookup_result)
             except ValueError:
                 pass
 
+    if check_missing_information(information, ASN_LOOKUP_FIELDS, fields):
+        lookup_result = ip_whois_pwhois(ip_address, redis)
+        if lookup_result:
+            if information.get("latitude") or information.get("longitude"):
+                information["accuracy_radius"] = 100
+            information.update(lookup_result)
+
     if check_missing_information(information, ["abuse_contact"], fields):
-        information["abuse_contact"] = get_abuse_contact(ip_address)
+        information["abuse_contact"] = get_abuse_contact(ip_address, redis)
 
     if check_missing_information(information, ["rpki", "rpki_count"], fields):
-        information["rpki"], information["rpki_count"] = get_rpki_validity(
-            information.get("asn"), information.get("prefix")
-        )
+        asn, prefix = information.get("asn"), information.get("prefix")
+        if isinstance(asn, str) and isinstance(prefix, str):
+            information["rpki"], information["rpki_count"] = get_rpki_validity(
+                asn,
+                prefix,
+                redis,
+            )
 
     if "data_center" in fields:
         if information.get("asn"):

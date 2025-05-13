@@ -73,6 +73,10 @@ ALL_FIELDS: Final[List[str]] = [
     "tor_exit_node",
 ]
 
+ALL_FIELDS_WITHOUT_RPKI: Final[List[str]] = [
+    field for field in ALL_FIELDS if field not in ["rpki", "rpki_count"]
+]
+
 FIELD_BITS: Final[Dict[str, int]] = {
     field: 1 << i for i, field in enumerate(ALL_FIELDS)
 }
@@ -148,7 +152,7 @@ def parse_fields_param(fields_param: Optional[str] = None) -> List[str]:
         return number_to_fields(number)
     except ValueError:
         if fields_param.lower() == "all":
-            return ALL_FIELDS.copy()
+            return ALL_FIELDS_WITHOUT_RPKI.copy()
         fields = [f.strip() for f in fields_param.split(",") if f.strip() in ALL_FIELDS]
         if not fields:
             return DEFAULT_FIELDS.copy()

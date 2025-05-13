@@ -12,6 +12,7 @@ field management, and serves a web interface.
 from typing import Optional
 
 import uvicorn
+import redis
 from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
@@ -45,6 +46,8 @@ app = FastAPI(
     description="API that returns GeoIP and ASN information for IP addresses",
     version="1.0.0",
 )
+
+redis_client = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
 
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
@@ -82,7 +85,7 @@ def self(request: Request):
     fields_param = request.query_params.get("fields", "")
     fields = parse_fields_param(fields_param)
 
-    return JSONResponse(content=get_ip_information(ip_address, fields))
+    return JSONResponse(content=get_ip_information(ip_address, fields, redis_client))
 
 
 @app.get(
@@ -120,7 +123,7 @@ def ip(request: Request, ip_address: Optional[str] = None):
     fields_param = request.query_params.get("fields", "")
     fields = parse_fields_param(fields_param)
 
-    return JSONResponse(content=get_ip_information(ip_address, fields))
+    return JSONResponse(content=get_ip_information(ip_address, fields, redis_client))
 
 
 @app.get(
