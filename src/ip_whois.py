@@ -13,8 +13,10 @@ maps country codes to appropriate registries and handles the different query for
 
 import re
 import socket
+from functools import lru_cache
 from typing import Callable, Final, Optional, Tuple, Any, Dict
 from netaddr import IPRange, cidr_merge
+import netaddr
 
 
 ARIN: Final[str] = "whois.arin.net"
@@ -242,12 +244,12 @@ def parse_pwhois_data(data: str) -> Dict[str, Any]:
     return result
 
 
-def parse_ripe_apnic_data(data: str) -> Dict[str, Optional[str]]:
+def parse_ripe_data(data: str) -> Dict[str, Optional[str]]:
     """
-    Parse RIPE and APNIC WHOIS data and extract specific information.
+    Parse RIPE WHOIS data and extract specific information.
 
     Args:
-        data: RIPE and APNIC WHOIS response in RPSL format
+        data: RIPE WHOIS response in RPSL format
 
     Returns:
         Dictionary containing extracted information:
@@ -280,16 +282,100 @@ def parse_ripe_apnic_data(data: str) -> Dict[str, Optional[str]]:
         start_ip = ip_range_match.group(1)
         end_ip = ip_range_match.group(2)
         try:
-            ip_range = IPRange(start_ip, end_ip)
-            cidrs = cidr_merge(ip_range)
-            if cidrs:
-                result["prefix"] = str(cidrs[0])
-        except Exception as e:
+            start_int = int(netaddr.IPAddress(start_ip))
+            end_int = int(netaddr.IPAddress(end_ip))
+
+            if end_int - start_int > 16777216:
+                result["prefix"] = f"{start_ip}-{end_ip}"
+            else:
+                ip_range = IPRange(start_ip, end_ip)
+                cidrs = cidr_merge(ip_range)
+                if cidrs:
+                    result["prefix"] = str(cidrs[0])
+        except (ValueError, netaddr.AddrFormatError) as e:
             print(f"Error converting IP range to CIDR: {e}")
 
     org_match = re.search(r"org-name:\s+(.+?)$", data, re.MULTILINE)
     if org_match:
         result["org"] = org_match.group(1).strip()
+
+    net_match = re.search(r"netname:\s+(.+?)$", data, re.MULTILINE)
+    if net_match:
+        result["net"] = net_match.group(1).strip()
+
+    return result
+
+
+def parse_apnic_data(data: str) -> Dict[str, Optional[str]]:
+    """
+    Parse APNIC WHOIS data and extract specific information.
+
+    Args:
+        data: APNIC WHOIS response in RPSL format
+
+    Returns:
+        Dictionary containing extracted information:
+        - abuse_contact: Email for abuse reports
+        - asn: Autonomous System Number (if available)
+        - asn_name: Autonomous System Name (if available)
+        - prefix: IP range in CIDR notation
+        - org: Organization name
+        - net: Network name
+    """
+    result: Dict[str, Optional[str]] = {}
+
+    abuse_match = re.search(r"Abuse contact for .+ is '([^']+)'", data)
+    if abuse_match:
+        result["abuse_contact"] = abuse_match.group(1)
+
+    if "abuse_contact" not in result:
+        abuse_mailbox_match = re.search(r"abuse-mailbox:\s+(.+?)$", data, re.MULTILINE)
+        if abuse_mailbox_match:
+            result["abuse_contact"] = abuse_mailbox_match.group(1).strip()
+
+    route_section = re.search(r"route:[\s\S]+?origin:\s+AS(\d+)", data)
+    if route_section:
+        result["asn"] = route_section.group(1)
+
+    if "asn" in result:
+        asn_match = re.search(f"AS{result["asn"]}", data)
+        if asn_match:
+            route_section = re.search(r"route:[\s\S]+?source:", data)
+            if route_section:
+                route_text = route_section.group(0)
+                descr_match = re.search(r"descr:\s+(.+?)$", route_text, re.MULTILINE)
+                if descr_match:
+                    result["asn_name"] = descr_match.group(1).strip()
+
+    route_match = re.search(r"route:\s+(.+?)$", data, re.MULTILINE)
+    if route_match:
+        result["prefix"] = route_match.group(1).strip()
+    else:
+        ip_range_match = re.search(r"inetnum:\s+([\d.]+)\s+-\s+([\d.]+)", data)
+        if ip_range_match:
+            start_ip = ip_range_match.group(1)
+            end_ip = ip_range_match.group(2)
+            try:
+                start_int = int(netaddr.IPAddress(start_ip))
+                end_int = int(netaddr.IPAddress(end_ip))
+
+                if end_int - start_int > 16777216:
+                    result["prefix"] = f"{start_ip}-{end_ip}"
+                else:
+                    ip_range = IPRange(start_ip, end_ip)
+                    cidrs = cidr_merge(ip_range)
+                    if cidrs:
+                        result["prefix"] = str(cidrs[0])
+            except (ValueError, netaddr.AddrFormatError) as e:
+                print(f"Error converting IP range to CIDR: {e}")
+
+    org_section = re.search(
+        r"organisation:.*?org-name:\s+(.+?)$.*?source:", data, re.DOTALL | re.MULTILINE
+    )
+    if org_section:
+        org_match = re.search(r"org-name:\s+(.+?)$", org_section.group(0), re.MULTILINE)
+        if org_match:
+            result["org"] = org_match.group(1).strip()
 
     net_match = re.search(r"netname:\s+(.+?)$", data, re.MULTILINE)
     if net_match:
@@ -423,11 +509,17 @@ def parse_afrinic_data(data: str) -> Dict[str, Optional[str]]:
         start_ip = ip_range_match.group(1)
         end_ip = ip_range_match.group(2)
         try:
-            ip_range = IPRange(start_ip, end_ip)
-            cidrs = cidr_merge(ip_range)
-            if cidrs:
-                result["prefix"] = str(cidrs[0])
-        except Exception as e:
+            start_int = int(netaddr.IPAddress(start_ip))
+            end_int = int(netaddr.IPAddress(end_ip))
+
+            if end_int - start_int > 16777216:
+                result["prefix"] = f"{start_ip}-{end_ip}"
+            else:
+                ip_range = IPRange(start_ip, end_ip)
+                cidrs = cidr_merge(ip_range)
+                if cidrs:
+                    result["prefix"] = str(cidrs[0])
+        except (ValueError, netaddr.AddrFormatError) as e:
             print(f"Error converting IP range to CIDR: {e}")
 
     net_match = re.search(r"netname:\s+(.+?)$", data, re.MULTILINE)
@@ -464,8 +556,8 @@ def parse_afrinic_data(data: str) -> Dict[str, Optional[str]]:
 
 RIR_TO_PARSER_FUNCTION: Final[Dict[str, Callable[[str], Dict[str, Any]]]] = {
     ARIN: parse_arin_data,
-    RIPE: parse_ripe_apnic_data,
-    APNIC: parse_ripe_apnic_data,
+    RIPE: parse_ripe_data,
+    APNIC: parse_apnic_data,
     AFRINIC: parse_afrinic_data,
     LACNIC: parse_lacnic_data,
     PWHOIS: parse_pwhois_data,
@@ -500,6 +592,7 @@ def query_whois(server: str, query: str) -> Optional[str]:
         s.close()
 
 
+@lru_cache(maxsize=1000)
 def ip_whois(ip_address: str, country_code: str) -> Dict[str, Any]:
     """Return the WHOIS data for a given IP address."""
     rir, prefix = get_rir_and_prefix(country_code)
@@ -512,9 +605,10 @@ def ip_whois(ip_address: str, country_code: str) -> Dict[str, Any]:
     if not parser_function:
         raise ValueError(f"No parser function found for RIR: {rir}")
 
-    return parser_function(ip_address)
+    return parser_function(whois_data)
 
 
+@lru_cache(maxsize=1000)
 def ip_whois_pwhois(ip_address: str) -> Dict[str, Any]:
     """Return the pwhois WHOIS data for a given IP address."""
     whois_data = query_whois(PWHOIS, ip_address)

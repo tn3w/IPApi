@@ -34,11 +34,11 @@ from src.geo_lookup import (
     get_geo_from_maxmind,
 )
 from src.asn_lookup import (
-    lookup_ip_pwhois,
     get_abuse_contact,
     get_rpki_validity,
     get_asn_from_maxmind,
 )
+from src.ip_whois import ip_whois_pwhois, ip_whois
 from src.dns_lookup import get_dns_info, get_ipv4_from_ipv6
 from src.abuse_lookup import (
     process_tor_exit_nodes_database,
@@ -374,9 +374,6 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
             ),
         )
 
-    if "abuse_contact" in fields:
-        information["abuse_contact"] = get_abuse_contact(ip_address)
-
     if "hostname" in fields:
         hostname = get_dns_info(ip_address)
         if hostname and hostname != ip_address:
@@ -397,11 +394,27 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
         or "rpki" in fields
         or "rpki_count" in fields
     ):
-        lookup_result = lookup_ip_pwhois(ip_address)
-        if lookup_result:
-            if information.get("latitude") or information.get("longitude"):
-                information["accuracy_radius"] = 100
-            information.update(lookup_result)
+        try:
+            lookup_result = ip_whois_pwhois(ip_address)
+            if lookup_result:
+                if information.get("latitude") or information.get("longitude"):
+                    information["accuracy_radius"] = 100
+                information.update(lookup_result)
+        except ValueError:
+            pass
+
+    if check_missing_information(information, ["org", "abuse_contact"], fields):
+        country_code = information.get("country_code")
+        if isinstance(country_code, str):
+            try:
+                lookup_result = ip_whois(ip_address, country_code.upper())
+                if lookup_result:
+                    information.update(lookup_result)
+            except ValueError:
+                pass
+
+    if "abuse_contact" in fields:
+        information["abuse_contact"] = get_abuse_contact(ip_address)
 
     if check_missing_information(information, ["rpki", "rpki_count"], fields):
         information["rpki"], information["rpki_count"] = get_rpki_validity(
