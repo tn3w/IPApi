@@ -413,7 +413,7 @@ def get_ip_information(ip_address: str, fields: List[str]) -> Dict[str, Any]:
             except ValueError:
                 pass
 
-    if "abuse_contact" in fields:
+    if check_missing_information(information, ["abuse_contact"], fields):
         information["abuse_contact"] = get_abuse_contact(ip_address)
 
     if check_missing_information(information, ["rpki", "rpki_count"], fields):
