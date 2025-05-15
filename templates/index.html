@@ -57,6 +57,7 @@
                 --vpn-badge-color: #2ecc71;
                 --proxy-badge-color: #fbbc05;
                 --data-center-badge-color: #1abc9c;
+                --forum-spammer-badge-color: #795548;
                 --text-rgb: 33, 37, 41;
             }
 
@@ -112,7 +113,6 @@
                     --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
                     --code-background: #2a2a2a;
                     --tor-badge-color: #59316b;
-                    --vpn-badge-color: #27ae60;
                     --text-rgb: 233, 236, 239;
                 }
 
@@ -1084,6 +1084,7 @@
             .vpn-badge,
             .proxy-badge,
             .data-center-badge,
+            .forum-spammer-badge,
             .tor-badge {
                 display: inline-flex;
                 align-items: center;
@@ -1099,6 +1100,7 @@
             .vpn-badge svg,
             .proxy-badge svg,
             .data-center-badge svg,
+            .forum-spammer-badge svg,
             .tor-badge svg {
                 width: 16px;
                 height: 16px;
@@ -1114,6 +1116,10 @@
 
             .data-center-badge {
                 background-color: var(--data-center-badge-color);
+            }
+
+            .forum-spammer-badge {
+                background-color: var(--forum-spammer-badge-color);
             }
 
             .tor-badge {
@@ -1584,6 +1590,22 @@
                                             </svg>
                                             <span>Data Center</span>
                                         </div>
+                                        <div
+                                            class="forum-spammer-badge"
+                                            id="forum-spammer-badge"
+                                            style="display: none"
+                                        >
+                                            <svg
+                                                viewBox="0 0 24 24"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                            >
+                                                <path
+                                                    fill="#FFFFFF"
+                                                    d="M17.71 7.29a1 1 0 0 0-1-.25 1 1 0 0 0-.7.73 4.4 4.4 0 0 1-.45 1.13 10.9 10.9 0 0 0-5-6.73A1 1 0 0 0 9 3a7.1 7.1 0 0 1-2.4 5.38C5.38 9.71 4 11.22 4 14c0 5 3 8 8 8s8-2.91 8-8c0-2-1-5.42-2.29-6.71"
+                                                />
+                                            </svg>
+                                            <span>Forum Spammer</span>
+                                        </div>
                                         <div class="tor-badge" id="tor-badge" style="display: none">
                                             <svg
                                                 viewBox="0 0 512 512"
@@ -1688,6 +1710,7 @@
     "vpn_name": null,
     "proxy": false,
     "data_center": false,
+    "forum_spammer": false,
     "tor_exit_node": false
 }</code></pre>
                             </noscript>
@@ -1716,6 +1739,7 @@
                                         vpn_name: null,
                                         proxy: false,
                                         data_center: false,
+                                        forum_spammer: false,
                                         tor_exit_node: false,
                                     };
 
@@ -1846,7 +1870,7 @@
                 let errorCounter = 1;
 
                 const actionButtons = document.querySelectorAll('.action-buttons a');
-                actionButtons.forEach(button => {
+                actionButtons.forEach((button) => {
                     button.dataset.href = button.getAttribute('href');
                     button.removeAttribute('href');
                 });
@@ -1897,12 +1921,12 @@
                             : 'Switch to Dark';
                     }
 
-                    document.querySelectorAll('[data-highlighted]').forEach(el => {
+                    document.querySelectorAll('[data-highlighted]').forEach((el) => {
                         delete el.dataset.highlighted;
                     });
 
                     if (window.hljs) {
-                        document.querySelectorAll('pre code').forEach(codeElement => {
+                        document.querySelectorAll('pre code').forEach((codeElement) => {
                             if (codeElement.dataset.highlighted) {
                                 delete codeElement.dataset.highlighted;
                             }
@@ -1921,7 +1945,7 @@
                     }
 
                     if (map && typeof L !== 'undefined') {
-                        map.eachLayer(layer => {
+                        map.eachLayer((layer) => {
                             if (layer instanceof L.TileLayer) {
                                 map.removeLayer(layer);
                             }
@@ -1953,16 +1977,16 @@
                 function setupSearchEvents() {
                     updateSearchButtonVisibility();
 
-                    ['input', 'change', 'autocomplete'].forEach(event => {
+                    ['input', 'change', 'autocomplete'].forEach((event) => {
                         elements.search.input.addEventListener(event, updateSearchButtonVisibility);
                     });
 
-                    elements.search.input.addEventListener('animationstart', e => {
+                    elements.search.input.addEventListener('animationstart', (e) => {
                         if (e.animationName.indexOf('autofill') !== -1)
                             updateSearchButtonVisibility();
                     });
 
-                    elements.search.form.addEventListener('submit', e => {
+                    elements.search.form.addEventListener('submit', (e) => {
                         e.preventDefault();
                     });
 
@@ -1971,7 +1995,7 @@
                         if (query) fetchIPData(query);
                     });
 
-                    elements.search.input.addEventListener('keypress', e => {
+                    elements.search.input.addEventListener('keypress', (e) => {
                         if (e.key === 'Enter' && e.target.value.trim()) {
                             fetchIPData(e.target.value.trim());
                         }
@@ -1983,20 +2007,31 @@
                             elements.search.input.value = query;
                             showLoading();
                             fetchIPData(query);
+                            window.history.pushState(
+                                { view: 'results', query: query },
+                                '',
+                                `?ip=${encodeURIComponent(query)}`
+                            );
                         }
                     });
 
-                    elements.results.input.addEventListener('keypress', e => {
+                    elements.results.input.addEventListener('keypress', (e) => {
                         if (e.key === 'Enter' && e.target.value.trim()) {
-                            elements.search.input.value = e.target.value.trim();
+                            const query = e.target.value.trim();
+                            elements.search.input.value = query;
                             showLoading();
-                            fetchIPData(e.target.value.trim());
+                            fetchIPData(query);
+                            window.history.pushState(
+                                { view: 'results', query: query },
+                                '',
+                                `?ip=${encodeURIComponent(query)}`
+                            );
                         }
                     });
                 }
 
                 function setupHelperButtons() {
-                    elements.search.myIpButton.addEventListener('click', async e => {
+                    elements.search.myIpButton.addEventListener('click', async (e) => {
                         e.preventDefault();
 
                         const originalText = elements.search.myIpButton.textContent;
@@ -2044,7 +2079,7 @@
                         }
                     });
 
-                    elements.search.tryExampleButton.addEventListener('click', e => {
+                    elements.search.tryExampleButton.addEventListener('click', (e) => {
                         e.preventDefault();
 
                         elements.search.input.value = '8.8.8.8';
@@ -2053,7 +2088,7 @@
 
                     const endpointForm = document.querySelector('.endpoint-url-container');
                     if (endpointForm) {
-                        endpointForm.addEventListener('submit', e => {
+                        endpointForm.addEventListener('submit', (e) => {
                             e.preventDefault();
                         });
                     }
@@ -2285,6 +2320,7 @@
                     const vpnBadgeEl = document.getElementById('vpn-badge');
                     const proxyBadgeEl = document.getElementById('proxy-badge');
                     const dataCenterBadgeEl = document.getElementById('data-center-badge');
+                    const forumSpammerBadgeEl = document.getElementById('forum-spammer-badge');
                     const torBadgeEl = document.getElementById('tor-badge');
 
                     if (ipTypeEl) ipTypeEl.textContent = data.type?.toUpperCase() || 'IP';
@@ -2322,6 +2358,11 @@
                             data.data_center === true ? 'inline-flex' : 'none';
                     }
 
+                    if (forumSpammerBadgeEl) {
+                        forumSpammerBadgeEl.style.display =
+                            data.forum_spammer === true ? 'inline-flex' : 'none';
+                    }
+
                     if (torBadgeEl) {
                         torBadgeEl.style.display =
                             data.tor_exit_node === true ? 'inline-flex' : 'none';
@@ -2346,7 +2387,7 @@
                             { key: 'timezone', label: 'Timezone' },
                         ];
 
-                        locationFields.forEach(field => {
+                        locationFields.forEach((field) => {
                             if (isValidValue(data[field.key])) {
                                 let displayValue = data[field.key];
 
@@ -2384,7 +2425,7 @@
                             { key: 'accuracy_radius', label: 'Accuracy Radius' },
                         ];
 
-                        remainingFields.forEach(field => {
+                        remainingFields.forEach((field) => {
                             if (isValidValue(data[field.key])) {
                                 addResultItem(locationGrid, field.label, data[field.key]);
                             }
@@ -2415,7 +2456,7 @@
                             {
                                 key: 'rpki',
                                 label: 'RPKI',
-                                format: data => {
+                                format: (data) => {
                                     if (!isValidValue(data.rpki)) return null;
 
                                     switch (data.rpki) {
@@ -2434,7 +2475,7 @@
                             },
                         ];
 
-                        networkFields.forEach(field => {
+                        networkFields.forEach((field) => {
                             if (field.format) {
                                 const value = field.format(data);
                                 if (value) {
@@ -2463,6 +2504,11 @@
                             abuseGrid,
                             'Data Center',
                             data.data_center === true ? 'Yes' : 'No'
+                        );
+                        addResultItem(
+                            abuseGrid,
+                            'Forum Spammer',
+                            data.forum_spammer === true ? 'Yes' : 'No'
                         );
                         addResultItem(
                             abuseGrid,
@@ -2817,14 +2863,14 @@
                     }
                 }
 
-                elements.results.closeButton.addEventListener('click', e => {
+                elements.results.closeButton.addEventListener('click', (e) => {
                     e.preventDefault();
                     transitionToHeroView();
                 });
 
                 window.addEventListener('resize', updateHeaderStructure);
 
-                window.addEventListener('popstate', event => {
+                window.addEventListener('popstate', (event) => {
                     if (event.state && event.state.view === 'results') {
                         const query = event.state.query;
                         if (query) {

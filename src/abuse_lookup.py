@@ -10,8 +10,10 @@ import urllib.request
 import zipfile
 import io
 import re
+import os
 from netaddr import IPAddress, IPNetwork
 from src.dns_lookup import resolve_hostname
+from src.utils import download_file
 
 
 def process_tor_exit_nodes_database(file_path: str) -> None:
@@ -586,3 +588,68 @@ def is_data_center_asn(asn: str, data_center_asn_file_path: str) -> bool:
         data_center_asns = json.load(file)
 
     return asn in data_center_asns
+
+
+def download_stopforumspam_database(output_path: str) -> None:
+    """
+    Download and process StopForumSpam IP database.
+
+    Downloads the 90-day list of IPs reported for spam/abuse from StopForumSpam,
+    extracts the contents, and converts to a JSON format list of IPs.
+
+    Args:
+        output_path: Path where the processed data will be saved as JSON
+    """
+    if os.path.exists(output_path):
+        return
+
+    zip_file_path = f"{output_path}.zip"
+    url = "http://www.stopforumspam.com/downloads/listed_ip_90.zip"
+
+    if not os.path.exists(zip_file_path):
+        download_file(url, zip_file_path, "StopForumSpam IP database")
+
+    try:
+        ip_addresses: List[str] = []
+
+        with zipfile.ZipFile(zip_file_path, "r") as zip_ref:
+            with zip_ref.open("listed_ip_90.txt") as file:
+                for line in file:
+                    ip = line.decode("utf-8").strip()
+                    if ip:
+                        ip_addresses.append(ip)
+
+        with open(output_path, "w", encoding="utf-8") as json_file:
+            json.dump(ip_addresses, json_file)
+
+        print(
+            f"Successfully wrote {len(ip_addresses)} StopForumSpam IPs to {output_path}"
+        )
+
+        if os.path.exists(zip_file_path):
+            os.remove(zip_file_path)
+            print(f"Removed temporary zip file {zip_file_path}")
+
+    except (zipfile.BadZipFile, IOError, json.JSONDecodeError) as e:
+        print(f"Error processing StopForumSpam database: {e}")
+        if os.path.exists(zip_file_path):
+            os.remove(zip_file_path)
+
+
+def is_forum_spammer(ip: str, stopforumspam_file_path: str) -> bool:
+    """
+    Check if an IP address is a known forum spammer.
+
+    Args:
+        ip: The IP address to check
+        stopforumspam_file_path: Path to the JSON file containing StopForumSpam data
+    """
+
+    try:
+        with open(stopforumspam_file_path, "r", encoding="utf-8") as file:
+            stopforumspam_data = json.load(file)
+    except (IOError, json.JSONDecodeError) as e:
+        print(f"Error loading StopForumSpam data: {e}")
+        return False
+
+    return ip in stopforumspam_data

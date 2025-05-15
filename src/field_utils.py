@@ -35,6 +35,7 @@ DEFAULT_FIELDS: Final[List[str]] = [
     "vpn_name",
     "proxy",
     "data_center",
+    "forum_spammer",
     "tor_exit_node",
 ]
 
@@ -70,6 +71,7 @@ ALL_FIELDS: Final[List[str]] = [
     "vpn_name",
     "proxy",
     "data_center",
+    "forum_spammer",
     "tor_exit_node",
 ]
 

@@ -56,6 +56,8 @@ from src.abuse_lookup import (
     is_proxy_server,
     process_data_center_asns_database,
     is_data_center_asn,
+    download_stopforumspam_database,
+    is_forum_spammer
 )
 
 
@@ -367,6 +369,12 @@ def get_ip_information(
         information["vpn"] = bool(vpn_name)
         information["vpn_name"] = vpn_name
 
+    if check_missing_information(information, ["forum_spammer"], fields):
+        information["forum_spammer"] = is_forum_spammer(
+            ip_address,
+            os.path.join(DATASETS_DIR, "stopforumspam.json"),
+        )
+
     if "proxy" in fields:
         information["proxy"] = is_proxy_server(
             ip_address,
@@ -564,3 +572,7 @@ def download_and_process_datasets() -> None:
             download_surfshark_hostnames_database(
                 DATASETS["Surfshark-Hostnames"][0], file_path
             )
+
+    download_stopforumspam_database(
+        os.path.join(DATASETS_DIR, "stopforumspam.json")
+    )
