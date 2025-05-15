@@ -286,7 +286,7 @@ def parse_ripe_data(data: str) -> Dict[str, Optional[str]]:
             start_int = int(netaddr.IPAddress(start_ip))
             end_int = int(netaddr.IPAddress(end_ip))
 
-            if end_int - start_int > 16777216:
+            if end_int - start_int > 65536:
                 result["prefix"] = f"{start_ip}-{end_ip}"
             else:
                 ip_range = IPRange(start_ip, end_ip)
@@ -360,7 +360,7 @@ def parse_apnic_data(data: str) -> Dict[str, Optional[str]]:
                 start_int = int(netaddr.IPAddress(start_ip))
                 end_int = int(netaddr.IPAddress(end_ip))
 
-                if end_int - start_int > 16777216:
+                if end_int - start_int > 65536:
                     result["prefix"] = f"{start_ip}-{end_ip}"
                 else:
                     ip_range = IPRange(start_ip, end_ip)
@@ -513,7 +513,7 @@ def parse_afrinic_data(data: str) -> Dict[str, Optional[str]]:
             start_int = int(netaddr.IPAddress(start_ip))
             end_int = int(netaddr.IPAddress(end_ip))
 
-            if end_int - start_int > 16777216:
+            if end_int - start_int > 65536:
                 result["prefix"] = f"{start_ip}-{end_ip}"
             else:
                 ip_range = IPRange(start_ip, end_ip)

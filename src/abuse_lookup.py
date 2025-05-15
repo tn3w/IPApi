@@ -406,6 +406,44 @@ def process_mullvad_servers_database(file_path: str) -> None:
         return
 
 
+def process_awesome_lists_proxies_database(file_path: str) -> None:
+    """
+    Process Awesome Lists proxies data and write extracted IP addresses to a JSON file.
+
+    The input file is expected to be a CSV file with each line potentially containing:
+    dest_ip,dest_port,metadata_comment
+
+    The function handles potential invalid formatting at the end of the file.
+
+    Args:
+        file_path: Path to the CSV file containing Awesome Lists proxies data
+
+    Returns:
+        None
+    """
+    try:
+        ip_addresses: Set[str] = set()
+
+        with open(file_path, "r", encoding="utf-8") as file:
+            csv_reader = csv.reader(file)
+            for row in csv_reader:
+                if not row:
+                    continue
+
+                potential_ip = row[0].strip()
+                if re.match(r"^(\d{1,3}\.){3}\d{1,3}$", potential_ip):
+                    ip_addresses.add(potential_ip)
+
+        with open(file_path, "w", encoding="utf-8") as output_file:
+            json.dump(list(ip_addresses), output_file, ensure_ascii=False)
+
+        print(f"Successfully wrote {len(ip_addresses)} proxy IPs to {file_path}")
+
+    except (IOError, csv.Error) as e:
+        print(f"Error processing Awesome Lists proxies database: {e}")
+        return
+
+
 @lru_cache(maxsize=1000)
 def is_vpn_server(ip: str, vpn_servers_files: Tuple[Tuple[str, str]]) -> Optional[str]:
     """

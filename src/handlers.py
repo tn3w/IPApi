@@ -52,8 +52,8 @@ from src.abuse_lookup import (
     is_vpn_server,
     download_surfshark_hostnames_database,
     process_firehol_proxies_database,
+    process_awesome_lists_proxies_database,
     is_proxy_server,
-    # process_awesome_lists_proxies_database,
     process_data_center_asns_database,
     is_data_center_asn,
 )
@@ -140,13 +140,13 @@ DATASETS: Dict[str, Union[str, Tuple[Union[str, list[str]], str]]] = {
         "https://iplists.firehol.org/files/firehol_proxies.netset",
         "firehol_proxies.json",
     ),
-    # "Awesome-Lists-Proxies": (
-    #     (
-    #         "https://raw.githubusercontent.com/mthcht/awesome-lists/"
-    #         "refs/heads/main/Lists/PROXY/ALL_PROXY_Lists.csv"
-    #     ),
-    #     "awesome-lists-proxies.json",
-    # )
+    "Awesome-Lists-Proxies": (
+        (
+            "https://raw.githubusercontent.com/mthcht/awesome-lists/"
+            "refs/heads/main/Lists/PROXY/ALL_PROXY_Lists.csv"
+        ),
+        "awesome-lists-proxies.json",
+    ),
     # Abuse: Data Center
     "Data-Center-ASNS": (
         (
@@ -374,6 +374,9 @@ def get_ip_information(
                 get_parsed_file_path(
                     os.path.join(DATASETS_DIR, DATASETS["Firehol-Proxies"][1])
                 ),
+                get_parsed_file_path(
+                    os.path.join(DATASETS_DIR, DATASETS["Awesome-Lists-Proxies"][1])
+                ),
             ),
         )
 
@@ -543,7 +546,7 @@ def download_and_process_datasets() -> None:
         "CyberGhost-Servers": process_cyberghost_servers_database,
         "Mullvad": process_mullvad_servers_database,
         "Firehol-Proxies": process_firehol_proxies_database,
-        # "Awesome-Lists-Proxies": process_awesome_lists_proxies_database,
+        "Awesome-Lists-Proxies": process_awesome_lists_proxies_database,
         "Data-Center-ASNS": process_data_center_asns_database,
     }
 
