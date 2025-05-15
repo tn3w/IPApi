@@ -9,7 +9,7 @@
 </p>
 
 <h1 align="center">IPApi</h1>
-<p align="center">A fast, efficient, and free Python-powered API for retrieving IP address information. </p>
+<p align="center">A fast, efficient, and free Python-powered API for retrieving IP address information.</p>
 
 ## Installation and Usage
 
