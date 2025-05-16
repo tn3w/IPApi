@@ -57,7 +57,7 @@ from src.abuse_lookup import (
     process_data_center_asns_database,
     is_data_center_asn,
     download_stopforumspam_database,
-    is_forum_spammer
+    is_forum_spammer,
 )
 
 
@@ -573,6 +573,4 @@ def download_and_process_datasets() -> None:
                 DATASETS["Surfshark-Hostnames"][0], file_path
             )
 
-    download_stopforumspam_database(
-        os.path.join(DATASETS_DIR, "stopforumspam.json")
-    )
+    download_stopforumspam_database(os.path.join(DATASETS_DIR, "stopforumspam.json"))

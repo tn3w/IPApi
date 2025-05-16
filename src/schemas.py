@@ -70,7 +70,9 @@ class IPAPIResponse(BaseModel):
     vpn_name: Optional[str] = Field(None, description="Name of the VPN server")
     proxy: Optional[bool] = Field(None, description="If the IP is a proxy server")
     data_center: Optional[bool] = Field(None, description="If the IP is a data center")
-    forum_spammer: Optional[bool] = Field(None, description="If the IP is a forum spammer")
+    forum_spammer: Optional[bool] = Field(
+        None, description="If the IP is a forum spammer"
+    )
     tor_exit_node: Optional[bool] = Field(
         None, description="If the IP is a Tor exit node"
     )
