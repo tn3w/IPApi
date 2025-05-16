@@ -73,10 +73,11 @@ ALL_FIELDS: Final[List[str]] = [
     "data_center",
     "forum_spammer",
     "tor_exit_node",
+    "all",
 ]
 
-ALL_FIELDS_WITHOUT_RPKI: Final[List[str]] = [
-    field for field in ALL_FIELDS if field not in ["rpki", "rpki_count"]
+FIELDS_FOR_ALL: Final[List[str]] = [
+    field for field in ALL_FIELDS if field not in ["all", "rpki", "rpki_count"]
 ]
 
 FIELD_BITS: Final[Dict[str, int]] = {
@@ -133,6 +134,13 @@ def number_to_fields(number: int) -> List[str]:
         if number & bit:
             result.append(field)
 
+    if "all" in result:
+        try:
+            result.remove("all")
+            result.extend(FIELDS_FOR_ALL)
+        except ValueError:
+            pass
+
     return result
 
 
@@ -153,9 +161,13 @@ def parse_fields_param(fields_param: Optional[str] = None) -> List[str]:
         number = int(fields_param)
         return number_to_fields(number)
     except ValueError:
-        if fields_param.lower() == "all":
-            return ALL_FIELDS_WITHOUT_RPKI.copy()
         fields = [f.strip() for f in fields_param.split(",") if f.strip() in ALL_FIELDS]
         if not fields:
             return DEFAULT_FIELDS.copy()
+        if "all" in fields:
+            try:
+                fields.remove("all")
+                fields.extend(FIELDS_FOR_ALL)
+            except ValueError:
+                pass
         return fields
