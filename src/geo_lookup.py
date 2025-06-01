@@ -11,10 +11,8 @@ supplementary data for enhanced location details like currencies and timezones.
 """
 
 import json
-import csv
-import unicodedata
 from functools import lru_cache
-from typing import Dict, List, Optional, Any, cast, Iterator, Tuple, Union
+from typing import Dict, List, Optional, Any, cast, Tuple, Union
 
 from redis import Redis
 import maxminddb
@@ -495,79 +493,6 @@ def get_timezone_and_offset_from_us_state_code(
     return UNITED_STATES_STATES_TO_TIMEZONE_AND_OFFSET.get(state_code, (None, None))
 
 
-def process_country_states_cities_database(file_path: str) -> None:
-    """
-    Process the country-states-cities database from a JSON file.
-
-    Args:
-        file_path: Path to the JSON file containing the country-states-cities data
-    """
-
-    try:
-        with open(file_path, "r", encoding="utf-8") as file:
-            data = json.load(file)
-    except (IOError, json.JSONDecodeError) as e:
-        print(f"Error loading country database: {e}")
-        return
-
-    result: Dict[str, Dict[str, Any]] = {}
-
-    for country in data:
-        iso2 = country.get("iso2")
-        if not iso2:
-            continue
-
-        region = country.get("region", "")
-        subregion = country.get("subregion", "")
-
-        if region and region in CONTINENT_NAME_TO_CODE:
-            processed_region = region
-        elif subregion in CONTINENT_NAME_TO_NORMALIZED_NAME:
-            processed_region = get_normalized_continent_name(subregion)
-        else:
-            processed_region = region
-
-        timezones = country.get("timezones", [])
-        timezone: Dict[str, Any] = {}
-        if timezones and len(timezones) > 0:
-            first_timezone = timezones[0]
-            timezone = {
-                "name": first_timezone.get("zoneName", ""),
-                "offset": first_timezone.get("gmtOffset", 0),
-            }
-
-        processed_states: List[Dict[str, Any]] = []
-        for state in country.get("states", []):
-            processed_cities: List[str] = []
-
-            for city in state.get("cities", []):
-                city_name = city.get("name", "")
-                if city_name:
-                    normalized_name = unicodedata.normalize("NFKD", city_name)  # type: ignore
-                    normalized_name = "".join(
-                        [c for c in normalized_name if not unicodedata.combining(c)]
-                    )  # type: ignore
-                    processed_cities.append(normalized_name)
-
-            processed_states.append(
-                {
-                    "name": state.get("name", ""),
-                    "state_code": state.get("state_code", ""),
-                    "cities": processed_cities,
-                }
-            )
-
-        result[iso2] = {
-            "name": country.get("name", ""),
-            "region": processed_region,
-            "timezone": timezone,
-            "states": processed_states,
-        }
-
-    with open(file_path, "w", encoding="utf-8") as file:
-        json.dump(result, file, ensure_ascii=False)
-
-
 @lru_cache(maxsize=1000)
 def get_country_states_cities_data(
     country_code: Optional[str],
@@ -643,51 +568,6 @@ def get_country_states_cities_data(
                 break
 
     return country_info
-
-
-def process_zip_codes_database(file_path: str) -> None:
-    """
-    Process ZIP codes CSV data and convert it to a more efficient JSON format for lookups.
-
-    Args:
-        file_path: Path to save the processed JSON data
-    """
-    try:
-        with open(file_path, "r", encoding="utf-8") as file:
-            csv_reader: Iterator[List[str]] = csv.reader(file)  # type: ignore
-            csv_reader = cast(Iterator[List[str]], csv_reader)
-
-            next(csv_reader, None)
-
-            zip_codes_data: Dict[str, str] = {}
-
-            for row in csv_reader:
-                if len(row) < 4:
-                    continue
-
-                zip_code = row[0].strip()
-                city = row[2].strip()
-                state = row[3].strip()
-
-                if not city or not state:
-                    continue
-
-                city_upper = city.upper()
-                state_upper = state.upper()
-                key = f"{city_upper}|{state_upper}"
-
-                if key not in zip_codes_data or (
-                    len(zip_code) < len(zip_codes_data[key])
-                ):
-                    zip_codes_data[key] = zip_code
-
-        with open(file_path, "w", encoding="utf-8") as json_file:
-            json.dump(zip_codes_data, json_file, ensure_ascii=False)
-
-        print(f"Successfully processed ZIP codes data to {file_path}")
-
-    except (IOError, json.JSONDecodeError, csv.Error, OSError) as e:
-        print(f"Error processing ZIP codes data: {e}")
 
 
 @lru_cache(maxsize=1000)

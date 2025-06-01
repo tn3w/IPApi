@@ -35,7 +35,7 @@ from src.field_utils import (
 from src.handlers import (
     get_ip_address,
     get_ip_information,
-    download_and_process_datasets,
+    download_datasets,
 )
 from src.template_minifier import minify_templates
 
@@ -197,7 +197,7 @@ def main() -> None:
     """
     Main function to run the app.
     """
-    download_and_process_datasets()
+    download_datasets()
     minify_templates()
 
     uvicorn.run(

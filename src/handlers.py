@@ -11,19 +11,19 @@ various sources and handles dataset management.
 """
 
 import os
+import json
+import urllib.request
+import urllib.error
 from typing import Optional, Dict, Any, List, Union, Tuple
 
 from fastapi import Request
 from redis import Redis
-from src.utils import download_file
 from src.ip_address import (
     is_valid_and_routable_ip,
     get_ip_address_type,
     extract_ipv4_from_ipv6,
 )
 from src.geo_lookup import (
-    process_country_states_cities_database,
-    process_zip_codes_database,
     get_currency_from_country,
     is_country_in_european_union,
     get_geocoder_data,
@@ -41,24 +41,6 @@ from src.asn_lookup import (
 )
 from src.ip_whois import ip_whois_pwhois, ip_whois
 from src.dns_lookup import get_dns_info, get_ipv4_from_ipv6
-from src.abuse_lookup import (
-    process_tor_exit_nodes_database,
-    is_tor_exit_node,
-    process_nordvpn_servers_database,
-    process_sudesh0sudesh_servers_database,
-    process_pia_servers_database,
-    process_cyberghost_servers_database,
-    process_mullvad_servers_database,
-    is_vpn_server,
-    download_surfshark_hostnames_database,
-    process_firehol_proxies_database,
-    process_awesome_lists_proxies_database,
-    is_proxy_server,
-    process_data_center_asns_database,
-    is_data_center_asn,
-    download_stopforumspam_database,
-    is_forum_spammer,
-)
 
 
 DATASETS_DIR = "assets"
@@ -66,155 +48,28 @@ DATASETS: Dict[str, Union[str, Tuple[Union[str, list[str]], str]]] = {
     # Geolocation
     "GeoLite2-ASN": ("https://git.io/GeoLite2-ASN.mmdb", "GeoLite2-ASN.mmdb"),
     "GeoLite2-City": ("https://git.io/GeoLite2-City.mmdb", "GeoLite2-City.mmdb"),
-    "Country-States-Cities": (
+    "Countries-States-Cities": (
         (
-            "https://raw.githubusercontent.com/dr5hn/"
-            "countries-states-cities-database/refs/heads/master/"
-            "json/countries%2Bstates%2Bcities.json"
+            "https://raw.githubusercontent.com/tn3w/IPSet/"
+            "refs/heads/master/countries_states_cities.json"
         ),
-        "countries-states-cities.json",
+        "countries_states_cities.json",
     ),
     "Zip-Codes": (
-        (
-            "https://raw.githubusercontent.com/wouterdebie/"
-            "zip_codes_plus/refs/heads/main/data/zip_codes.csv"
-        ),
-        "zip-codes.json",
+        "https://raw.githubusercontent.com/tn3w/IPSet/refs/heads/master/zip_codes.json",
+        "zip_codes.json",
     ),
-    "Tor-Exit-Nodes": (
-        "https://onionoo.torproject.org/details?flag=exit",
-        "tor-exit-nodes.json",
-    ),
-    # Abuse: VPN Servers
-    "NordVPN-Servers": (
-        "https://api.nordvpn.com/v1/servers?limit=10000",
-        "nordvpn-servers.json",
-    ),
-    "ProtonVPN-Servers": (
-        (
-            "https://raw.githubusercontent.com/tn3w/ProtonVPN-IPs/"
-            "refs/heads/master/protonvpn_ips.json"
-        ),
-        "protonvpn-servers.json",
-    ),
-    "ExpressVPN-Servers": (
-        (
-            "https://raw.githubusercontent.com/sudesh0sudesh/ExpressVPN-IPs/"
-            "refs/heads/main/express_ips.csv"
-        ),
-        "expressvpn-servers.json",
-    ),
-    "Surfshark-Servers": (
-        (
-            "https://raw.githubusercontent.com/sudesh0sudesh/surfshark-IPs/"
-            "refs/heads/main/surfshark_ips.csv"
-        ),
-        "surfshark-servers.json",
-    ),
-    "Surfshark-Hostnames": (
-        "https://surfshark.com/api/v1/server/configurations",
-        "surfshark-by-hostname.json",
-    ),
-    "Private-Internet-Access-Servers": (
-        "https://serverlist.piaservers.net/vpninfo/servers/v6",
-        "pia-servers.json",
-    ),
-    "CyberGhost-Servers": (
-        (
-            "https://gist.githubusercontent.com/Windows81/17e75698d4fe349bcfb71d1c1ca537d4/"
-            "raw/88713feecd901acaa03b3805b7ac1ab19ada73b2/.txt"
-        ),
-        "cyberghost-servers.json",
-    ),
-    "TunnelBear-Servers": (
-        (
-            "https://raw.githubusercontent.com/tn3w/TunnelBear-IPs/"
-            "refs/heads/master/tunnelbear_ips.json"
-        ),
-        "tunnelbear-servers.json",
-    ),
-    "Mullvad": (
-        "https://api.mullvad.net/www/relays/all",
-        "mullvad-servers.json",
-    ),
-    # Abuse: Proxy Servers
-    "Firehol-Proxies": (
-        "https://iplists.firehol.org/files/firehol_proxies.netset",
-        "firehol_proxies.json",
-    ),
-    "Awesome-Lists-Proxies": (
-        (
-            "https://raw.githubusercontent.com/mthcht/awesome-lists/"
-            "refs/heads/main/Lists/PROXY/ALL_PROXY_Lists.csv"
-        ),
-        "awesome-lists-proxies.json",
+    # Abuse: VPNs / Proxies / Spam
+    "IPSet": (
+        "https://raw.githubusercontent.com/tn3w/IPSet/refs/heads/master/iplookup.json",
+        "ipset.json",
     ),
     # Abuse: Data Center
     "Data-Center-ASNS": (
-        (
-            "https://raw.githubusercontent.com/brianhama/bad-asn-list/"
-            "refs/heads/master/bad-asn-list.csv"
-        ),
+        "https://raw.githubusercontent.com/tn3w/IPSet/refs/heads/master/datacenter_asns.json",
         "data-center-asns.json",
     ),
 }
-
-
-def get_parsed_file_path(file_path: str) -> str:
-    """
-    Get the parsed file path for the given file path.
-    """
-    return file_path.replace(".json", ".parsed.json").replace(".csv", ".parsed.csv")
-
-
-VPN_SERVERS_FILES = (
-    (
-        "NordVPN",
-        get_parsed_file_path(
-            os.path.join(DATASETS_DIR, DATASETS["NordVPN-Servers"][1])
-        ),
-    ),
-    (
-        "ProtonVPN",
-        os.path.join(DATASETS_DIR, DATASETS["ProtonVPN-Servers"][1]),
-    ),
-    (
-        "TunnelBear",
-        os.path.join(DATASETS_DIR, DATASETS["TunnelBear-Servers"][1]),
-    ),
-    (
-        "ExpressVPN",
-        get_parsed_file_path(
-            os.path.join(DATASETS_DIR, DATASETS["ExpressVPN-Servers"][1])
-        ),
-    ),
-    (
-        "Surfshark",
-        get_parsed_file_path(
-            os.path.join(DATASETS_DIR, DATASETS["Surfshark-Servers"][1])
-        ),
-    ),
-    (
-        "Surfshark",
-        os.path.join(DATASETS_DIR, DATASETS["Surfshark-Hostnames"][1]),
-    ),
-    (
-        "Private Internet Access",
-        get_parsed_file_path(
-            os.path.join(DATASETS_DIR, DATASETS["Private-Internet-Access-Servers"][1])
-        ),
-    ),
-    (
-        "CyberGhost",
-        get_parsed_file_path(
-            os.path.join(DATASETS_DIR, DATASETS["CyberGhost-Servers"][1])
-        ),
-    ),
-    (
-        "Mullvad",
-        get_parsed_file_path(os.path.join(DATASETS_DIR, DATASETS["Mullvad"][1])),
-    ),
-)
 
 
 def get_ip_address(request: Request) -> Optional[str]:
@@ -313,6 +168,36 @@ def check_missing_information(
     )
 
 
+LOADED_IPSET_DATA: Dict[str, Any] = {}
+
+
+def get_ip_groups(ip_address: str) -> List[str]:
+    """
+    Get the groups for the given IP address.
+    """
+    if not LOADED_IPSET_DATA:
+        ipset_path = os.path.join(DATASETS_DIR, DATASETS["IPSet"][1])
+        with open(ipset_path, "r", encoding="utf-8") as file:
+            ipset_data = json.load(file)
+        LOADED_IPSET_DATA.update(ipset_data)
+    return LOADED_IPSET_DATA.get(ip_address, [])
+
+
+LOADED_DATA_CENTER_ASNS_DATA: List[str] = []
+
+
+def is_data_center_asn(asn: str, data_center_asns_path: str) -> bool:
+    """
+    Check if the given ASN is a data center ASN.
+    """
+    if not LOADED_DATA_CENTER_ASNS_DATA:
+        with open(data_center_asns_path, "r", encoding="utf-8") as file:
+            data_center_asns_data = json.load(file)
+        LOADED_DATA_CENTER_ASNS_DATA.extend(data_center_asns_data)
+
+    return asn in LOADED_DATA_CENTER_ASNS_DATA
+
+
 def get_ip_information(
     ip_address: str, fields: List[str], redis: Redis
 ) -> Dict[str, Any]:
@@ -336,11 +221,31 @@ def get_ip_information(
     if "type" in fields:
         information["type"] = ip_address_type
 
+    groups = get_ip_groups(ip_address)
+
     if "tor_exit_node" in fields:
-        tor_nodes_file = os.path.join(DATASETS_DIR, DATASETS["Tor-Exit-Nodes"][1])
-        information["tor_exit_node"] = is_tor_exit_node(
-            ip_address, get_parsed_file_path(tor_nodes_file)
-        )
+        information["tor_exit_node"] = "TorExitNodes" in groups
+
+    if check_missing_information(information, ["vpn", "vpn_name"], fields):
+        vpn_providers = [
+            "NordVPN",
+            "ProtonVPN",
+            "ExpressVPN",
+            "Surfshark",
+            "PrivateInternetAccess",
+            "CyberGhost",
+            "TunnelBear",
+            "Mullvad",
+        ]
+        vpn_name = next((name for name in vpn_providers if name in groups), None)
+        information["vpn"] = bool(vpn_name)
+        information["vpn_name"] = vpn_name
+
+    if "forum_spammer" in fields:
+        information["forum_spammer"] = "StopForumSpam" in groups
+
+    if "proxy" in fields:
+        information["proxy"] = "FireholProxies" in groups or "AwesomeProxies" in groups
 
     if ip_address_type == "ipv6":
         ipv4_from_ipv6 = extract_ipv4_from_ipv6(ip_address)
@@ -362,31 +267,6 @@ def get_ip_information(
                 information["ipv4"] = None
         else:
             information["ipv4"] = ip_address
-
-    if check_missing_information(information, ["vpn", "vpn_name"], fields):
-        vpn_name = is_vpn_server(ip_address, VPN_SERVERS_FILES)
-
-        information["vpn"] = bool(vpn_name)
-        information["vpn_name"] = vpn_name
-
-    if check_missing_information(information, ["forum_spammer"], fields):
-        information["forum_spammer"] = is_forum_spammer(
-            ip_address,
-            os.path.join(DATASETS_DIR, "stopforumspam.json"),
-        )
-
-    if "proxy" in fields:
-        information["proxy"] = is_proxy_server(
-            ip_address,
-            (
-                get_parsed_file_path(
-                    os.path.join(DATASETS_DIR, DATASETS["Firehol-Proxies"][1])
-                ),
-                get_parsed_file_path(
-                    os.path.join(DATASETS_DIR, DATASETS["Awesome-Lists-Proxies"][1])
-                ),
-            ),
-        )
 
     if "hostname" in fields:
         hostname = get_dns_info(ip_address)
@@ -447,9 +327,7 @@ def get_ip_information(
         if information.get("asn"):
             information["data_center"] = is_data_center_asn(
                 str(information["asn"]),
-                get_parsed_file_path(
-                    os.path.join(DATASETS_DIR, DATASETS["Data-Center-ASNS"][1])
-                ),
+                os.path.join(DATASETS_DIR, DATASETS["Data-Center-ASNS"][1]),
             )
         else:
             information["data_center"] = False
@@ -473,13 +351,11 @@ def get_ip_information(
                 )
             )
         if check_missing_information(information, ["postal_code"], fields):
-            zip_codes_path = os.path.join(
-                DATASETS_DIR, DATASETS["Zip-Codes"][1].replace(".csv", ".json")
-            )
+            zip_codes_path = os.path.join(DATASETS_DIR, DATASETS["Zip-Codes"][1])
             information["postal_code"] = find_zip_code(
                 information.get("city"),
                 information.get("region_code"),
-                get_parsed_file_path(zip_codes_path),
+                zip_codes_path,
             )
 
         timezone, offset = get_timezone_and_offset_from_us_state_code(
@@ -500,12 +376,12 @@ def get_ip_information(
             )
         if check_missing_information(information, COUNTRY_STATES_CITIES_FIELDS, fields):
             country_states_cities_path = os.path.join(
-                DATASETS_DIR, DATASETS["Country-States-Cities"][1]
+                DATASETS_DIR, DATASETS["Countries-States-Cities"][1]
             )
             information.update(
                 get_country_states_cities_data(
                     information["country_code"],
-                    get_parsed_file_path(country_states_cities_path),
+                    country_states_cities_path,
                     information.get("city"),
                     information.get("region"),
                     information.get("region_code"),
@@ -531,46 +407,21 @@ def get_ip_information(
     return information
 
 
-def download_and_process_datasets() -> None:
+def download_datasets() -> None:
     """
-    Download and process the datasets.
+    Download the datasets from the URLs in the DATASETS dictionary.
     """
-    for dataset_name, (dataset_url, dataset_filename) in DATASETS.items():
-        file_path = os.path.join(DATASETS_DIR, dataset_filename)
-        if (
-            not os.path.exists(get_parsed_file_path(file_path))
-            and not "Surfshark-Hostnames" in dataset_name
-        ):
-            download_file(dataset_url, file_path, dataset_name)
+    if not os.path.exists(DATASETS_DIR):
+        os.makedirs(DATASETS_DIR)
 
-    standard_processors = {
-        "Country-States-Cities": process_country_states_cities_database,
-        "Zip-Codes": process_zip_codes_database,
-        "Tor-Exit-Nodes": process_tor_exit_nodes_database,
-        "NordVPN-Servers": process_nordvpn_servers_database,
-        "ExpressVPN-Servers": process_sudesh0sudesh_servers_database,
-        "Surfshark-Servers": process_sudesh0sudesh_servers_database,
-        "Private-Internet-Access-Servers": process_pia_servers_database,
-        "CyberGhost-Servers": process_cyberghost_servers_database,
-        "Mullvad": process_mullvad_servers_database,
-        "Firehol-Proxies": process_firehol_proxies_database,
-        "Awesome-Lists-Proxies": process_awesome_lists_proxies_database,
-        "Data-Center-ASNS": process_data_center_asns_database,
-    }
+    for dataset_name, (url, file_name) in DATASETS.items():
+        file_path = os.path.join(DATASETS_DIR, file_name)
+        if not os.path.exists(file_path):
+            print(f"Downloading {dataset_name}...")
 
-    for dataset_key, processor_func in standard_processors.items():
-        file_path = os.path.join(DATASETS_DIR, DATASETS[dataset_key][1])
-        if not os.path.exists(get_parsed_file_path(file_path)):
-            print(f"Processing {dataset_key.lower()} database...")
-            processor_func(file_path)
-            os.rename(file_path, get_parsed_file_path(file_path))
-
-    file_path = os.path.join(DATASETS_DIR, DATASETS["Surfshark-Hostnames"][1])
-    if not os.path.exists(file_path):
-        print("Processing surfshark by hostname database...")
-        if not isinstance(DATASETS["Surfshark-Hostnames"][0], list):
-            download_surfshark_hostnames_database(
-                DATASETS["Surfshark-Hostnames"][0], file_path
-            )
-
-    download_stopforumspam_database(os.path.join(DATASETS_DIR, "stopforumspam.json"))
+            try:
+                print(f"Downloading {dataset_name} from {url}...")
+                urllib.request.urlretrieve(str(url), file_path)
+                print(f"Successfully downloaded {dataset_name} to {file_path}")
+            except (urllib.error.URLError, urllib.error.HTTPError, OSError) as e:
+                print(f"Error downloading {dataset_name}: {e}")
