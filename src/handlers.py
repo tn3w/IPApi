@@ -294,11 +294,13 @@ def get_ip_information(
             )
         )
 
+    used_ip_whois = False
     if check_missing_information(information, ["abuse_contact"], fields):
         country_code = information.get("country_code")
         if isinstance(country_code, str):
             try:
                 lookup_result = ip_whois(ip_address, country_code.upper(), redis)
+                used_ip_whois = True
                 if lookup_result:
                     information.update(lookup_result)
             except ValueError:
@@ -310,6 +312,18 @@ def get_ip_information(
             if information.get("latitude") or information.get("longitude"):
                 information["accuracy_radius"] = 100
             information.update(lookup_result)
+
+    if not used_ip_whois and check_missing_information(
+        information, ["org", "net", "prefix"], fields
+    ):
+        country_code = information.get("country_code")
+        if isinstance(country_code, str):
+            try:
+                lookup_result = ip_whois(ip_address, country_code.upper(), redis)
+                if lookup_result:
+                    information.update(lookup_result)
+            except ValueError:
+                pass
 
     if check_missing_information(information, ["abuse_contact"], fields):
         information["abuse_contact"] = get_abuse_contact(ip_address, redis)

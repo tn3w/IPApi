@@ -77,7 +77,9 @@ ALL_FIELDS: Final[List[str]] = [
 ]
 
 FIELDS_FOR_ALL: Final[List[str]] = [
-    field for field in ALL_FIELDS if field not in ["all", "rpki", "rpki_count"]
+    field
+    for field in ALL_FIELDS
+    if field not in ["all", "rpki", "rpki_count", "abuse_contact"]
 ]
 
 FIELD_BITS: Final[Dict[str, int]] = {

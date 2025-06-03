@@ -79,6 +79,7 @@ def self(request: Request):
     if not ip_address:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
+            headers={"X-Error": "Invalid IP address"},
             detail="Invalid IP address",
         )
 
@@ -117,6 +118,7 @@ def ip(request: Request, ip_address: Optional[str] = None):
     if not ip_address or not is_valid_and_routable_ip(ip_address):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
+            headers={"X-Error": "Invalid IP address"},
             detail="Invalid IP address",
         )
 

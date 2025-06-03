@@ -2243,8 +2243,11 @@
                         const response = await fetch(
                             `${apiBaseUrl}/${encodeURIComponent(ip)}?fields=all`
                         );
-                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
+                        if (!response.ok)
+                            throw new Error(
+                                response.headers.get('X-Error') ||
+                                    'HTTP error! status: ' + response.status
+                            );
                         const data = await response.json();
                         if (ip !== currentQuery) return;
 
@@ -2270,10 +2273,7 @@
                             if (loadingSpinner) elements.hero.removeChild(loadingSpinner);
                         }
 
-                        showNotification(
-                            'Error',
-                            'Error fetching IP data: ' + error.message + '. Please try again.'
-                        );
+                        showNotification('Error', error.message + '. Please try again.');
                         console.error('Error fetching IP data:', error);
                     }
                 }
