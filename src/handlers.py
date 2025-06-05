@@ -14,10 +14,12 @@ import os
 import json
 import urllib.request
 import urllib.error
+from functools import lru_cache
 from typing import Optional, Dict, Any, List, Union, Tuple
 
 from fastapi import Request
 from redis import Redis
+from netaddr import IPNetwork, IPAddress, AddrFormatError
 from src.ip_address import (
     is_valid_and_routable_ip,
     get_ip_address_type,
@@ -73,7 +75,7 @@ DATASETS: Dict[str, Union[str, Tuple[Union[str, list[str]], str]]] = {
     "Firehol-Level-1": (
         "https://raw.githubusercontent.com/tn3w/IPSet/refs/heads/master/firehol_level1.json",
         "firehol_level1.json",
-    )
+    ),
 }
 
 
@@ -176,6 +178,7 @@ def check_missing_information(
 LOADED_IPSET_DATA: Dict[str, Any] = {}
 
 
+@lru_cache(maxsize=1000)
 def get_ip_groups(ip_address: str) -> List[str]:
     """
     Get the groups for the given IP address.
@@ -191,6 +194,7 @@ def get_ip_groups(ip_address: str) -> List[str]:
 LOADED_DATA_CENTER_ASNS_DATA: List[str] = []
 
 
+@lru_cache(maxsize=1000)
 def is_data_center_asn(asn: str, data_center_asns_path: str) -> bool:
     """
     Check if the given ASN is a data center ASN.
@@ -203,38 +207,31 @@ def is_data_center_asn(asn: str, data_center_asns_path: str) -> bool:
     return asn in LOADED_DATA_CENTER_ASNS_DATA
 
 
-import netaddr
-from typing import List, Dict, Any, Union
-
-LOADED_FIREHOL_LEVEL1_DATA: List[netaddr.IPNetwork] = []
+LOADED_FIREHOL_LEVEL1_DATA: List[IPNetwork] = []
 
 
+@lru_cache(maxsize=1000)
 def is_firehol_level1_ip(ip_address: str, firehol_level1_path: str) -> bool:
     """
     Check if the given IPv4 address is contained in any CIDR range from the Firehol Level 1 dataset.
-    
+
     Args:
         ip_address: The IPv4 address to check
         firehol_level1_path: Path to the Firehol Level 1 dataset
-        
+
     Returns:
         True if the IP is in any CIDR range, False otherwise
     """
     if not LOADED_FIREHOL_LEVEL1_DATA:
         with open(firehol_level1_path, "r", encoding="utf-8") as file:
             firehol_data = json.load(file)
-        
-        # Pre-convert all CIDR ranges to netaddr.IPNetwork objects for faster checks
-        LOADED_FIREHOL_LEVEL1_DATA.extend([
-            netaddr.IPNetwork(cidr) for cidr in firehol_data
-        ])
-    
+
+        LOADED_FIREHOL_LEVEL1_DATA.extend([IPNetwork(cidr) for cidr in firehol_data])
+
     try:
-        ip_obj = netaddr.IPAddress(ip_address)
-        # Use any with generator expression for efficiency - stops at first match
+        ip_obj = IPAddress(ip_address)
         return any(ip_obj in network for network in LOADED_FIREHOL_LEVEL1_DATA)
-    except (ValueError, netaddr.AddrFormatError):
-        # Invalid IP address
+    except (ValueError, AddrFormatError):
         return False
 
 
