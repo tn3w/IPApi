@@ -1428,7 +1428,6 @@
                 }
             }
 
-            /* Custom map marker styles */
             .custom-map-marker {
                 background: none;
                 border: none;
@@ -1448,6 +1447,43 @@
                     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu,
                     Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
                 padding: 5px;
+            }
+
+            .ipv4-mapping {
+                font-size: 0.9rem;
+                color: var(--text);
+                opacity: 0.7;
+                margin-top: 0.5rem;
+            }
+
+            .ip-formats-container {
+                margin-top: 1rem;
+                padding-top: 1rem;
+                border-top: 1px solid var(--border);
+                font-size: 0.9rem;
+            }
+
+            .ip-format {
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .format-item {
+                display: flex;
+                align-items: center;
+            }
+
+            .format-label {
+                font-weight: 500;
+                min-width: 140px;
+                color: var(--text);
+                opacity: 0.8;
+            }
+
+            .format-value {
+                font-family: monospace;
+                word-break: break-all;
             }
         </style>
     </head>
@@ -1634,6 +1670,9 @@
                                     </div>
                                     <h2 id="result-ip">8.8.8.8</h2>
                                     <p id="result-hostname">dns.google</p>
+                                    <div class="ip-formats-container" id="ip-formats-container">
+                                        <!-- Will be populated by JS -->
+                                    </div>
                                 </div>
                                 <div class="results-details">
                                     <div class="results-section">
@@ -2337,7 +2376,7 @@
                                 container.textContent = 'IPv4: ' + data.ipv4;
                                 ipEl.parentNode.insertBefore(container, ipEl.nextSibling);
                             } else {
-                                ipv4Container.textContent = 'Ipv4: ' + data.ipv4;
+                                ipv4Container.textContent = 'IPv4: ' + data.ipv4;
                                 ipv4Container.style.display = 'block';
                             }
                         } else if (ipv4Container) {
@@ -2372,6 +2411,8 @@
                         hostnameEl.textContent = isValidValue(data.hostname)
                             ? data.hostname
                             : 'No hostname available';
+
+                    updateIPFormats(data);
 
                     const locationGrid = document.getElementById('location-grid');
                     if (locationGrid) {
@@ -2897,6 +2938,242 @@
                 window
                     .matchMedia('(prefers-color-scheme: dark)')
                     .addEventListener('change', updateCodeTheme);
+
+                function ipv4ToInt(ip) {
+                    return (
+                        ip
+                            .split('.')
+                            .reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0) >>> 0
+                    );
+                }
+
+                function intToIPv4(int) {
+                    return [
+                        (int >>> 24) & 255,
+                        (int >>> 16) & 255,
+                        (int >>> 8) & 255,
+                        int & 255,
+                    ].join('.');
+                }
+
+                function ipv4ToHex(ip) {
+                    return ipv4ToInt(ip).toString(16).padStart(8, '0');
+                }
+
+                function ipv4ToBinary(ip) {
+                    return ipv4ToInt(ip).toString(2).padStart(32, '0');
+                }
+
+                function ipv4ToDottedBinary(ip) {
+                    return ip
+                        .split('.')
+                        .map((octet) => parseInt(octet, 10).toString(2).padStart(8, '0'))
+                        .join('.');
+                }
+
+                function ipv4ToDottedHex(ip) {
+                    return ip
+                        .split('.')
+                        .map((octet) => parseInt(octet, 10).toString(16).padStart(2, '0'))
+                        .join('.');
+                }
+
+                function ipv4ToDottedOctal(ip) {
+                    return ip
+                        .split('.')
+                        .map((octet) => parseInt(octet, 10).toString(8).padStart(3, '0'))
+                        .join('.');
+                }
+
+                function ipv4ToIPv6Mapped(ip) {
+                    const octets = ip.split('.');
+                    const hex = octets
+                        .map((octet) => parseInt(octet, 10).toString(16).padStart(2, '0'))
+                        .join('');
+                    return `::ffff:${hex.slice(0, 4)}:${hex.slice(4, 8)}`;
+                }
+
+                function expandIPv6(ip) {
+                    const doubleColonCount = (ip.match(/::/g) || []).length;
+                    if (doubleColonCount > 1) {
+                        throw new Error("Invalid IPv6 address: multiple '::' found");
+                    }
+
+                    if (doubleColonCount === 1) {
+                        const parts = ip.split('::');
+                        const left = parts[0] ? parts[0].split(':') : [];
+                        const right = parts[1] ? parts[1].split(':') : [];
+                        const missing = 8 - left.length - right.length;
+
+                        if (missing < 0) {
+                            throw new Error('Invalid IPv6 address: too many segments');
+                        }
+
+                        const middle = Array(missing).fill('0000');
+                        const expanded = [...left, ...middle, ...right];
+                        return expanded.map((part) => part.padStart(4, '0')).join(':');
+                    } else {
+                        return ip
+                            .split(':')
+                            .map((part) => part.padStart(4, '0'))
+                            .join(':');
+                    }
+                }
+
+                function compressIPv6(ip) {
+                    const expanded = expandIPv6(ip);
+                    const parts = expanded.split(':');
+
+                    let longestRun = { start: -1, length: 0 };
+                    let currentRun = { start: -1, length: 0 };
+
+                    for (let i = 0; i < parts.length; i++) {
+                        if (parts[i] === '0000') {
+                            if (currentRun.length === 0) {
+                                currentRun.start = i;
+                            }
+                            currentRun.length++;
+                        } else if (currentRun.length > 0) {
+                            if (currentRun.length > longestRun.length) {
+                                longestRun = { ...currentRun };
+                            }
+                            currentRun = { start: -1, length: 0 };
+                        }
+                    }
+
+                    if (currentRun.length > longestRun.length) {
+                        longestRun = { ...currentRun };
+                    }
+
+                    if (longestRun.length >= 2) {
+                        const before = parts.slice(0, longestRun.start);
+                        const after = parts.slice(longestRun.start + longestRun.length);
+
+                        let result;
+                        if (before.length === 0 && after.length === 0) {
+                            result = '::';
+                        } else if (before.length === 0) {
+                            result =
+                                '::' +
+                                after
+                                    .map((p) =>
+                                        parseInt(p, 16) === 0 ? '0' : p.replace(/^0+/, '')
+                                    )
+                                    .join(':');
+                        } else if (after.length === 0) {
+                            result =
+                                before
+                                    .map((p) =>
+                                        parseInt(p, 16) === 0 ? '0' : p.replace(/^0+/, '')
+                                    )
+                                    .join(':') + '::';
+                        } else {
+                            result =
+                                before
+                                    .map((p) =>
+                                        parseInt(p, 16) === 0 ? '0' : p.replace(/^0+/, '')
+                                    )
+                                    .join(':') +
+                                '::' +
+                                after
+                                    .map((p) =>
+                                        parseInt(p, 16) === 0 ? '0' : p.replace(/^0+/, '')
+                                    )
+                                    .join(':');
+                        }
+
+                        return result;
+                    }
+
+                    return parts
+                        .map((p) => (parseInt(p, 16) === 0 ? '0' : p.replace(/^0+/, '')))
+                        .join(':');
+                }
+
+                function ipv6ToHex(ip) {
+                    return expandIPv6(ip).replace(/:/g, '');
+                }
+
+                function ipv6ToBinary(ip) {
+                    const expanded = expandIPv6(ip);
+                    return expanded
+                        .split(':')
+                        .map((part) => {
+                            return parseInt(part, 16).toString(2).padStart(16, '0');
+                        })
+                        .join(':');
+                }
+
+                function createFormatItem(label, value) {
+                    const item = document.createElement('div');
+                    item.className = 'format-item';
+
+                    const labelEl = document.createElement('span');
+                    labelEl.className = 'format-label';
+                    labelEl.textContent = label + ': ';
+
+                    const valueEl = document.createElement('span');
+                    valueEl.className = 'format-value';
+                    valueEl.textContent = value;
+
+                    item.appendChild(labelEl);
+                    item.appendChild(valueEl);
+                    return item;
+                }
+
+                function updateIPFormats(data) {
+                    const container = document.getElementById('ip-formats-container');
+                    if (!container) return;
+
+                    container.innerHTML = '';
+
+                    const formatSection = document.createElement('div');
+                    formatSection.className = 'ip-format';
+
+                    if (data.type === 'ipv4') {
+                        try {
+                            const ip = data.ip;
+                            const decimal = ipv4ToInt(ip).toString();
+                            const hex = '0x' + ipv4ToHex(ip);
+                            const binary = ipv4ToBinary(ip);
+                            const dottedBinary = ipv4ToDottedBinary(ip);
+                            const dottedHex = ipv4ToDottedHex(ip);
+                            const dottedOctal = ipv4ToDottedOctal(ip);
+                            const ipv6Mapped = ipv4ToIPv6Mapped(ip);
+
+                            formatSection.appendChild(createFormatItem('Decimal', decimal));
+                            formatSection.appendChild(createFormatItem('Hexadecimal', hex));
+                            formatSection.appendChild(createFormatItem('Binary', binary));
+                            formatSection.appendChild(
+                                createFormatItem('Dotted Binary', dottedBinary)
+                            );
+                            formatSection.appendChild(createFormatItem('Dotted Hex', dottedHex));
+                            formatSection.appendChild(
+                                createFormatItem('Dotted Octal', dottedOctal)
+                            );
+                            formatSection.appendChild(createFormatItem('IPv6 Mapped', ipv6Mapped));
+                        } catch (err) {
+                            console.error('Error calculating IPv4 formats:', err);
+                        }
+                    } else if (data.type === 'ipv6') {
+                        try {
+                            const ip = data.ip;
+                            const expanded = expandIPv6(ip);
+                            const compressed = compressIPv6(ip);
+                            const hex = '0x' + ipv6ToHex(ip);
+                            const binary = ipv6ToBinary(ip);
+
+                            formatSection.appendChild(createFormatItem('Expanded', expanded));
+                            formatSection.appendChild(createFormatItem('Compressed', compressed));
+                            formatSection.appendChild(createFormatItem('Hexadecimal', hex));
+                            formatSection.appendChild(createFormatItem('Binary Parts', binary));
+                        } catch (err) {
+                            console.error('Error calculating IPv6 formats:', err);
+                        }
+                    }
+
+                    container.appendChild(formatSection);
+                }
             });
         </script>
     </body>
