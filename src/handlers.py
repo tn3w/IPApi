@@ -69,6 +69,11 @@ DATASETS: Dict[str, Union[str, Tuple[Union[str, list[str]], str]]] = {
         "https://raw.githubusercontent.com/tn3w/IPSet/refs/heads/master/datacenter_asns.json",
         "data-center-asns.json",
     ),
+    # Abuse: Firehol Level 1
+    "Firehol-Level-1": (
+        "https://raw.githubusercontent.com/tn3w/IPSet/refs/heads/master/firehol_level1.json",
+        "firehol_level1.json",
+    )
 }
 
 
@@ -196,6 +201,41 @@ def is_data_center_asn(asn: str, data_center_asns_path: str) -> bool:
         LOADED_DATA_CENTER_ASNS_DATA.extend(data_center_asns_data)
 
     return asn in LOADED_DATA_CENTER_ASNS_DATA
+
+
+import netaddr
+from typing import List, Dict, Any, Union
+
+LOADED_FIREHOL_LEVEL1_DATA: List[netaddr.IPNetwork] = []
+
+
+def is_firehol_level1_ip(ip_address: str, firehol_level1_path: str) -> bool:
+    """
+    Check if the given IPv4 address is contained in any CIDR range from the Firehol Level 1 dataset.
+    
+    Args:
+        ip_address: The IPv4 address to check
+        firehol_level1_path: Path to the Firehol Level 1 dataset
+        
+    Returns:
+        True if the IP is in any CIDR range, False otherwise
+    """
+    if not LOADED_FIREHOL_LEVEL1_DATA:
+        with open(firehol_level1_path, "r", encoding="utf-8") as file:
+            firehol_data = json.load(file)
+        
+        # Pre-convert all CIDR ranges to netaddr.IPNetwork objects for faster checks
+        LOADED_FIREHOL_LEVEL1_DATA.extend([
+            netaddr.IPNetwork(cidr) for cidr in firehol_data
+        ])
+    
+    try:
+        ip_obj = netaddr.IPAddress(ip_address)
+        # Use any with generator expression for efficiency - stops at first match
+        return any(ip_obj in network for network in LOADED_FIREHOL_LEVEL1_DATA)
+    except (ValueError, netaddr.AddrFormatError):
+        # Invalid IP address
+        return False
 
 
 def get_ip_information(
@@ -345,6 +385,15 @@ def get_ip_information(
             )
         else:
             information["data_center"] = False
+
+    if "firehol_level1" in fields:
+        if ip_address_type == "ipv4":
+            information["firehol_level1"] = is_firehol_level1_ip(
+                ip_address,
+                os.path.join(DATASETS_DIR, DATASETS["Firehol-Level-1"][1]),
+            )
+        else:
+            information["firehol_level1"] = False
 
     if (
         information.get("latitude")

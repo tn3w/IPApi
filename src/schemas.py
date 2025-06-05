@@ -12,7 +12,7 @@ It provides models for standardized JSON responses with proper field typing and 
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 
-from src.field_utils import ALL_FIELDS
+from src.field_utils import ALL_FIELDS, fields_to_number
 
 
 class ErrorResponse(BaseModel):
@@ -73,6 +73,9 @@ class IPAPIResponse(BaseModel):
     forum_spammer: Optional[bool] = Field(
         None, description="If the IP is a forum spammer"
     )
+    firehol_level1: Optional[bool] = Field(
+        None, description="If the IP is in the Firehol Level 1 dataset"
+    )
     tor_exit_node: Optional[bool] = Field(
         None, description="If the IP is a Tor exit node"
     )
@@ -105,6 +108,7 @@ class IPAPIResponse(BaseModel):
                 "proxy": False,
                 "data_center": False,
                 "forum_spammer": False,
+                "firehol_level1": False,
                 "tor_exit_node": False,
             }
         }
@@ -133,7 +137,7 @@ class FieldToNumberResponse(BaseModel):
         json_schema_extra = {
             "example": {
                 "fields": ["ip", "country", "city"],
-                "number": 293,
+                "number": fields_to_number(["ip", "country", "city"]),
             }
         }
 

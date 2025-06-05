@@ -36,6 +36,7 @@ DEFAULT_FIELDS: Final[List[str]] = [
     "proxy",
     "data_center",
     "forum_spammer",
+    "firehol_level1",
     "tor_exit_node",
 ]
 
@@ -72,6 +73,7 @@ ALL_FIELDS: Final[List[str]] = [
     "proxy",
     "data_center",
     "forum_spammer",
+    "firehol_level1",
     "tor_exit_node",
     "all",
 ]
