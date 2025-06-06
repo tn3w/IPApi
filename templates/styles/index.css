@@ -1232,6 +1232,7 @@ footer .container {
 .format-value {
     font-family: monospace;
     word-break: break-all;
+    text-align: left;
 }
 
 @keyframes slideIn {
