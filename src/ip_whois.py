@@ -598,7 +598,7 @@ def filter_whois_data(data: Dict[str, Any]) -> Dict[str, Any]:
     return {
         key: value
         for key, value in data.items()
-        if value is not None and str(value).lower() != "null"
+        if value and str(value).lower() != "null"
     }
 
 
@@ -625,7 +625,6 @@ def ip_whois(
     rir, prefix = get_rir_and_prefix(country_code)
 
     whois_data = query_whois(rir, f"{prefix} {ip_address}".strip())
-    print(whois_data, "whois_data")
 
     result = {}
     if whois_data:
@@ -661,7 +660,6 @@ def ip_whois_pwhois(ip_address: str, redis: Optional[Redis] = None) -> Dict[str,
             return json.loads(cached_data)  # type: ignore
 
     whois_data = query_whois(PWHOIS, ip_address)
-    print(whois_data, "pwhois")
 
     result = {}
     if whois_data:
