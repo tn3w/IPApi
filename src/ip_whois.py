@@ -593,6 +593,15 @@ def query_whois(server: str, query: str) -> Optional[str]:
         s.close()
 
 
+def filter_whois_data(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Filter the WHOIS data to only include non-None values."""
+    return {
+        key: value
+        for key, value in data.items()
+        if value is not None and str(value).lower() != "null"
+    }
+
+
 def ip_whois(
     ip_address: str, country_code: str, redis: Optional[Redis] = None
 ) -> Dict[str, Any]:
@@ -616,6 +625,7 @@ def ip_whois(
     rir, prefix = get_rir_and_prefix(country_code)
 
     whois_data = query_whois(rir, f"{prefix} {ip_address}".strip())
+    print(whois_data, "whois_data")
 
     result = {}
     if whois_data:
@@ -624,6 +634,7 @@ def ip_whois(
             raise ValueError(f"No parser function found for RIR: {rir}")
 
         result = parser_function(whois_data)
+        result = filter_whois_data(result)
 
     if redis:
         cache_key = f"whois:{ip_address}:{country_code}"
@@ -650,10 +661,12 @@ def ip_whois_pwhois(ip_address: str, redis: Optional[Redis] = None) -> Dict[str,
             return json.loads(cached_data)  # type: ignore
 
     whois_data = query_whois(PWHOIS, ip_address)
+    print(whois_data, "pwhois")
 
     result = {}
     if whois_data:
         result = parse_pwhois_data(whois_data)
+        result = filter_whois_data(result)
 
     if redis:
         cache_key = f"pwhois:{ip_address}"
