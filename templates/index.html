@@ -1524,6 +1524,7 @@
                         <div class="action-buttons">
                             <a href="/json/self" id="my-ip">My IP</a>
                             <a href="/json/8.8.8.8" id="try-example">Try Example</a>
+                            <a href="/json/208.67.222.222" id="feeling-lucky">I'm Feeling Lucky</a>
                         </div>
                     </div>
                 </div>
@@ -1895,6 +1896,7 @@
                         button: document.getElementById('search-button'),
                         myIpButton: document.getElementById('my-ip'),
                         tryExampleButton: document.getElementById('try-example'),
+                        feelingLuckyButton: document.getElementById('feeling-lucky'),
                     },
                     endpoint: {
                         input: document.getElementById('endpoint-input'),
@@ -2147,6 +2149,13 @@
                         e.preventDefault();
 
                         elements.search.input.value = '8.8.8.8';
+                        updateSearchButtonVisibility();
+                    });
+
+                    elements.search.feelingLuckyButton.addEventListener('click', (e) => {
+                        e.preventDefault();
+
+                        elements.search.input.value = generateRandomIPv4();
                         updateSearchButtonVisibility();
                     });
 
@@ -3209,6 +3218,25 @@
                     }
 
                     container.appendChild(formatSection);
+                }
+
+                function generateRandomIPv4() {
+                    const octet1 = Math.floor(Math.random() * 223) + 1;
+                    const octet2 = Math.floor(Math.random() * 254) + 1;
+                    const octet3 = Math.floor(Math.random() * 254) + 1;
+                    const octet4 = Math.floor(Math.random() * 254) + 1;
+
+                    if (
+                        octet1 === 10 ||
+                        (octet1 === 172 && octet2 >= 16 && octet2 <= 31) ||
+                        (octet1 === 192 && octet2 === 168) ||
+                        octet1 === 127 ||
+                        (octet1 === 169 && octet2 === 254)
+                    ) {
+                        return generateRandomIPv4();
+                    }
+
+                    return `${octet1}.${octet2}.${octet3}.${octet4}`;
                 }
             });
         </script>
