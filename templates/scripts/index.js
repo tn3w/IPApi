@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
         button.removeAttribute('href');
     });
 
-    function toggleTheme() {
+    const toggleTheme = () => {
         const savedTheme = localStorage.getItem('theme');
         const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
@@ -57,12 +57,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         updateSiteTheme();
-    }
+    };
 
-    function updateSiteTheme() {
+    const updateSiteTheme = () => {
         const savedTheme = localStorage.getItem('theme');
         const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
         const useDarkMode = savedTheme === 'dark' || (savedTheme !== 'light' && prefersDarkMode);
 
         const htmlElement = document.documentElement;
@@ -100,15 +99,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 marker.openPopup();
             }
         }
+    };
+
+    if (elements.toggle.button) {
+        elements.toggle.button.addEventListener('click', toggleTheme);
     }
 
-    function updateSearchButtonVisibility() {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateSiteTheme);
+
+    const updateSearchButtonVisibility = () => {
         const isEmpty = elements.search.input.value.trim() === '';
         elements.search.button.classList.toggle('visible', !isEmpty);
         elements.search.button.classList.toggle('hidden', isEmpty);
-    }
+    };
 
-    function setupSearchEvents() {
+    const setupSearchEvents = () => {
         updateSearchButtonVisibility();
 
         ['input', 'change', 'autocomplete'].forEach((event) => {
@@ -161,9 +166,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 );
             }
         });
-    }
+    };
 
-    function setupHelperButtons() {
+    const setupHelperButtons = () => {
         elements.search.myIpButton.addEventListener('click', async (e) => {
             e.preventDefault();
 
@@ -209,29 +214,116 @@ document.addEventListener('DOMContentLoaded', () => {
 
         elements.search.tryExampleButton.addEventListener('click', (e) => {
             e.preventDefault();
-
             elements.search.input.value = '8.8.8.8';
             updateSearchButtonVisibility();
         });
 
         elements.search.feelingLuckyButton.addEventListener('click', (e) => {
             e.preventDefault();
-
             elements.search.input.value = generateRandomIPv4();
             updateSearchButtonVisibility();
         });
-    }
+    };
 
-    function showLoading() {
+    const showLoading = () => {
         elements.results.loading.classList.add('active');
         elements.results.data.classList.remove('active');
-    }
+    };
 
-    function hideLoading() {
+    const hideLoading = () => {
         elements.results.loading.classList.remove('active');
-    }
+    };
 
-    function transitionToResultsView(ipData) {
+    const showNotification = (title, message, duration = 5000) => {
+        if (message === lastErrorMessage) {
+            errorCounter++;
+
+            if (activeNotification) {
+                const counterElement = activeNotification.querySelector('.notification-counter');
+                if (counterElement) {
+                    counterElement.textContent = `x${errorCounter}`;
+                } else {
+                    const titleElement = activeNotification.querySelector('.notification-title');
+                    const counter = document.createElement('span');
+                    counter.className = 'notification-counter';
+                    counter.textContent = `x${errorCounter}`;
+                    titleElement.appendChild(counter);
+                }
+
+                const progressBar = activeNotification.querySelector('.notification-progress');
+                if (progressBar) {
+                    progressBar.style.transition = 'none';
+                    progressBar.style.width = '100%';
+                    setTimeout(() => {
+                        progressBar.style.transition = `width ${duration}ms linear`;
+                        progressBar.style.width = '0';
+                    }, 50);
+                }
+
+                if (notificationTimeout) clearTimeout(notificationTimeout);
+                notificationTimeout = setTimeout(hideNotification, duration);
+
+                return;
+            }
+        } else {
+            lastErrorMessage = message;
+            errorCounter = 1;
+        }
+
+        if (activeNotification) hideNotification();
+
+        const notification = document.createElement('div');
+        notification.className = 'notification';
+
+        notification.innerHTML = `
+            <div class="notification-header">
+                <div class="notification-title">
+                    <span>${title}</span>
+                    ${errorCounter > 1 ? `<span class="notification-counter">x${errorCounter}</span>` : ''}
+                </div>
+                <button class="notification-close" aria-label="Close notification">&times;</button>
+            </div>
+            <div class="notification-message">${message}</div>
+            <div class="notification-progress"></div>
+        `;
+
+        elements.notification.appendChild(notification);
+        notification.offsetHeight;
+        notification.classList.add('show');
+
+        const progressBar = notification.querySelector('.notification-progress');
+        progressBar.style.width = '100%';
+        setTimeout(() => {
+            progressBar.style.transition = `width ${duration}ms linear`;
+            progressBar.style.width = '0';
+        }, 50);
+
+        const closeButton = notification.querySelector('.notification-close');
+        closeButton.addEventListener('click', hideNotification);
+
+        notificationTimeout = setTimeout(hideNotification, duration);
+        activeNotification = notification;
+    };
+
+    const hideNotification = () => {
+        if (activeNotification) {
+            activeNotification.classList.remove('show');
+
+            setTimeout(() => {
+                if (activeNotification && activeNotification.parentNode) {
+                    activeNotification.parentNode.removeChild(activeNotification);
+                }
+                activeNotification = null;
+            }, 300);
+
+            if (notificationTimeout) {
+                clearTimeout(notificationTimeout);
+                notificationTimeout = null;
+            }
+        }
+    };
+
+    const transitionToResultsView = (ipData) => {
         elements.results.input.value = elements.search.input.value;
 
         if (ipData) {
@@ -271,9 +363,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 `?ip=${encodeURIComponent(currentQuery)}`
             );
         }, 400);
-    }
+    };
 
-    function transitionToHeroView() {
+    const transitionToHeroView = () => {
         document.title = 'IPApi - IP Address Information';
 
         document.body.classList.remove('results-active');
@@ -309,9 +401,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.hero.classList.remove('fade-in');
             }, 400);
         }, 400);
-    }
+    };
 
-    async function fetchIPData(ip) {
+    const fetchIPData = async (ip) => {
         currentQuery = ip;
 
         const isResultsView = elements.results.view.classList.contains('active');
@@ -328,10 +420,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const response = await fetch(`${apiBaseUrl}/${encodeURIComponent(ip)}?fields=all`);
-            if (!response.ok)
+            if (!response.ok) {
                 throw new Error(
                     response.headers.get('X-Error') || 'HTTP error! status: ' + response.status
                 );
+            }
             const data = await response.json();
             if (ip !== currentQuery) return;
 
@@ -358,9 +451,9 @@ document.addEventListener('DOMContentLoaded', () => {
             showNotification('Error', error.message + '. Please try again.');
             console.error('Error fetching IP data:', error);
         }
-    }
+    };
 
-    function isValidValue(value) {
+    const isValidValue = (value) => {
         return (
             value !== null &&
             value !== undefined &&
@@ -368,9 +461,9 @@ document.addEventListener('DOMContentLoaded', () => {
             value !== 'None' &&
             value !== ''
         );
-    }
+    };
 
-    function prePopulateResultsData(ipData) {
+    const prePopulateResultsData = (ipData) => {
         const ipTypeEl = document.getElementById('result-ip-type');
         const ipEl = document.getElementById('result-ip');
         const hostnameEl = document.getElementById('result-hostname');
@@ -386,9 +479,203 @@ document.addEventListener('DOMContentLoaded', () => {
             hostnameEl.textContent = isValidValue(ipData.hostname)
                 ? ipData.hostname
                 : 'No hostname available';
-    }
+    };
 
-    function displayIPData(data) {
+    const initializeMap = (lat, lon, ipAddress) => {
+        if (
+            !isValidValue(lat) ||
+            !isValidValue(lon) ||
+            isNaN(parseFloat(lat)) ||
+            isNaN(parseFloat(lon))
+        ) {
+            document.getElementById('ip-map').innerHTML = `
+                <div style="
+                    height: 100%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 1rem;
+                    text-align: center;
+                ">
+                    Location coordinates not available for this IP address.
+                </div>
+            `;
+            return;
+        }
+
+        try {
+            lat = parseFloat(lat);
+            lon = parseFloat(lon);
+
+            if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+                document.getElementById('ip-map').innerHTML = `
+                    <div style="
+                        height: 100%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        padding: 1rem;
+                        text-align: center;
+                    ">
+                        Invalid location coordinates for this IP address.
+                    </div>
+                `;
+                return;
+            }
+
+            if (!window.L) {
+                const linkElement = document.createElement('link');
+                linkElement.rel = 'stylesheet';
+                linkElement.href = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css';
+                document.head.appendChild(linkElement);
+
+                const scriptElement = document.createElement('script');
+                scriptElement.src = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';
+                document.head.appendChild(scriptElement);
+
+                scriptElement.onload = () => createMap(lat, lon, ipAddress);
+            } else {
+                createMap(lat, lon, ipAddress);
+            }
+        } catch (error) {
+            console.error('Error initializing map:', error);
+            document.getElementById('ip-map').innerHTML = document.getElementById(
+                'ip-map'
+            ).innerHTML = `
+                <div style="
+                    height: 100%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 1rem;
+                    text-align: center;
+                ">
+                    Error initializing map.
+                </div>
+            `;
+        }
+    };
+
+    const createCustomMarker = (color) => {
+        const markerColor =
+            color ||
+            getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
+
+        return L.divIcon({
+            className: 'custom-map-marker',
+            html: `<svg width="36" height="48" viewBox="0 0 36 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M18 0C8.064 0 0 8.064 0 18C0 31.5 18 48 18 48C18 48 36 31.5 36 18C36 8.064 27.936 0 18 0ZM18 24.3C14.5 24.3 11.7 21.5 11.7 18C11.7 14.5 14.5 11.7 18 11.7C21.5 11.7 24.3 14.5 24.3 18C24.3 21.5 21.5 24.3 18 24.3Z" fill="${markerColor}"/>
+                  </svg>`,
+            iconSize: [36, 48],
+            iconAnchor: [18, 48],
+            popupAnchor: [0, -48],
+        });
+    };
+
+    const createMap = (lat, lon, ipAddress) => {
+        const mapContainer = document.getElementById('ip-map');
+        const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        const savedTheme = localStorage.getItem('theme');
+        const useDarkMode = savedTheme === 'dark' || (savedTheme !== 'light' && prefersDarkMode);
+
+        const htmlElement = document.documentElement;
+        const hasDarkClass = htmlElement.classList.contains('dark-theme');
+        const finalUseDarkMode =
+            (savedTheme && hasDarkClass) || (!savedTheme && prefersDarkMode) || useDarkMode;
+
+        if (!map) {
+            map = L.map(mapContainer).setView([lat, lon], 10);
+
+            const tileUrl = finalUseDarkMode
+                ? 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png'
+                : 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png';
+
+            const tileLayer = L.tileLayer(tileUrl, {
+                attribution:
+                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' +
+                    ' | &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                maxZoom: 19,
+            }).addTo(map);
+
+            const customIcon = createCustomMarker();
+
+            tileLayer.once('load', function () {
+                if (!marker) {
+                    marker = L.marker([lat, lon], { icon: customIcon })
+                        .addTo(map)
+                        .bindPopup(
+                            '<div style="text-align:center;"><strong>IP: ' +
+                                ipAddress +
+                                '</strong><br>Lat: ' +
+                                lat +
+                                '<br>Lon: ' +
+                                lon +
+                                '</div>'
+                        )
+                        .openPopup();
+
+                    map.invalidateSize();
+                }
+            });
+
+            map.once('moveend', function () {
+                if (!marker) {
+                    marker = L.marker([lat, lon], { icon: customIcon })
+                        .addTo(map)
+                        .bindPopup(
+                            '<div style="text-align:center;"><strong>IP: ' +
+                                ipAddress +
+                                '</strong><br>Lat: ' +
+                                lat +
+                                '<br>Lon: ' +
+                                lon +
+                                '</div>'
+                        )
+                        .openPopup();
+
+                    map.invalidateSize();
+                }
+            });
+        } else {
+            map.setView([lat, lon], 10);
+
+            const customIcon = createCustomMarker();
+
+            if (marker) {
+                marker
+                    .setLatLng([lat, lon])
+                    .setIcon(customIcon)
+                    .bindPopup(
+                        '<div style="text-align:center;"><strong>IP: ' +
+                            ipAddress +
+                            '</strong><br>Lat: ' +
+                            lat +
+                            '<br>Lon: ' +
+                            lon +
+                            '</div>'
+                    )
+                    .openPopup();
+            } else {
+                marker = L.marker([lat, lon], { icon: customIcon })
+                    .addTo(map)
+                    .bindPopup(
+                        '<div style="text-align:center;"><strong>IP: ' +
+                            ipAddress +
+                            '</strong><br>Lat: ' +
+                            lat +
+                            '<br>Lon: ' +
+                            lon +
+                            '</div>'
+                    )
+                    .openPopup();
+            }
+
+            map.invalidateSize();
+        }
+    };
+
+    const displayIPData = (data) => {
         hideLoading();
 
         const resultsDataContainer = document.querySelector('.results-data');
@@ -428,31 +715,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        if (vpnBadgeEl) {
-            vpnBadgeEl.style.display = data.vpn === true ? 'inline-flex' : 'none';
-        }
-
-        if (proxyBadgeEl) {
-            proxyBadgeEl.style.display = data.proxy === true ? 'inline-flex' : 'none';
-        }
-
-        if (dataCenterBadgeEl) {
+        if (vpnBadgeEl) vpnBadgeEl.style.display = data.vpn === true ? 'inline-flex' : 'none';
+        if (proxyBadgeEl) proxyBadgeEl.style.display = data.proxy === true ? 'inline-flex' : 'none';
+        if (dataCenterBadgeEl)
             dataCenterBadgeEl.style.display = data.data_center === true ? 'inline-flex' : 'none';
-        }
-
-        if (forumSpammerBadgeEl) {
+        if (forumSpammerBadgeEl)
             forumSpammerBadgeEl.style.display =
                 data.forum_spammer === true ? 'inline-flex' : 'none';
-        }
-
-        if (fireholLevel1BadgeEl) {
+        if (fireholLevel1BadgeEl)
             fireholLevel1BadgeEl.style.display =
                 data.firehol_level1 === true ? 'inline-flex' : 'none';
-        }
-
-        if (torBadgeEl) {
+        if (torBadgeEl)
             torBadgeEl.style.display = data.tor_exit_node === true ? 'inline-flex' : 'none';
-        }
 
         if (hostnameEl)
             hostnameEl.textContent = isValidValue(data.hostname)
@@ -587,9 +861,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         initializeMap(data.latitude, data.longitude, data.ip);
-    }
+    };
 
-    function addResultItem(container, label, value) {
+    const addResultItem = (container, label, value) => {
         const item = document.createElement('div');
         item.className = 'result-item';
 
@@ -604,408 +878,54 @@ document.addEventListener('DOMContentLoaded', () => {
         item.appendChild(labelEl);
         item.appendChild(valueEl);
         container.appendChild(item);
-    }
+    };
 
-    function initializeMap(lat, lon, ipAddress) {
-        if (
-            !isValidValue(lat) ||
-            !isValidValue(lon) ||
-            isNaN(parseFloat(lat)) ||
-            isNaN(parseFloat(lon))
-        ) {
-            document.getElementById('ip-map').innerHTML =
-                '<div style="height:100%;display:flex;align-items:center;justify-content:center;padding:1rem;text-align:center;">Location coordinates not available for this IP address.</div>';
-            return;
-        }
-
-        try {
-            lat = parseFloat(lat);
-            lon = parseFloat(lon);
-
-            if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
-                document.getElementById('ip-map').innerHTML =
-                    '<div style="height:100%;display:flex;align-items:center;justify-content:center;padding:1rem;text-align:center;">Invalid location coordinates for this IP address.</div>';
-                return;
-            }
-
-            if (!window.L) {
-                const linkElement = document.createElement('link');
-                linkElement.rel = 'stylesheet';
-                linkElement.href = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css';
-                document.head.appendChild(linkElement);
-
-                const scriptElement = document.createElement('script');
-                scriptElement.src = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';
-                document.head.appendChild(scriptElement);
-
-                scriptElement.onload = () => createMap(lat, lon, ipAddress);
-            } else {
-                createMap(lat, lon, ipAddress);
-            }
-        } catch (error) {
-            console.error('Error initializing map:', error);
-            document.getElementById('ip-map').innerHTML =
-                '<div style="height:100%;display:flex;align-items:center;justify-content:center;padding:1rem;text-align:center;">Error loading map.</div>';
-        }
-    }
-
-    function createCustomMarker(color) {
-        const markerColor =
-            color ||
-            getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
-
-        return L.divIcon({
-            className: 'custom-map-marker',
-            html: `<svg width="36" height="48" viewBox="0 0 36 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M18 0C8.064 0 0 8.064 0 18C0 31.5 18 48 18 48C18 48 36 31.5 36 18C36 8.064 27.936 0 18 0ZM18 24.3C14.5 24.3 11.7 21.5 11.7 18C11.7 14.5 14.5 11.7 18 11.7C21.5 11.7 24.3 14.5 24.3 18C24.3 21.5 21.5 24.3 18 24.3Z" fill="${markerColor}"/>
-                  </svg>`,
-            iconSize: [36, 48],
-            iconAnchor: [18, 48],
-            popupAnchor: [0, -48],
-        });
-    }
-
-    function createMap(lat, lon, ipAddress) {
-        const mapContainer = document.getElementById('ip-map');
-        const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-        const savedTheme = localStorage.getItem('theme');
-        const useDarkMode = savedTheme === 'dark' || (savedTheme !== 'light' && prefersDarkMode);
-
-        const htmlElement = document.documentElement;
-        const hasDarkClass = htmlElement.classList.contains('dark-theme');
-        const finalUseDarkMode =
-            (savedTheme && hasDarkClass) || (!savedTheme && prefersDarkMode) || useDarkMode;
-
-        if (!map) {
-            map = L.map(mapContainer).setView([lat, lon], 10);
-
-            const tileUrl = finalUseDarkMode
-                ? 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png'
-                : 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png';
-
-            const tileLayer = L.tileLayer(tileUrl, {
-                attribution:
-                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' +
-                    ' | &copy; <a href="https://carto.com/attributions">CARTO</a>',
-                maxZoom: 19,
-            }).addTo(map);
-
-            const customIcon = createCustomMarker();
-
-            tileLayer.once('load', function () {
-                if (!marker) {
-                    marker = L.marker([lat, lon], { icon: customIcon })
-                        .addTo(map)
-                        .bindPopup(
-                            '<div style="text-align:center;"><strong>IP: ' +
-                                ipAddress +
-                                '</strong><br>Lat: ' +
-                                lat +
-                                '<br>Lon: ' +
-                                lon +
-                                '</div>'
-                        )
-                        .openPopup();
-
-                    map.invalidateSize();
-                }
-            });
-
-            map.once('moveend', function () {
-                if (!marker) {
-                    marker = L.marker([lat, lon], { icon: customIcon })
-                        .addTo(map)
-                        .bindPopup(
-                            '<div style="text-align:center;"><strong>IP: ' +
-                                ipAddress +
-                                '</strong><br>Lat: ' +
-                                lat +
-                                '<br>Lon: ' +
-                                lon +
-                                '</div>'
-                        )
-                        .openPopup();
-
-                    map.invalidateSize();
-                }
-            });
-        } else {
-            map.setView([lat, lon], 10);
-
-            const customIcon = createCustomMarker();
-
-            if (marker) {
-                marker
-                    .setLatLng([lat, lon])
-                    .setIcon(customIcon)
-                    .bindPopup(
-                        '<div style="text-align:center;"><strong>IP: ' +
-                            ipAddress +
-                            '</strong><br>Lat: ' +
-                            lat +
-                            '<br>Lon: ' +
-                            lon +
-                            '</div>'
-                    )
-                    .openPopup();
-            } else {
-                marker = L.marker([lat, lon], { icon: customIcon })
-                    .addTo(map)
-                    .bindPopup(
-                        '<div style="text-align:center;"><strong>IP: ' +
-                            ipAddress +
-                            '</strong><br>Lat: ' +
-                            lat +
-                            '<br>Lon: ' +
-                            lon +
-                            '</div>'
-                    )
-                    .openPopup();
-            }
-
-            map.invalidateSize();
-        }
-    }
-
-    function showNotification(title, message, duration = 5000) {
-        if (message === lastErrorMessage) {
-            errorCounter++;
-
-            if (activeNotification) {
-                const counterElement = activeNotification.querySelector('.notification-counter');
-                if (counterElement) {
-                    counterElement.textContent = `x${errorCounter}`;
-                } else {
-                    const titleElement = activeNotification.querySelector('.notification-title');
-                    const counter = document.createElement('span');
-                    counter.className = 'notification-counter';
-                    counter.textContent = `x${errorCounter}`;
-                    titleElement.appendChild(counter);
-                }
-
-                const progressBar = activeNotification.querySelector('.notification-progress');
-                if (progressBar) {
-                    progressBar.style.transition = 'none';
-                    progressBar.style.width = '100%';
-                    setTimeout(() => {
-                        progressBar.style.transition = `width ${duration}ms linear`;
-                        progressBar.style.width = '0';
-                    }, 50);
-                }
-
-                if (notificationTimeout) clearTimeout(notificationTimeout);
-                notificationTimeout = setTimeout(hideNotification, duration);
-
-                return;
-            }
-        } else {
-            lastErrorMessage = message;
-            errorCounter = 1;
-        }
-
-        if (activeNotification) hideNotification();
-
-        const notification = document.createElement('div');
-        notification.className = 'notification';
-
-        notification.innerHTML = `
-            <div class="notification-header">
-                <div class="notification-title">
-                    <span>${title}</span>
-                    ${errorCounter > 1 ? `<span class="notification-counter">x${errorCounter}</span>` : ''}
-                </div>
-                <button class="notification-close" aria-label="Close notification">&times;</button>
-            </div>
-            <div class="notification-message">${message}</div>
-            <div class="notification-progress"></div>
-        `;
-
-        elements.notification.appendChild(notification);
-        notification.offsetHeight;
-        notification.classList.add('show');
-
-        const progressBar = notification.querySelector('.notification-progress');
-        progressBar.style.width = '100%';
-        setTimeout(() => {
-            progressBar.style.transition = `width ${duration}ms linear`;
-            progressBar.style.width = '0';
-        }, 50);
-
-        const closeButton = notification.querySelector('.notification-close');
-        closeButton.addEventListener('click', hideNotification);
-
-        notificationTimeout = setTimeout(hideNotification, duration);
-        activeNotification = notification;
-    }
-
-    function hideNotification() {
-        if (activeNotification) {
-            activeNotification.classList.remove('show');
-
-            setTimeout(() => {
-                if (activeNotification && activeNotification.parentNode) {
-                    activeNotification.parentNode.removeChild(activeNotification);
-                }
-                activeNotification = null;
-            }, 300);
-
-            if (notificationTimeout) {
-                clearTimeout(notificationTimeout);
-                notificationTimeout = null;
-            }
-        }
-    }
-
-    function updateHeaderStructure() {
-        const resultsHeader = document.querySelector('.results-header');
-        const resultsLogo = document.querySelector('.results-logo');
-        const resultsActions = document.querySelector('.results-actions');
-        const closeButton = document.getElementById('close-results');
-
-        if (window.innerWidth <= 768) {
-            if (!document.querySelector('.results-logo-nav')) {
-                const logoNav = document.createElement('div');
-                logoNav.className = 'results-logo-nav';
-
-                if (resultsLogo && closeButton) {
-                    resultsHeader.insertBefore(logoNav, resultsActions);
-                    logoNav.appendChild(resultsLogo);
-                    logoNav.appendChild(closeButton);
-                }
-            }
-        } else {
-            const logoNav = document.querySelector('.results-logo-nav');
-            if (logoNav) {
-                const resultsLogo = logoNav.querySelector('.results-logo');
-                const closeButton = logoNav.querySelector('#close-results');
-
-                if (resultsLogo && closeButton && resultsHeader && resultsActions) {
-                    resultsHeader.insertBefore(resultsLogo, resultsActions);
-                    resultsActions.appendChild(closeButton);
-                    logoNav.remove();
-                }
-            }
-        }
-    }
-
-    function checkUrlForIp() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const ipParam = urlParams.get('ip');
-
-        if (ipParam) {
-            elements.hero.style.display = 'none';
-            elements.hero.classList.add('hidden');
-
-            const featuresSection = document.querySelector('.features-section');
-            const useCasesSection = document.querySelector('.use-cases-section');
-            const apiDocsSection = document.querySelector('.api-docs-section');
-            const ctaSection = document.querySelector('.cta-section');
-
-            if (featuresSection) featuresSection.style.display = 'none';
-            if (useCasesSection) useCasesSection.style.display = 'none';
-            if (apiDocsSection) apiDocsSection.style.display = 'none';
-            if (ctaSection) ctaSection.style.display = 'none';
-
-            elements.results.view.style.display = 'block';
-            elements.results.view.classList.add('active');
-            showLoading();
-
-            elements.search.input.value = ipParam;
-            elements.results.input.value = ipParam;
-            updateSearchButtonVisibility();
-
-            document.body.classList.add('results-active');
-
-            window.history.replaceState(
-                { view: 'results', query: ipParam },
-                '',
-                `?ip=${encodeURIComponent(ipParam)}`
-            );
-
-            fetchIPData(ipParam);
-        }
-    }
-
-    elements.results.closeButton.addEventListener('click', (e) => {
-        e.preventDefault();
-        transitionToHeroView();
-    });
-
-    window.addEventListener('resize', updateHeaderStructure);
-
-    window.addEventListener('popstate', (event) => {
-        if (event.state && event.state.view === 'results') {
-            const query = event.state.query;
-            if (query) {
-                elements.search.input.value = query;
-                fetchIPData(query);
-            }
-        } else if (elements.results.view.classList.contains('active')) {
-            transitionToHeroView();
-        }
-    });
-
-    document.body.classList.add('loaded');
-    setupSearchEvents();
-    setupHelperButtons();
-
-    if (elements.toggle.button) {
-        elements.toggle.button.addEventListener('click', toggleTheme);
-    }
-
-    setTimeout(updateHeaderStructure, 100);
-    setTimeout(checkUrlForIp, 0);
-    updateSiteTheme();
-
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateSiteTheme);
-
-    function ipv4ToInt(ip) {
+    const ipv4ToInt = (ip) => {
         return ip.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0) >>> 0;
-    }
+    };
 
-    function intToIPv4(int) {
+    const intToIPv4 = (int) => {
         return [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
-    }
+    };
 
-    function ipv4ToHex(ip) {
+    const ipv4ToHex = (ip) => {
         return ipv4ToInt(ip).toString(16).padStart(8, '0');
-    }
+    };
 
-    function ipv4ToBinary(ip) {
+    const ipv4ToBinary = (ip) => {
         return ipv4ToInt(ip).toString(2).padStart(32, '0');
-    }
+    };
 
-    function ipv4ToDottedBinary(ip) {
+    const ipv4ToDottedBinary = (ip) => {
         return ip
             .split('.')
             .map((octet) => parseInt(octet, 10).toString(2).padStart(8, '0'))
             .join('.');
-    }
+    };
 
-    function ipv4ToDottedHex(ip) {
+    const ipv4ToDottedHex = (ip) => {
         return ip
             .split('.')
             .map((octet) => parseInt(octet, 10).toString(16).padStart(2, '0'))
             .join('.');
-    }
+    };
 
-    function ipv4ToDottedOctal(ip) {
+    const ipv4ToDottedOctal = (ip) => {
         return ip
             .split('.')
             .map((octet) => parseInt(octet, 10).toString(8).padStart(3, '0'))
             .join('.');
-    }
+    };
 
-    function ipv4ToIPv6Mapped(ip) {
+    const ipv4ToIPv6Mapped = (ip) => {
         const octets = ip.split('.');
         const hex = octets
             .map((octet) => parseInt(octet, 10).toString(16).padStart(2, '0'))
             .join('');
         return `::ffff:${hex.slice(0, 4)}:${hex.slice(4, 8)}`;
-    }
+    };
 
-    function expandIPv6(ip) {
+    const expandIPv6 = (ip) => {
         const doubleColonCount = (ip.match(/::/g) || []).length;
         if (doubleColonCount > 1) {
             throw new Error("Invalid IPv6 address: multiple '::' found");
@@ -1030,9 +950,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 .map((part) => part.padStart(4, '0'))
                 .join(':');
         }
-    }
+    };
 
-    function compressIPv6(ip) {
+    const compressIPv6 = (ip) => {
         const expanded = expandIPv6(ip);
         const parts = expanded.split(':');
 
@@ -1090,13 +1010,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         return parts.map((p) => (parseInt(p, 16) === 0 ? '0' : p.replace(/^0+/, ''))).join(':');
-    }
+    };
 
-    function ipv6ToHex(ip) {
+    const ipv6ToHex = (ip) => {
         return expandIPv6(ip).replace(/:/g, '');
-    }
+    };
 
-    function ipv6ToBinary(ip) {
+    const ipv6ToBinary = (ip) => {
         const expanded = expandIPv6(ip);
         return expanded
             .split(':')
@@ -1104,9 +1024,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 return parseInt(part, 16).toString(2).padStart(16, '0');
             })
             .join(':');
-    }
+    };
 
-    function createFormatItem(label, value) {
+    const createFormatItem = (label, value) => {
         const item = document.createElement('div');
         item.className = 'format-item';
 
@@ -1121,9 +1041,9 @@ document.addEventListener('DOMContentLoaded', () => {
         item.appendChild(labelEl);
         item.appendChild(valueEl);
         return item;
-    }
+    };
 
-    function updateIPFormats(data) {
+    const updateIPFormats = (data) => {
         const container = document.getElementById('ip-formats-container');
         if (!container) return;
 
@@ -1171,9 +1091,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         container.appendChild(formatSection);
-    }
+    };
 
-    function generateRandomIPv4() {
+    const generateRandomIPv4 = () => {
         const octet1 = Math.floor(Math.random() * 223) + 1;
         const octet2 = Math.floor(Math.random() * 254) + 1;
         const octet3 = Math.floor(Math.random() * 254) + 1;
@@ -1190,5 +1110,101 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         return `${octet1}.${octet2}.${octet3}.${octet4}`;
-    }
+    };
+
+    const updateHeaderStructure = () => {
+        const resultsHeader = document.querySelector('.results-header');
+        const resultsLogo = document.querySelector('.results-logo');
+        const resultsActions = document.querySelector('.results-actions');
+        const closeButton = document.getElementById('close-results');
+
+        if (window.innerWidth <= 768) {
+            if (!document.querySelector('.results-logo-nav')) {
+                const logoNav = document.createElement('div');
+                logoNav.className = 'results-logo-nav';
+
+                if (resultsLogo && closeButton) {
+                    resultsHeader.insertBefore(logoNav, resultsActions);
+                    logoNav.appendChild(resultsLogo);
+                    logoNav.appendChild(closeButton);
+                }
+            }
+        } else {
+            const logoNav = document.querySelector('.results-logo-nav');
+            if (logoNav) {
+                const resultsLogo = logoNav.querySelector('.results-logo');
+                const closeButton = logoNav.querySelector('#close-results');
+
+                if (resultsLogo && closeButton && resultsHeader && resultsActions) {
+                    resultsHeader.insertBefore(resultsLogo, resultsActions);
+                    resultsActions.appendChild(closeButton);
+                    logoNav.remove();
+                }
+            }
+        }
+    };
+
+    const checkUrlForIp = () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const ipParam = urlParams.get('ip');
+
+        if (ipParam) {
+            elements.hero.style.display = 'none';
+            elements.hero.classList.add('hidden');
+
+            const featuresSection = document.querySelector('.features-section');
+            const useCasesSection = document.querySelector('.use-cases-section');
+            const apiDocsSection = document.querySelector('.api-docs-section');
+            const ctaSection = document.querySelector('.cta-section');
+
+            if (featuresSection) featuresSection.style.display = 'none';
+            if (useCasesSection) useCasesSection.style.display = 'none';
+            if (apiDocsSection) apiDocsSection.style.display = 'none';
+            if (ctaSection) ctaSection.style.display = 'none';
+
+            elements.results.view.style.display = 'block';
+            elements.results.view.classList.add('active');
+            showLoading();
+
+            elements.search.input.value = ipParam;
+            elements.results.input.value = ipParam;
+            updateSearchButtonVisibility();
+
+            document.body.classList.add('results-active');
+
+            window.history.replaceState(
+                { view: 'results', query: ipParam },
+                '',
+                `?ip=${encodeURIComponent(ipParam)}`
+            );
+
+            fetchIPData(ipParam);
+        }
+    };
+
+    elements.results.closeButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        transitionToHeroView();
+    });
+
+    window.addEventListener('resize', updateHeaderStructure);
+
+    window.addEventListener('popstate', (event) => {
+        if (event.state && event.state.view === 'results') {
+            const query = event.state.query;
+            if (query) {
+                elements.search.input.value = query;
+                fetchIPData(query);
+            }
+        } else if (elements.results.view.classList.contains('active')) {
+            transitionToHeroView();
+        }
+    });
+
+    document.body.classList.add('loaded');
+    setupSearchEvents();
+    setupHelperButtons();
+    updateSiteTheme();
+    setTimeout(updateHeaderStructure, 100);
+    setTimeout(checkUrlForIp, 0);
 });
