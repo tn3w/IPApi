@@ -15,6 +15,10 @@ document.addEventListener('DOMContentLoaded', () => {
             closeButton: document.getElementById('close-results'),
             loading: document.querySelector('.results-loading'),
             data: document.querySelector('.results-data'),
+            locationSection: document.getElementById('location-section'),
+            networkSection: document.getElementById('network-section'),
+            locationGrid: document.getElementById('location-grid'),
+            networkGrid: document.getElementById('network-grid'),
         },
         toggle: {
             button: document.getElementById('theme-toggle'),
@@ -35,6 +39,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let notificationTimeout = null;
     let lastErrorMessage = '';
     let errorCounter = 1;
+
+    let sectionItemCounts = {
+        location: 0,
+        network: 0,
+    };
 
     const actionButtons = document.querySelectorAll('.action-buttons a');
     actionButtons.forEach((button) => {
@@ -457,8 +466,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return (
             value !== null &&
             value !== undefined &&
-            value !== 'none' &&
-            value !== 'None' &&
+            value.toLowerCase() !== 'none' &&
+            value.toLowerCase() !== 'null' &&
             value !== ''
         );
     };
@@ -735,6 +744,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         updateIPFormats(data);
 
+        sectionItemCounts.location = 0;
+        sectionItemCounts.network = 0;
+
+        if (elements.results.locationSection)
+            elements.results.locationSection.style.display = 'none';
+        if (elements.results.networkSection) elements.results.networkSection.style.display = 'none';
+
         const locationGrid = document.getElementById('location-grid');
         if (locationGrid) {
             locationGrid.innerHTML = '';
@@ -839,6 +855,16 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
+        if (elements.results.locationSection) {
+            elements.results.locationSection.style.display =
+                sectionItemCounts.location > 0 ? 'block' : 'none';
+        }
+
+        if (elements.results.networkSection) {
+            elements.results.networkSection.style.display =
+                sectionItemCounts.network > 0 ? 'block' : 'none';
+        }
+
         const abuseGrid = document.getElementById('abuse-grid');
         if (abuseGrid) {
             abuseGrid.innerHTML = '';
@@ -878,14 +904,22 @@ document.addEventListener('DOMContentLoaded', () => {
         item.appendChild(labelEl);
         item.appendChild(valueEl);
         container.appendChild(item);
+
+        if (container === elements.results.locationGrid) {
+            sectionItemCounts.location++;
+            if (elements.results.locationSection && sectionItemCounts.location === 1) {
+                elements.results.locationSection.style.display = 'block';
+            }
+        } else if (container === elements.results.networkGrid) {
+            sectionItemCounts.network++;
+            if (elements.results.networkSection && sectionItemCounts.network === 1) {
+                elements.results.networkSection.style.display = 'block';
+            }
+        }
     };
 
     const ipv4ToInt = (ip) => {
         return ip.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0) >>> 0;
-    };
-
-    const intToIPv4 = (int) => {
-        return [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
     };
 
     const ipv4ToHex = (ip) => {
