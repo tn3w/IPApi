@@ -42,7 +42,7 @@ from src.asn_lookup import (
     get_asn_from_maxmind,
 )
 from src.ip_whois import ip_whois_pwhois, ip_whois
-from src.dns_lookup import get_dns_info, get_ipv4_from_ipv6
+from src.dns_lookup import get_hostname_from_ip, get_ipv4_from_ipv6
 
 
 DATASETS_DIR = "assets"
@@ -178,20 +178,43 @@ def check_missing_information(
 LOADED_IPSET_DATA: Dict[str, Any] = {}
 
 
+def load_ipset_data() -> None:
+    """
+    Load the IPSet data from the file.
+    """
+    ipset_path = os.path.join(DATASETS_DIR, DATASETS["IPSet"][1])
+    with open(ipset_path, "r", encoding="utf-8") as file:
+        ipset_data = json.load(file)
+    LOADED_IPSET_DATA.update(ipset_data)
+
+
+load_ipset_data()
+
+
 @lru_cache(maxsize=1000)
 def get_ip_groups(ip_address: str) -> List[str]:
     """
     Get the groups for the given IP address.
     """
     if not LOADED_IPSET_DATA:
-        ipset_path = os.path.join(DATASETS_DIR, DATASETS["IPSet"][1])
-        with open(ipset_path, "r", encoding="utf-8") as file:
-            ipset_data = json.load(file)
-        LOADED_IPSET_DATA.update(ipset_data)
+        load_ipset_data()
     return LOADED_IPSET_DATA.get(ip_address, [])
 
 
 LOADED_DATA_CENTER_ASNS_DATA: List[str] = []
+
+
+def load_data_center_asns_data() -> None:
+    """
+    Load the data center ASNs data from the file.
+    """
+    data_center_asns_path = os.path.join(DATASETS_DIR, DATASETS["Data-Center-ASNS"][1])
+    with open(data_center_asns_path, "r", encoding="utf-8") as file:
+        data_center_asns_data = json.load(file)
+    LOADED_DATA_CENTER_ASNS_DATA.extend(data_center_asns_data)
+
+
+load_data_center_asns_data()
 
 
 @lru_cache(maxsize=1000)
@@ -200,14 +223,25 @@ def is_data_center_asn(asn: str, data_center_asns_path: str) -> bool:
     Check if the given ASN is a data center ASN.
     """
     if not LOADED_DATA_CENTER_ASNS_DATA:
-        with open(data_center_asns_path, "r", encoding="utf-8") as file:
-            data_center_asns_data = json.load(file)
-        LOADED_DATA_CENTER_ASNS_DATA.extend(data_center_asns_data)
-
+        load_data_center_asns_data()
     return asn in LOADED_DATA_CENTER_ASNS_DATA
 
 
 LOADED_FIREHOL_LEVEL1_DATA: List[IPNetwork] = []
+
+
+def load_firehol_level1_data() -> None:
+    """
+    Load the firehol level 1 data from the file.
+    """
+    firehol_level1_path = os.path.join(DATASETS_DIR, DATASETS["Firehol-Level-1"][1])
+    with open(firehol_level1_path, "r", encoding="utf-8") as file:
+        firehol_data = json.load(file)
+
+    LOADED_FIREHOL_LEVEL1_DATA.extend([IPNetwork(cidr) for cidr in firehol_data])
+
+
+load_firehol_level1_data()
 
 
 @lru_cache(maxsize=1000)
@@ -223,10 +257,7 @@ def is_firehol_level1_ip(ip_address: str, firehol_level1_path: str) -> bool:
         True if the IP is in any CIDR range, False otherwise
     """
     if not LOADED_FIREHOL_LEVEL1_DATA:
-        with open(firehol_level1_path, "r", encoding="utf-8") as file:
-            firehol_data = json.load(file)
-
-        LOADED_FIREHOL_LEVEL1_DATA.extend([IPNetwork(cidr) for cidr in firehol_data])
+        load_firehol_level1_data()
 
     try:
         ip_obj = IPAddress(ip_address)
@@ -306,7 +337,7 @@ def get_ip_information(
             information["ipv4"] = ip_address
 
     if "hostname" in fields:
-        hostname = get_dns_info(ip_address)
+        hostname = get_hostname_from_ip(ip_address)
         if hostname and hostname != ip_address:
             information["hostname"] = hostname
 
@@ -445,7 +476,9 @@ def get_ip_information(
             information["continent"]
         )
 
-    if check_missing_information(information, ["accuracy_radius"], fields):
+    if check_missing_information(
+        information, ["accuracy_radius"], fields
+    ) and not check_missing_information(information, ["latitude", "longitude"], fields):
         information["accuracy_radius"] = 1000
 
     information = {field: information.get(field) for field in fields}
