@@ -1526,12 +1526,3 @@ footer .container {
         text-align: center;
     }
 }
-
-noscript .theme-toggle {
-    display: none !important;
-}
-
-noscript #search-button {
-    opacity: 1;
-    pointer-events: auto;
-}
