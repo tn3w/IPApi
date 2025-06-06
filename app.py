@@ -10,6 +10,7 @@ field management, and serves a web interface.
 """
 
 from typing import Optional
+import re
 
 import uvicorn
 import redis
@@ -19,6 +20,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.exception_handlers import http_exception_handler
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from src.ip_address import is_valid_and_routable_ip
+from src.dns_lookup import get_ip_from_hostname
 from src.schemas import (
     IPAPIResponse,
     ErrorResponse,
@@ -95,37 +97,79 @@ def self(request: Request):
     include_in_schema=False,
 )
 @app.get(
-    "/json/{ip_address}",
+    "/json/{ip_address_or_hostname}",
     response_model=IPAPIResponse,
     responses={
         status.HTTP_400_BAD_REQUEST: {
             "model": ErrorResponse,
-            "description": "Invalid IP address",
+            "description": "Invalid IP address or hostname",
         }
     },
-    summary="Get specific IP geolocation",
-    description="Returns geolocation and ASN information for the specified IP address",
+    summary="Get specific IP or hostname information",
+    description="Returns information for the specified IP address or hostname",
     tags=["JSON"],
 )
-def ip(request: Request, ip_address: Optional[str] = None):
+def ip(request: Request, ip_address_or_hostname: Optional[str] = None):
     """
-    Return the GeoIP and ASN information for the given IP address.
+    Return the information for the given IP address or hostname.
     """
 
-    if not ip_address:
-        ip_address = request.query_params.get("ip")
+    if not ip_address_or_hostname:
+        ip_address_or_hostname = request.query_params.get("ip")
 
-    if not ip_address or not is_valid_and_routable_ip(ip_address):
+    if not ip_address_or_hostname:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            headers={"X-Error": "Invalid IP address"},
-            detail="Invalid IP address",
+            headers={"X-Error": "Invalid IP address or hostname"},
+            detail="Invalid IP address or hostname",
         )
 
     fields_param = request.query_params.get("fields", "")
     fields = parse_fields_param(fields_param)
 
-    return JSONResponse(content=get_ip_information(ip_address, fields, redis_client))
+    ip_address_or_hostname = (
+        ip_address_or_hostname.strip().replace("http://", "").replace("https://", "")
+    )
+    ip_address = ip_address_or_hostname
+
+    using_hostname = False
+    if not is_valid_and_routable_ip(ip_address_or_hostname):
+        hostname_pattern = re.compile(
+            r"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*"
+            r"([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])$"
+        )
+        if hostname_pattern.match(ip_address_or_hostname):
+            ip_address = get_ip_from_hostname(ip_address_or_hostname)
+            if not ip_address:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    headers={"X-Error": "Could not resolve hostname"},
+                    detail="Could not resolve hostname",
+                )
+
+            using_hostname = True
+            if "hostname" in fields:
+                fields.remove("hostname")
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                headers={"X-Error": "Invalid IP address or hostname format"},
+                detail="Invalid IP address or hostname format",
+            )
+
+    if not is_valid_and_routable_ip(ip_address):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            headers={"X-Error": "Invalid IP address or hostname format"},
+            detail="Invalid IP address or hostname format",
+        )
+
+    response_data = get_ip_information(ip_address, fields, redis_client)
+
+    if using_hostname:
+        response_data["hostname"] = ip_address_or_hostname
+
+    return JSONResponse(content=response_data)
 
 
 @app.get(

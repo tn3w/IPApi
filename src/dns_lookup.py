@@ -12,13 +12,13 @@ format detection and conversion.
 
 import socket
 from functools import lru_cache
-from typing import Optional, Tuple, List
+from typing import Optional
 import dns.resolver
 import dns.reversename
 
 
 @lru_cache(maxsize=1000)
-def get_dns_info(addr: str) -> Optional[str]:
+def get_hostname_from_ip(addr: str) -> Optional[str]:
     """
     Get hostname from IP address.
 
@@ -29,30 +29,64 @@ def get_dns_info(addr: str) -> Optional[str]:
         str: Hostname for the given IP address
         None: If reverse lookup fails
     """
+    socket.setdefaulttimeout(1.0)
+
     try:
         return socket.getfqdn(addr)
     except (socket.error, OSError):
         return None
 
 
-def resolve_hostname(hostname: str) -> Tuple[str, List[str]]:
+@lru_cache(maxsize=1000)
+def get_ip_from_hostname(hostname: str) -> Optional[str]:
     """
-    Resolve a hostname to its IP addresses.
+    Resolve hostname to IP address using the fastest methods available.
 
     Args:
         hostname: The hostname to resolve
 
     Returns:
-        A tuple containing the hostname and its resolved IP addresses
+        str: IP address as a string
+        None: If resolution fails
     """
-    try:
-        ip_info = socket.getaddrinfo(hostname, None)
-        ips = set(addr[4][0] for addr in ip_info)
-        return hostname, list(ips)
-    except socket.gaierror:
-        return hostname, []
+    socket.setdefaulttimeout(1.0)
+
+    record_types = [socket.AF_INET, socket.AF_INET6]
+
+    for record_type in record_types:
+        try:
+            result = socket.getaddrinfo(hostname, None, family=record_type)
+            if result and len(result) > 0:
+                return result[0][4][0]
+        except (socket.gaierror, socket.error, OSError):
+            continue
+
+    resolver = dns.resolver.Resolver()
+    resolver.timeout = 1.0
+    resolver.lifetime = 2.0
+
+    record_types = ["A", "AAAA"]
+
+    for record_type in record_types:
+        try:
+            records = resolver.resolve(hostname, record_type)
+            if records and len(records) > 0:
+                return str(records[0])  # type: ignore
+        except (
+            dns.resolver.NXDOMAIN,
+            dns.resolver.NoAnswer,
+            dns.resolver.NoNameservers,
+            dns.resolver.YXDOMAIN,
+            dns.resolver.LifetimeTimeout,
+            ValueError,
+            OSError,
+        ):
+            continue
+
+    return None
 
 
+@lru_cache(maxsize=1000)
 def get_ipv4_from_ipv6(ipv6_address: str) -> Optional[str]:
     """
     Extract IPv4 address from a given IPv6 address.
