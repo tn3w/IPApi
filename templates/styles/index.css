@@ -144,7 +144,7 @@ main {
 }
 
 .hero {
-    height: 66.6vh;
+    height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
