@@ -466,9 +466,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return (
             value !== null &&
             value !== undefined &&
-            value.toLowerCase() !== 'none' &&
-            value.toLowerCase() !== 'null' &&
-            value !== ''
+            (typeof value !== 'string' ||
+                (value.toLowerCase() !== 'none' && value.toLowerCase() !== 'null' && value !== ''))
         );
     };
 
