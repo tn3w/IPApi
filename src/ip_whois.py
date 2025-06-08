@@ -12,11 +12,10 @@ maps country codes to appropriate registries and handles the different query for
 """
 
 import re
+import json
 import socket
 from typing import Callable, Final, Optional, Tuple, Any, Dict
-from netaddr import IPRange, cidr_merge
-import netaddr
-import json
+from netaddr import IPAddress, IPRange, AddrFormatError, cidr_merge
 from redis import Redis
 
 
@@ -283,8 +282,8 @@ def parse_ripe_data(data: str) -> Dict[str, Optional[str]]:
         start_ip = ip_range_match.group(1)
         end_ip = ip_range_match.group(2)
         try:
-            start_int = int(netaddr.IPAddress(start_ip))
-            end_int = int(netaddr.IPAddress(end_ip))
+            start_int = int(IPAddress(start_ip))
+            end_int = int(IPAddress(end_ip))
 
             if end_int - start_int > 65536:
                 result["prefix"] = f"{start_ip}-{end_ip}"
@@ -293,7 +292,7 @@ def parse_ripe_data(data: str) -> Dict[str, Optional[str]]:
                 cidrs = cidr_merge(ip_range)
                 if cidrs:
                     result["prefix"] = str(cidrs[0])
-        except (ValueError, netaddr.AddrFormatError) as e:
+        except (ValueError, AddrFormatError) as e:
             print(f"Error converting IP range to CIDR: {e}")
 
     org_match = re.search(r"org-name:\s+(.+?)$", data, re.MULTILINE)
@@ -357,8 +356,8 @@ def parse_apnic_data(data: str) -> Dict[str, Optional[str]]:
             start_ip = ip_range_match.group(1)
             end_ip = ip_range_match.group(2)
             try:
-                start_int = int(netaddr.IPAddress(start_ip))
-                end_int = int(netaddr.IPAddress(end_ip))
+                start_int = int(IPAddress(start_ip))
+                end_int = int(IPAddress(end_ip))
 
                 if end_int - start_int > 65536:
                     result["prefix"] = f"{start_ip}-{end_ip}"
@@ -367,7 +366,7 @@ def parse_apnic_data(data: str) -> Dict[str, Optional[str]]:
                     cidrs = cidr_merge(ip_range)
                     if cidrs:
                         result["prefix"] = str(cidrs[0])
-            except (ValueError, netaddr.AddrFormatError) as e:
+            except (ValueError, AddrFormatError) as e:
                 print(f"Error converting IP range to CIDR: {e}")
 
     org_section = re.search(
@@ -510,8 +509,8 @@ def parse_afrinic_data(data: str) -> Dict[str, Optional[str]]:
         start_ip = ip_range_match.group(1)
         end_ip = ip_range_match.group(2)
         try:
-            start_int = int(netaddr.IPAddress(start_ip))
-            end_int = int(netaddr.IPAddress(end_ip))
+            start_int = int(IPAddress(start_ip))
+            end_int = int(IPAddress(end_ip))
 
             if end_int - start_int > 65536:
                 result["prefix"] = f"{start_ip}-{end_ip}"
@@ -520,7 +519,7 @@ def parse_afrinic_data(data: str) -> Dict[str, Optional[str]]:
                 cidrs = cidr_merge(ip_range)
                 if cidrs:
                     result["prefix"] = str(cidrs[0])
-        except (ValueError, netaddr.AddrFormatError) as e:
+        except (ValueError, AddrFormatError) as e:
             print(f"Error converting IP range to CIDR: {e}")
 
     net_match = re.search(r"netname:\s+(.+?)$", data, re.MULTILINE)
