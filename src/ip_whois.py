@@ -95,7 +95,7 @@ PREFIX_TO_RIR: Final[Dict[str, str]] = {ARIN: "n"}
 
 def get_rir_and_prefix(country_code: str) -> Tuple[str, str]:
     """Return the best WHOIS server and prefix for a given country code."""
-    rir = RIR_TO_COUNTRY_CODE.get(country_code, ARIN)
+    rir = RIR_TO_COUNTRY_CODE.get(country_code.upper(), ARIN)
     prefix = PREFIX_TO_RIR.get(rir, "")
 
     return rir, prefix
