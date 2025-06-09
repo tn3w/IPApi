@@ -62,9 +62,9 @@ DATASETS: Dict[str, Union[str, Tuple[Union[str, list[str]], str]]] = {
         "zip_codes.json",
     ),
     # Abuse: VPNs / Proxies / Spam
-    "IPSet": (
+    "IPLookup": (
         "https://raw.githubusercontent.com/tn3w/IPSet/refs/heads/master/iplookup.json",
-        "ipset.json",
+        "iplookup.json",
     ),
     # Abuse: Data Center
     "Data-Center-ASNS": (
@@ -175,20 +175,17 @@ def check_missing_information(
     )
 
 
-LOADED_IPSET_DATA: Dict[str, Any] = {}
+LOADED_IP_LOOKUP_DATA: Dict[str, Any] = {}
 
 
-def load_ipset_data() -> None:
+def load_ip_lookup_data() -> None:
     """
-    Load the IPSet data from the file.
+    Load the IPLookup data from the file.
     """
-    ipset_path = os.path.join(DATASETS_DIR, DATASETS["IPSet"][1])
-    with open(ipset_path, "r", encoding="utf-8") as file:
-        ipset_data = json.load(file)
-    LOADED_IPSET_DATA.update(ipset_data)
-
-
-load_ipset_data()
+    ip_lookup_path = os.path.join(DATASETS_DIR, DATASETS["IPLookup"][1])
+    with open(ip_lookup_path, "r", encoding="utf-8") as file:
+        ip_lookup_data = json.load(file)
+    LOADED_IP_LOOKUP_DATA.update(ip_lookup_data)
 
 
 @lru_cache(maxsize=1000)
@@ -196,9 +193,9 @@ def get_ip_groups(ip_address: str) -> List[str]:
     """
     Get the groups for the given IP address.
     """
-    if not LOADED_IPSET_DATA:
-        load_ipset_data()
-    return LOADED_IPSET_DATA.get(ip_address, [])
+    if not LOADED_IP_LOOKUP_DATA:
+        load_ip_lookup_data()
+    return LOADED_IP_LOOKUP_DATA.get(ip_address, [])
 
 
 LOADED_DATA_CENTER_ASNS_DATA: List[str] = []
@@ -212,9 +209,6 @@ def load_data_center_asns_data() -> None:
     with open(data_center_asns_path, "r", encoding="utf-8") as file:
         data_center_asns_data = json.load(file)
     LOADED_DATA_CENTER_ASNS_DATA.extend(data_center_asns_data)
-
-
-load_data_center_asns_data()
 
 
 @lru_cache(maxsize=1000)
@@ -239,9 +233,6 @@ def load_firehol_level1_data() -> None:
         firehol_data = json.load(file)
 
     LOADED_FIREHOL_LEVEL1_DATA.extend([IPNetwork(cidr) for cidr in firehol_data])
-
-
-load_firehol_level1_data()
 
 
 @lru_cache(maxsize=1000)

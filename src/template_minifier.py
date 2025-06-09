@@ -71,7 +71,7 @@ def extract_inline_scripts(html_content: str) -> Tuple[str, List[str]]:
 
 def extract_external_scripts(
     html_content: str, base_path: str
-) -> Tuple[str, Dict[str, str], Dict[str, str]]:
+) -> Tuple[str, Dict[str, str]]:
     """
     Extract and process external script references.
 
@@ -80,8 +80,7 @@ def extract_external_scripts(
         base_path: Base path for resolving relative file paths
 
     Returns:
-        Tuple of HTML with placeholders, dict of script paths and their content,
-        and dict mapping placeholders to original tags
+        Tuple of HTML with placeholders, dict of script paths and their content
     """
     script_pattern = re.compile(
         r'<script\s+src=["\']([^"\']+)["\'][^>]*></script>', re.DOTALL
@@ -89,7 +88,6 @@ def extract_external_scripts(
     matches = script_pattern.findall(html_content)
 
     scripts: Dict[str, str] = {}
-    placeholders: Dict[str, str] = {}
     modified_html = html_content
 
     for src in matches:
@@ -106,17 +104,16 @@ def extract_external_scripts(
 
                 placeholder = f"<!-- EXTERNAL_SCRIPT_PLACEHOLDER_{src} -->"
                 original_tag = f'<script src="{src}"></script>'
-                placeholders[placeholder] = original_tag
                 modified_html = modified_html.replace(original_tag, placeholder)
         except Exception as e:
             print(f"Error processing script {src}: {e}")
 
-    return modified_html, scripts, placeholders
+    return modified_html, scripts
 
 
 def extract_external_styles(
     html_content: str, base_path: str
-) -> Tuple[str, Dict[str, str], Dict[str, str]]:
+) -> Tuple[str, Dict[str, str]]:
     """
     Extract and process external stylesheet references.
 
@@ -125,8 +122,7 @@ def extract_external_styles(
         base_path: Base path for resolving relative file paths
 
     Returns:
-        Tuple of HTML with placeholders, dict of style paths and their content,
-        and dict mapping placeholders to original tags
+        Tuple of HTML with placeholders, dict of style paths and their content.
     """
     link_pattern = re.compile(
         r'<link\s+[^>]*href=["\']([^"\']+)["\'][^>]*rel=["\']stylesheet["\'][^>]*>',
@@ -142,7 +138,6 @@ def extract_external_styles(
     )
 
     styles: Dict[str, str] = {}
-    placeholders: Dict[str, str] = {}
     modified_html = html_content
 
     for href in matches:
@@ -167,12 +162,11 @@ def extract_external_styles(
                 )
 
                 for tag in link_tags:
-                    placeholders[placeholder] = tag
                     modified_html = modified_html.replace(tag, placeholder)
         except Exception as e:
             print(f"Error processing stylesheet {href}: {e}")
 
-    return modified_html, styles, placeholders
+    return modified_html, styles
 
 
 def reinsert_content(html_content: str, styles: List[str], scripts: List[str]) -> str:
@@ -201,11 +195,7 @@ def reinsert_content(html_content: str, styles: List[str], scripts: List[str]) -
 
 
 def inline_external_resources(
-    html_content: str,
-    external_scripts: Dict[str, str],
-    external_styles: Dict[str, str],
-    script_placeholders: Dict[str, str],
-    style_placeholders: Dict[str, str],
+    html_content: str, external_scripts: Dict[str, str], external_styles: Dict[str, str]
 ) -> str:
     """
     Replace external resource references with inlined minified content.
@@ -258,11 +248,11 @@ def minify_html_file(file_path: str, output_dir: Optional[str] = None) -> str:
         content_with_style_placeholders
     )
 
-    content_with_external_script_placeholders, external_scripts, script_placeholders = (
+    content_with_external_script_placeholders, external_scripts = (
         extract_external_scripts(content_with_script_placeholders, base_path)
     )
-    content_with_all_placeholders, external_styles, style_placeholders = (
-        extract_external_styles(content_with_external_script_placeholders, base_path)
+    content_with_all_placeholders, external_styles = extract_external_styles(
+        content_with_external_script_placeholders, base_path
     )
 
     minified_html = htmlmin.minify(  # type: ignore
@@ -287,11 +277,7 @@ def minify_html_file(file_path: str, output_dir: Optional[str] = None) -> str:
     )
 
     result_with_all = inline_external_resources(
-        result_with_inline,
-        minified_external_scripts,
-        minified_external_styles,
-        script_placeholders,
-        style_placeholders,
+        result_with_inline, minified_external_scripts, minified_external_styles
     )
 
     final_result = htmlmin.minify(  # type: ignore

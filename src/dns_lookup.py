@@ -13,6 +13,7 @@ format detection and conversion.
 import socket
 from functools import lru_cache
 from typing import Optional
+
 import dns.resolver
 import dns.reversename
 

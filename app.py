@@ -28,16 +28,19 @@ from src.schemas import (
     FieldToNumberResponse,
     NumberToFieldsResponse,
 )
-from src.field_utils import (
+from src.schemas import (
+    ALL_FIELDS,
     parse_fields_param,
     fields_to_number,
-    ALL_FIELDS,
     number_to_fields,
 )
 from src.handlers import (
     get_ip_address,
     get_ip_information,
     download_datasets,
+    load_ip_lookup_data,
+    load_data_center_asns_data,
+    load_firehol_level1_data,
 )
 from src.template_minifier import minify_templates
 
@@ -245,6 +248,10 @@ def main() -> None:
     """
     download_datasets()
     minify_templates()
+
+    load_ip_lookup_data()
+    load_data_center_asns_data()
+    load_firehol_level1_data()
 
     uvicorn.run(
         "app:app",

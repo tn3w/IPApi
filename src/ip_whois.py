@@ -15,8 +15,9 @@ import re
 import json
 import socket
 from typing import Callable, Final, Optional, Tuple, Any, Dict
-from netaddr import IPAddress, IPRange, AddrFormatError, cidr_merge
+
 from redis import Redis
+from netaddr import IPAddress, IPRange, AddrFormatError, cidr_merge
 
 
 ARIN: Final[str] = "whois.arin.net"
