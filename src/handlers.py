@@ -218,7 +218,7 @@ load_data_center_asns_data()
 
 
 @lru_cache(maxsize=1000)
-def is_data_center_asn(asn: str, data_center_asns_path: str) -> bool:
+def is_data_center_asn(asn: str) -> bool:
     """
     Check if the given ASN is a data center ASN.
     """
@@ -245,7 +245,7 @@ load_firehol_level1_data()
 
 
 @lru_cache(maxsize=1000)
-def is_firehol_level1_ip(ip_address: str, firehol_level1_path: str) -> bool:
+def is_firehol_level1_ip(ip_address: str) -> bool:
     """
     Check if the given IPv4 address is contained in any CIDR range from the Firehol Level 1 dataset.
 
@@ -393,19 +393,13 @@ def get_ip_information(
 
     if "data_center" in fields:
         if information.get("asn"):
-            information["data_center"] = is_data_center_asn(
-                str(information["asn"]),
-                os.path.join(DATASETS_DIR, DATASETS["Data-Center-ASNS"][1]),
-            )
+            information["data_center"] = is_data_center_asn(str(information["asn"]))
         else:
             information["data_center"] = False
 
     if "firehol_level1" in fields:
         if ip_address_type == "ipv4":
-            information["firehol_level1"] = is_firehol_level1_ip(
-                ip_address,
-                os.path.join(DATASETS_DIR, DATASETS["Firehol-Level-1"][1]),
-            )
+            information["firehol_level1"] = is_firehol_level1_ip(ip_address)
         else:
             information["firehol_level1"] = False
 
