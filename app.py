@@ -48,7 +48,7 @@ templates = Jinja2Templates(directory="templates/minified")
 
 app = FastAPI(
     title="IPApi",
-    description="API that returns GeoIP and ASN information for IP addresses",
+    description="API that returns IP address information",
     version="1.0.0",
 )
 
