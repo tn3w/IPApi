@@ -1,6 +1,6 @@
 <h3 align="center">
-  <img src="static/favicon.ico" alt="IPApi Logo" height="64" width="64" align="top">
-  IPApi
+  <img src="static/favicon.ico" alt="IPApi Logo" height="64" width="64" align="middle">
+  IPAPI
 </h3>
 
 <p align="center">A fast, efficient, and free Python-powered API for retrieving IP address information.</p>
