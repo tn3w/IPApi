@@ -1,263 +1,265 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-"""
-Main FastAPI application for IPApi service.
-
-This module sets up the FastAPI server with routes to provide geolocation and ASN information
-for IP addresses. It includes endpoints for current client IP lookup, specific IP address lookup,
-field management, and serves a web interface.
-"""
-
-from typing import Optional
-import re
+import logging
+from pathlib import Path
+from typing import Final, Dict
+import os
 
 import uvicorn
-import redis
-from fastapi import FastAPI, Request, HTTPException, status
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
-from fastapi.exception_handlers import http_exception_handler
-from starlette.exceptions import HTTPException as StarletteHTTPException
-from src.ip_address import is_valid_and_routable_ip
-from src.dns_lookup import get_ip_from_hostname
-from src.schemas import (
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse, Response, JSONResponse
+
+from src.memory_server import MemoryServer, MemoryDataStore
+from src.ip_address import get_ip_info
+from src.utils import (
     IPAPIResponse,
-    ErrorResponse,
     FieldsListResponse,
     FieldToNumberResponse,
-    NumberToFieldsResponse,
-)
-from src.schemas import (
-    ALL_FIELDS,
-    parse_fields_param,
+    FIELDS_INCLUDING_ALL,
     fields_to_number,
-    number_to_fields,
+    load_dotenv,
+    load_templates,
 )
-from src.handlers import (
-    get_ip_address,
-    get_ip_information,
-    download_datasets,
-    load_ip_lookup_data,
-    load_data_center_asns_data,
-    load_firehol_level1_data,
-)
-from src.template_minifier import minify_templates
 
-templates = Jinja2Templates(directory="templates/minified")
+load_dotenv()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+MEMORY_SERVER: Final[MemoryServer] = MemoryServer.get_instance()
+MEMORY_SERVER.start()
+
+
+def get_memory_store() -> MemoryDataStore:
+    """Dependency to get the memory data store client."""
+    client = MEMORY_SERVER.get_client()
+    return client.get_data_store()
+
+
+MEMORY_STORE = get_memory_store()
+MEMORY_STORE.load_datasets()
+
+TEMPLATES: Final[Dict[str, str]] = load_templates()
+
+STATIC_DIR = Path("static")
+ROBOTS_TXT = (
+    (STATIC_DIR / "robots.txt").read_text()
+    if (STATIC_DIR / "robots.txt").exists()
+    else ""
+)
+SECURITY_TXT = (
+    (STATIC_DIR / "security.txt").read_text()
+    if (STATIC_DIR / "security.txt").exists()
+    else ""
+)
+FAVICON = (
+    (STATIC_DIR / "favicon.ico").read_bytes()
+    if (STATIC_DIR / "favicon.ico").exists()
+    else None
+)
 
 app = FastAPI(
     title="IPApi",
-    description="API that returns IP address information",
+    description="API that returns information about IP addresses and hostnames",
     version="1.0.0",
 )
 
-redis_client = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
-
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
-async def index(request: Request):
+def index(request: Request):
     """
-    Return the index HTML page.
+    Return the index template.
+
+    Args:
+        request: The request object
+
+    Returns:
+        The index template
     """
-    return templates.TemplateResponse("index.html", {"request": request})
+    index_template = TEMPLATES.get("index.html")
+    if not index_template:
+        raise HTTPException(status_code=404, detail="Index template not found")
+
+    content = index_template.replace("BASE_URL", str(request.base_url))
+    response = HTMLResponse(content=content)
+
+    response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+
+    return response
 
 
-@app.get(
-    "/json/self",
-    response_model=IPAPIResponse,
-    responses={
-        status.HTTP_400_BAD_REQUEST: {
-            "model": ErrorResponse,
-            "description": "Invalid IP address",
-        }
-    },
-    summary="Get current IP geolocation",
-    description="Returns geolocation and ASN information for the current client IP address",
-    tags=["JSON"],
-)
-def self(request: Request):
+@app.exception_handler(404)
+async def not_found_exception_handler(request: Request, exc: HTTPException):
     """
-    Return the GeoIP and ASN information for the current IP address.
+    Handle 404 not found exceptions.
+
+    Args:
+        request: The request object
+        exc: The exception
+
+    Returns:
+        The 404 template
     """
-    ip_address = get_ip_address(request)
-    if not ip_address:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            headers={"X-Error": "Invalid IP address"},
-            detail="Invalid IP address",
-        )
+    not_found_template = TEMPLATES.get("404.html")
+    if not not_found_template:
+        raise HTTPException(status_code=404, detail="404 - Not found.")
 
-    fields_param = request.query_params.get("fields", "")
-    fields = parse_fields_param(fields_param)
-
-    return JSONResponse(content=get_ip_information(ip_address, fields, redis_client))
-
-
-@app.get(
-    "/json/",
-    response_model=IPAPIResponse,
-    include_in_schema=False,
-)
-@app.get(
-    "/json/{ip_address_or_hostname}",
-    response_model=IPAPIResponse,
-    responses={
-        status.HTTP_400_BAD_REQUEST: {
-            "model": ErrorResponse,
-            "description": "Invalid IP address or hostname",
-        }
-    },
-    summary="Get specific IP or hostname information",
-    description="Returns information for the specified IP address or hostname",
-    tags=["JSON"],
-)
-def ip(request: Request, ip_address_or_hostname: Optional[str] = None):
-    """
-    Return the information for the given IP address or hostname.
-    """
-
-    if not ip_address_or_hostname:
-        ip_address_or_hostname = request.query_params.get("ip")
-
-    if not ip_address_or_hostname:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            headers={"X-Error": "Invalid IP address or hostname"},
-            detail="Invalid IP address or hostname",
-        )
-
-    fields_param = request.query_params.get("fields", "")
-    fields = parse_fields_param(fields_param)
-
-    ip_address_or_hostname = (
-        ip_address_or_hostname.strip().replace("http://", "").replace("https://", "")
+    response = HTMLResponse(
+        content=not_found_template.replace("BASE_URL", str(request.base_url)),
+        status_code=404,
     )
-    ip_address = ip_address_or_hostname
 
-    using_hostname = False
-    if not is_valid_and_routable_ip(ip_address_or_hostname):
-        hostname_pattern = re.compile(
-            r"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*"
-            r"([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])$"
-        )
-        if hostname_pattern.match(ip_address_or_hostname):
-            ip_address = get_ip_from_hostname(ip_address_or_hostname)
-            if not ip_address:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    headers={"X-Error": "Could not resolve hostname"},
-                    detail="Could not resolve hostname",
-                )
+    if hasattr(exc, "detail") and exc.detail:
+        response.headers["X-Error"] = exc.detail
 
-            using_hostname = True
-            if "hostname" in fields:
-                fields.remove("hostname")
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                headers={"X-Error": "Invalid IP address or hostname format"},
-                detail="Invalid IP address or hostname format",
-            )
+    return response
 
-    if not is_valid_and_routable_ip(ip_address):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            headers={"X-Error": "Invalid IP address or hostname format"},
-            detail="Invalid IP address or hostname format",
-        )
 
-    response_data = get_ip_information(ip_address, fields, redis_client)
+@app.get("/robots.txt", include_in_schema=False)
+def robots_txt():
+    """
+    Return the robots.txt file.
+    """
+    if not ROBOTS_TXT:
+        raise HTTPException(status_code=404, detail="Robots.txt not found")
 
-    if using_hostname:
-        response_data["hostname"] = ip_address_or_hostname
+    response = Response(content=ROBOTS_TXT, media_type="text/plain")
+    response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
 
-    return JSONResponse(content=response_data)
+
+@app.get("/.well-known/security.txt", include_in_schema=False)
+def security_txt():
+    """
+    Return the security.txt file.
+    """
+    if not SECURITY_TXT:
+        raise HTTPException(status_code=404, detail="Security.txt not found")
+
+    response = Response(content=SECURITY_TXT, media_type="text/plain")
+    response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    """
+    Return the favicon.ico file.
+    """
+    if not FAVICON:
+        raise HTTPException(status_code=404, detail="Favicon not found")
+
+    response = Response(content=FAVICON, media_type="image/x-icon")
+    response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
+
+
+# ------------------------------------------------------------
+# API Routes
+# ------------------------------------------------------------
 
 
 @app.get(
-    "/fields/list",
-    response_model=FieldsListResponse,
-    summary="Get all available fields",
-    description="Returns a list of all available fields that can be requested",
-    tags=["Fields"],
+    "/self",
+    response_model=IPAPIResponse,
+    summary="Get information about the current IP address",
+    description=(
+        "Return detailed information about your own IP address,"
+        " working like /{ip_address} but for your own IP address."
+    ),
+    tags=["JSON"],
 )
-async def available_fields():
+def get_self_ip_address_info(request: Request):
+    """
+    Return information about the current IP address.
+    """
+    if not request.client:
+        raise HTTPException(status_code=404, detail="Client IP address not found")
+    ip_info = get_ip_info(request.client.host, request, MEMORY_STORE)
+    if not ip_info:
+        raise HTTPException(status_code=404, detail="Invalid IP address")
+    return JSONResponse(content=ip_info)
+
+
+@app.get(
+    "/fields",
+    response_model=FieldsListResponse,
+    summary="Get a list of all available fields",
+    description=(
+        "Returns a list of all available fields that can be used in the /{ip_address} endpoint."
+    ),
+    tags=["FIELDS"],
+)
+def get_fields_list():
     """
     Return a list of all available fields.
     """
-    return {"fields": ALL_FIELDS}
+    return FieldsListResponse(fields=FIELDS_INCLUDING_ALL)
 
 
 @app.get(
-    "/fields/{field_name}/number",
+    "/fields/number/{fields}",
     response_model=FieldToNumberResponse,
-    summary="Get number for a field",
-    description="Returns the number representing a single field or comma-separated list of fields",
-    tags=["Fields"],
+    summary="Get the number representation of a list of fields",
+    description=(
+        "Returns the number representation of a list of fields."
+        " This is useful for requests with low payload size."
+    ),
+    tags=["FIELDS"],
 )
-async def field_number(field_name: str):
+def get_fields_number(fields: str):
     """
-    Return the number representing a field or comma-separated field list.
+    Return the number representation of a list of fields.
     """
-    fields = [f.strip() for f in field_name.split(",") if f.strip() in ALL_FIELDS]
-
-    number = fields_to_number(fields)
-
-    return {
-        "fields": fields,
-        "number": number,
-    }
+    fields = fields.split(",")
+    return FieldToNumberResponse(fields=fields, number=fields_to_number(fields))
 
 
 @app.get(
-    "/numbers/{number}/fields",
-    response_model=NumberToFieldsResponse,
-    summary="Get fields for a number",
-    description="Returns the list of field names represented by the given number",
-    tags=["Fields"],
+    "/{ip_address}",
+    response_model=IPAPIResponse,
+    summary="Get information about a specific IP address",
+    description=(
+        "Returns comprehensive data about the specified IP address, including geographic details"
+        " (continent, country, region, city, coordinates), network information"
+        " (ASN, ISP, organization), and security assessment (proxy/VPN detection, threat scoring)."
+        " Supports both IPv4 and IPv6 addresses as well as hostnames."
+    ),
+    tags=["JSON"],
 )
-async def number_to_field_names(number: int):
+def get_ip_address_info(ip_address: str, request: Request):
     """
-    Return the field names corresponding to the given number.
-    """
-    field_names = number_to_fields(number)
+    Return information about an IP address.
 
-    return {
-        "number": number,
-        "fields": field_names,
-        "fields_str": ",".join(field_names),
-    }
+    Args:
+        ip_address: The IP address to get information about
+
+    Returns:
+        Information about the IP address
+    """
+    ip_info = get_ip_info(ip_address, request, MEMORY_STORE)
+    if not ip_info:
+        raise HTTPException(status_code=404, detail="Invalid IP address")
+    return JSONResponse(content=ip_info)
 
 
-@app.exception_handler(StarletteHTTPException)
-async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
-    """
-    Custom handler for HTTP exceptions.
-    For 404 errors, render the custom 404.html template.
-    For other HTTP exceptions, use the default handler.
-    """
-    if exc.status_code == 404:
-        return templates.TemplateResponse("404.html", {"request": request})
-    return await http_exception_handler(request, exc)
+# ------------------------------------------------------------
+# Main
+# ------------------------------------------------------------
 
 
 def main() -> None:
     """
-    Main function to run the app.
+    Run the application.
     """
-    download_datasets()
-    minify_templates()
-
-    load_ip_lookup_data()
-    load_data_center_asns_data()
-    load_firehol_level1_data()
-
+    workers = min(16, os.cpu_count() or 4)
+    logger.info("Starting API server with %d workers", workers)
     uvicorn.run(
         "app:app",
         host="0.0.0.0",
         port=5000,
-        workers=16,
+        workers=workers,
         server_header=False,
     )
 

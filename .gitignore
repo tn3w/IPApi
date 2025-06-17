@@ -14,15 +14,14 @@ ENV/
 htmlcov/
 .mypy_cache/
 
-# Assets
-assets/
-
-# Test
-test*
-
-# npm
+# Node
 node_modules/
 dist/
 
-# Minified Templates
-templates/minified
+# Datasets
+datasets/
+.ipapi_memory_server.lock
+.env
+
+# Experiments
+experiments/

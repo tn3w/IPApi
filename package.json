@@ -5,7 +5,7 @@
     "main": "app.py",
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
-        "format": "prettier --write \"**/*.{html,css,js,json}\"",
+        "format": "prettier --write \"**/*.{html,css,js,json,md}\"",
         "format:check": "prettier --check \"**/*.{html,css,js,json}\""
     },
     "keywords": [
@@ -13,9 +13,9 @@
         "geolocation",
         "api"
     ],
-    "author": "",
-    "license": "MIT",
+    "author": "TN3W",
+    "license": "Apache-2.0",
     "devDependencies": {
-        "prettier": "^3.1.0"
+        "prettier": "^3"
     }
 }

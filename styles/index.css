@@ -528,7 +528,8 @@ main {
 
 pre {
     margin: 0;
-    overflow-x: auto;
+    overflow-x: scroll;
+    max-height: 400px;
 }
 
 code.language-json,
@@ -1143,7 +1144,69 @@ footer .container {
     word-break: break-all;
 }
 
-.ipv4-mapping {
+.classification-container {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed var(--border);
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.classification-label {
+    font-weight: 500;
+    color: var(--text);
+    opacity: 0.8;
+}
+
+.classification-value {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.classification-value.non-public {
+    color: var(--danger);
+}
+
+.results-error {
+    background-color: var(--surface);
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1rem;
+}
+
+.error-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: rgba(var(--text-rgb), 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.error-icon svg {
+    width: 40px;
+    height: 40px;
+    fill: var(--danger);
+}
+
+.error-message {
+    font-size: 1.2rem;
+    color: var(--text);
+    max-width: 500px;
+    line-height: 1.5;
+}
+
+.ipvx-mapping {
     font-size: 0.9rem;
     color: var(--text);
     opacity: 0.7;

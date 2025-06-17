@@ -1,4 +1,19 @@
 document.addEventListener('DOMContentLoaded', () => {
+    const EXAMPLE_IPS = [
+        '8.8.8.8',
+        '8.8.4.4',
+        '1.1.1.1',
+        '9.9.9.9',
+        '208.67.222.222',
+        '4.2.2.1',
+        '4.2.2.2',
+        '2001:4860:4860::8888',
+        '2606:4700:4700::1111',
+        '2620:fe::fe',
+        '2001:4860:4860::8844',
+        '2620:119:35::35',
+    ];
+
     const elements = {
         search: {
             form: document.getElementById('search-form'),
@@ -19,6 +34,8 @@ document.addEventListener('DOMContentLoaded', () => {
             networkSection: document.getElementById('network-section'),
             locationGrid: document.getElementById('location-grid'),
             networkGrid: document.getElementById('network-grid'),
+            error: document.getElementById('results-error'),
+            errorMessage: document.getElementById('error-message'),
         },
         toggle: {
             button: document.getElementById('theme-toggle'),
@@ -30,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
         notification: document.getElementById('notification-container'),
     };
 
-    const apiBaseUrl = '{{ request.base_url }}json';
+    const apiBaseUrl = 'BASE_URL';
 
     let map = null;
     let marker = null;
@@ -193,16 +210,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 let ipData;
 
+                ip_address = null;
                 if (isLocalhost) {
                     const ipifyResponse = await fetch('https://api.ipify.org?format=json');
                     ipData = await ipifyResponse.json();
+
+                    ip_address = ipData.ip;
                 } else {
-                    const response = await fetch(`${apiBaseUrl}/self?fields=ip`);
+                    const response = await fetch(`${apiBaseUrl}self?fields=ip_address`);
+
+                    if (!response.ok) {
+                        const errorHeader = response.headers.get('X-Error');
+                        throw new Error(errorHeader || 'Failed to fetch IP address');
+                    }
+
                     ipData = await response.json();
+                    ip_address = ipData.ip_address;
                 }
 
-                if (ipData.ip) {
-                    elements.search.input.value = ipData.ip;
+                if (ip_address) {
+                    elements.search.input.value = ip_address;
                     updateSearchButtonVisibility();
                 } else if (ipData.detail) {
                     throw new Error(ipData.detail);
@@ -223,7 +250,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         elements.search.tryExampleButton.addEventListener('click', (e) => {
             e.preventDefault();
-            elements.search.input.value = '8.8.8.8';
+            elements.search.input.value =
+                EXAMPLE_IPS[Math.floor(Math.random() * EXAMPLE_IPS.length)];
             updateSearchButtonVisibility();
         });
 
@@ -337,7 +365,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (ipData) {
             prePopulateResultsData(ipData);
-            document.title = ipData.ip + ' | IPApi';
+            document.title = ipData.ip_address + ' | IPApi';
         }
 
         document.body.classList.add('results-active');
@@ -428,8 +456,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const response = await fetch(`${apiBaseUrl}/${encodeURIComponent(ip)}?fields=all`);
+            const response = await fetch(`${apiBaseUrl}${encodeURIComponent(ip)}?fields=all`);
             if (!response.ok) {
+                console.log(response);
                 throw new Error(
                     response.headers.get('X-Error') || 'HTTP error! status: ' + response.status
                 );
@@ -476,11 +505,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const ipEl = document.getElementById('result-ip');
         const hostnameEl = document.getElementById('result-hostname');
 
-        if (ipTypeEl && ipData.type) ipTypeEl.textContent = ipData.type.toUpperCase();
+        if (ipTypeEl) ipTypeEl.textContent = ipData.version === 6 ? 'IPV6' : 'IPV4';
 
         if (ipEl) {
-            ipEl.textContent = ipData.ip || '';
-            ipEl.classList.toggle('long-ip', ipData.ip && ipData.ip.length > 20);
+            ipEl.textContent = ipData.ip_address || '';
+            ipEl.classList.toggle('long-ip', ipData.ip_address && ipData.ip_address.length > 20);
         }
 
         if (hostnameEl)
@@ -689,52 +718,74 @@ document.addEventListener('DOMContentLoaded', () => {
         const resultsDataContainer = document.querySelector('.results-data');
         if (resultsDataContainer) resultsDataContainer.classList.add('active');
 
-        document.title = data.ip + ' | IPApi';
+        document.title = data.ip_address + ' | IPApi';
 
         const ipTypeEl = document.getElementById('result-ip-type');
         const ipEl = document.getElementById('result-ip');
         const hostnameEl = document.getElementById('result-hostname');
+        const classificationEl = document.getElementById('result-classification');
         const vpnBadgeEl = document.getElementById('vpn-badge');
         const proxyBadgeEl = document.getElementById('proxy-badge');
         const dataCenterBadgeEl = document.getElementById('data-center-badge');
         const forumSpammerBadgeEl = document.getElementById('forum-spammer-badge');
         const fireholLevel1BadgeEl = document.getElementById('firehol-level1-badge');
         const torBadgeEl = document.getElementById('tor-badge');
+        const mapContainer = document.querySelector('.results-map-container');
 
-        if (ipTypeEl) ipTypeEl.textContent = data.type?.toUpperCase() || 'IP';
+        if (ipTypeEl) ipTypeEl.textContent = data.version === 6 ? 'IPV6' : 'IPV4';
 
         if (ipEl) {
-            ipEl.textContent = data.ip || '';
-            ipEl.classList.toggle('long-ip', data.ip && data.ip.length > 20);
+            ipEl.textContent = data.ip_address || '';
+            ipEl.classList.toggle('long-ip', data.ip_address && data.ip_address.length > 20);
 
-            const ipv4Container = document.querySelector('.ipv4-mapping');
-            if (data.type === 'ipv6' && isValidValue(data.ipv4)) {
-                if (!ipv4Container) {
+            const ipvxContainer = document.querySelector('.ipvx-mapping');
+            if (
+                (data.version === 6 && isValidValue(data.ipv4_address)) ||
+                (data.version === 4 && isValidValue(data.ipv6_address))
+            ) {
+                const mappingText =
+                    data.version === 6
+                        ? 'IPv4: ' + data.ipv4_address
+                        : 'IPv6: ' + data.ipv6_address;
+
+                if (!ipvxContainer) {
                     const container = document.createElement('div');
-                    container.className = 'ipv4-mapping';
-                    container.textContent = 'IPv4: ' + data.ipv4;
+                    container.className = 'ipvx-mapping';
+                    container.textContent = mappingText;
                     ipEl.parentNode.insertBefore(container, ipEl.nextSibling);
                 } else {
-                    ipv4Container.textContent = 'IPv4: ' + data.ipv4;
-                    ipv4Container.style.display = 'block';
+                    ipvxContainer.textContent = mappingText;
+                    ipvxContainer.style.display = 'block';
                 }
-            } else if (ipv4Container) {
-                ipv4Container.style.display = 'none';
+            } else if (ipvxContainer) {
+                ipvxContainer.style.display = 'none';
             }
         }
 
-        if (vpnBadgeEl) vpnBadgeEl.style.display = data.vpn === true ? 'inline-flex' : 'none';
-        if (proxyBadgeEl) proxyBadgeEl.style.display = data.proxy === true ? 'inline-flex' : 'none';
+        if (classificationEl) {
+            const classification = data.classification || 'unknown';
+            classificationEl.textContent =
+                classification.charAt(0).toUpperCase() + classification.slice(1);
+            classificationEl.classList.toggle('non-public', classification !== 'public');
+        }
+
+        if (mapContainer) {
+            const isPublic = data.classification === 'public';
+            mapContainer.style.display = isPublic ? 'block' : 'none';
+        }
+
+        if (vpnBadgeEl) vpnBadgeEl.style.display = data.is_vpn === true ? 'inline-flex' : 'none';
+        if (proxyBadgeEl)
+            proxyBadgeEl.style.display = data.is_proxy === true ? 'inline-flex' : 'none';
         if (dataCenterBadgeEl)
-            dataCenterBadgeEl.style.display = data.data_center === true ? 'inline-flex' : 'none';
+            dataCenterBadgeEl.style.display = data.is_datacenter === true ? 'inline-flex' : 'none';
         if (forumSpammerBadgeEl)
             forumSpammerBadgeEl.style.display =
-                data.forum_spammer === true ? 'inline-flex' : 'none';
+                data.is_forum_spammer === true ? 'inline-flex' : 'none';
         if (fireholLevel1BadgeEl)
-            fireholLevel1BadgeEl.style.display =
-                data.firehol_level1 === true ? 'inline-flex' : 'none';
+            fireholLevel1BadgeEl.style.display = data.is_firehol === true ? 'inline-flex' : 'none';
         if (torBadgeEl)
-            torBadgeEl.style.display = data.tor_exit_node === true ? 'inline-flex' : 'none';
+            torBadgeEl.style.display = data.is_tor_exit_node === true ? 'inline-flex' : 'none';
 
         if (hostnameEl)
             hostnameEl.textContent = isValidValue(data.hostname)
@@ -750,18 +801,72 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.results.locationSection.style.display = 'none';
         if (elements.results.networkSection) elements.results.networkSection.style.display = 'none';
 
+        const isPublic = data.classification === 'public';
+        const hasLocationData =
+            isPublic && (isValidValue(data.latitude) || isValidValue(data.country));
+        const hasNetworkData = isPublic && (isValidValue(data.asn) || isValidValue(data.as_name));
+
+        if (elements.results.error && elements.results.errorMessage) {
+            if (!isPublic) {
+                let message = '';
+                switch (data.classification) {
+                    case 'private':
+                        message =
+                            'This is a private IP address, used in local networks. No public ip info is available.';
+                        break;
+                    case 'loopback':
+                        message =
+                            'This is a loopback address that points to your local machine. No ip info is available.';
+                        break;
+                    case 'multicast':
+                        message = 'This is a multicast address. No ip info is available.';
+                        break;
+                    case 'reserved':
+                        message =
+                            'This is a reserved IP address for special use. No ip info is available.';
+                        break;
+                    case 'link_local':
+                        message =
+                            'This is a link-local address for communication within the local network segment. No ip info is available.';
+                        break;
+                    default:
+                        message = `This is a ${data.classification || 'special'} IP address. No ip info is available.`;
+                }
+                elements.results.errorMessage.textContent = message;
+                elements.results.error.style.display = 'flex';
+
+                if (elements.results.locationSection)
+                    elements.results.locationSection.style.display = 'none';
+                if (elements.results.networkSection)
+                    elements.results.networkSection.style.display = 'none';
+
+                const abuseSection = document.querySelector('.results-section:last-child');
+                if (abuseSection) abuseSection.style.display = 'none';
+            } else if (!hasLocationData && !hasNetworkData) {
+                elements.results.errorMessage.textContent =
+                    'No location or network data available for this IP address.';
+                elements.results.error.style.display = 'flex';
+            } else {
+                elements.results.error.style.display = 'none';
+            }
+        }
+
         const locationGrid = document.getElementById('location-grid');
-        if (locationGrid) {
+        if (locationGrid && isPublic) {
             locationGrid.innerHTML = '';
 
             const locationFields = [
                 { key: 'continent', label: 'Continent' },
                 { key: 'country', label: 'Country' },
                 { key: 'region', label: 'Region' },
+                { key: 'is_eu', label: 'Is EU' },
                 { key: 'city', label: 'City' },
-                { key: 'county', label: 'County' },
+                { key: 'district', label: 'District' },
                 { key: 'postal_code', label: 'Postal Code' },
-                { key: 'timezone', label: 'Timezone' },
+                { key: 'timezone_name', label: 'Timezone' },
+                { key: 'currency', label: 'Currency' },
+                { key: 'latitude', label: 'Latitude' },
+                { key: 'longitude', label: 'Longitude' },
             ];
 
             locationFields.forEach((field) => {
@@ -774,61 +879,63 @@ document.addEventListener('DOMContentLoaded', () => {
                         displayValue = data.country + ' (' + data.country_code + ')';
                     } else if (field.key === 'region' && isValidValue(data.region_code)) {
                         displayValue = data.region + ' (' + data.region_code + ')';
+                    } else if (field.key === 'is_eu') {
+                        displayValue = data.is_eu ? 'Yes' : 'No';
                     }
 
                     addResultItem(locationGrid, field.label, displayValue);
 
-                    if (field.key === 'timezone' && isValidValue(data.offset)) {
-                        const offsetHours = data.offset / 3600;
-                        const sign = offsetHours >= 0 ? '+' : '';
-                        const formattedOffset = `GMT${sign}${offsetHours}`;
-                        addResultItem(locationGrid, 'GMT Offset', formattedOffset);
+                    if (field.key === 'timezone_name' && isValidValue(data.utc_offset_str)) {
+                        if (isValidValue(data.timezone_abbreviation)) {
+                            addResultItem(
+                                locationGrid,
+                                'Timezone Abbreviation',
+                                data.timezone_abbreviation
+                            );
+                        }
+
+                        addResultItem(locationGrid, 'UTC Offset', data.utc_offset);
+                        addResultItem(locationGrid, 'UTC Mark', data.utc_offset_str);
+
+                        if (isValidValue(data.dst_active)) {
+                            addResultItem(
+                                locationGrid,
+                                'DST Active',
+                                data.dst_active ? 'Yes' : 'No'
+                            );
+                        }
                     }
                 }
             });
-
-            const remainingFields = [
-                { key: 'currency', label: 'Currency' },
-                { key: 'accuracy_radius', label: 'Accuracy Radius' },
-            ];
-
-            remainingFields.forEach((field) => {
-                if (isValidValue(data[field.key])) {
-                    addResultItem(locationGrid, field.label, data[field.key]);
-                }
-            });
-
-            if (isValidValue(data.latitude)) {
-                addResultItem(locationGrid, 'Latitude', data.latitude);
-            }
-            if (isValidValue(data.longitude)) {
-                addResultItem(locationGrid, 'Longitude', data.longitude);
-            }
         }
 
         const networkGrid = document.getElementById('network-grid');
-        if (networkGrid) {
+        if (networkGrid && isPublic) {
             networkGrid.innerHTML = '';
 
-            const showOrgName = data.asn_name !== data.org;
+            const showOrgName = data.as_name !== data.org;
             const showNet = data.net !== data.org && !showOrgName;
 
             const networkFields = [
                 { key: 'asn', label: 'ASN' },
-                { key: 'asn_name', label: 'ASN Name' },
+                { key: 'as_name', label: 'AS Name' },
                 ...(showOrgName ? [{ key: 'org', label: 'Organization' }] : []),
                 ...(showNet ? [{ key: 'net', label: 'Network' }] : []),
+                { key: 'isp', label: 'ISP' },
+                ...(data.domain !== data.hostname ? [{ key: 'domain', label: 'Domain' }] : []),
                 { key: 'prefix', label: 'Prefix' },
+                { key: 'date_allocated', label: 'Date Allocated' },
+                { key: 'rir', label: 'RIR' },
                 { key: 'abuse_contact', label: 'Abuse Contact' },
                 {
-                    key: 'rpki',
+                    key: 'rpki_status',
                     label: 'RPKI',
                     format: (data) => {
-                        if (!isValidValue(data.rpki)) return null;
+                        if (!isValidValue(data.rpki_status)) return null;
 
-                        switch (data.rpki) {
+                        switch (data.rpki_status) {
                             case 'valid':
-                                return 'Valid (' + data.rpki_count + ' ROA found)';
+                                return 'Valid (' + data.rpki_roa_count + ' ROA found)';
                             case 'unknown':
                                 return 'Unknown';
                             case 'invalid_asn':
@@ -865,27 +972,57 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const abuseGrid = document.getElementById('abuse-grid');
-        if (abuseGrid) {
+        const abuseSection = abuseGrid ? abuseGrid.closest('.results-section') : null;
+
+        const shouldShowAbuseSection =
+            sectionItemCounts.location > 0 || sectionItemCounts.network > 0;
+
+        if (abuseSection) {
+            abuseSection.style.display = shouldShowAbuseSection ? 'block' : 'none';
+        }
+
+        if (abuseGrid && shouldShowAbuseSection) {
             abuseGrid.innerHTML = '';
 
             let vpnDisplay = 'No';
-            if (data.vpn === true) {
-                vpnDisplay = isValidValue(data.vpn_name) ? 'Yes (' + data.vpn_name + ')' : 'Yes';
+            if (data.is_vpn === true) {
+                vpnDisplay = isValidValue(data.vpn_provider)
+                    ? 'Yes (' + data.vpn_provider + ')'
+                    : 'Yes';
             }
             addResultItem(abuseGrid, 'VPN', vpnDisplay);
 
-            addResultItem(abuseGrid, 'Proxy', data.proxy === true ? 'Yes' : 'No');
-            addResultItem(abuseGrid, 'Data Center', data.data_center === true ? 'Yes' : 'No');
-            addResultItem(abuseGrid, 'Forum Spammer', data.forum_spammer === true ? 'Yes' : 'No');
+            addResultItem(abuseGrid, 'Proxy', data.is_proxy === true ? 'Yes' : 'No');
+            addResultItem(abuseGrid, 'Data Center', data.is_datacenter === true ? 'Yes' : 'No');
             addResultItem(
                 abuseGrid,
-                'Firehol Level 1',
-                data.firehol_level1 === true ? 'Yes' : 'No'
+                'Forum Spammer',
+                data.is_forum_spammer === true ? 'Yes' : 'No'
             );
-            addResultItem(abuseGrid, 'Tor Exit Node', data.tor_exit_node === true ? 'Yes' : 'No');
+            addResultItem(abuseGrid, 'Firehol Level 1', data.is_firehol === true ? 'Yes' : 'No');
+            addResultItem(
+                abuseGrid,
+                'Tor Exit Node',
+                data.is_tor_exit_node === true ? 'Yes' : 'No'
+            );
+
+            const extraFields = [
+                { key: 'fraud_score', label: 'Fraud Score' },
+                { key: 'threat_type', label: 'Threat Type' },
+            ];
+
+            extraFields.forEach((field) => {
+                if (isValidValue(data[field.key])) {
+                    addResultItem(abuseGrid, field.label, data[field.key]);
+                } else {
+                    addResultItem(abuseGrid, field.label, 'N/A');
+                }
+            });
         }
 
-        initializeMap(data.latitude, data.longitude, data.ip);
+        if (isPublic && isValidValue(data.latitude) && isValidValue(data.longitude)) {
+            initializeMap(data.latitude, data.longitude, data.ip_address);
+        }
     };
 
     const addResultItem = (container, label, value) => {
@@ -1085,9 +1222,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const formatSection = document.createElement('div');
         formatSection.className = 'ip-format';
 
-        if (data.type === 'ipv4') {
+        if (data.version === 4) {
             try {
-                const ip = data.ip;
+                const ip = data.ip_address;
                 const decimal = ipv4ToInt(ip).toString();
                 const hex = '0x' + ipv4ToHex(ip);
                 const binary = ipv4ToBinary(ip);
@@ -1106,9 +1243,9 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (err) {
                 console.error('Error calculating IPv4 formats:', err);
             }
-        } else if (data.type === 'ipv6') {
+        } else if (data.version === 6) {
             try {
-                const ip = data.ip;
+                const ip = data.ip_address;
                 const expanded = expandIPv6(ip);
                 const compressed = compressIPv6(ip);
                 const hex = '0x' + ipv6ToHex(ip);

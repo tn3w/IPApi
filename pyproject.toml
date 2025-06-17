@@ -1,0 +1,6 @@
+[tool.black]
+extend-exclude = '''
+(
+    src/geo_info\.py
+)
+'''

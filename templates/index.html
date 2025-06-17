@@ -3,26 +3,32 @@
     <head>
         <meta charset="utf-8" />
         <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+        <meta
+            http-equiv="Content-Security-Policy"
+            content="default-src 'self'; connect-src 'self' api.ipify.org https://api.ipify.org; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' cdn.jsdelivr.net https://cdn.jsdelivr.net; img-src 'self' data: *.global.ssl.fastly.net https://*.global.ssl.fastly.net;"
+        />
         <title>IPApi - IP Address Information</title>
+        <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+        <link rel="apple-touch-icon" href="/favicon.ico" />
         <meta
             name="description"
             content="Get detailed information about any IP address or domain. Lookup location, network, and more with our free IP geolocation API."
         />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="{{ request.base_url }}" />
+        <meta property="og:url" content="BASE_URL" />
         <meta property="og:title" content="IPApi - IP Address Information Tool" />
         <meta
             property="og:description"
             content="Free IP geolocation service. Find location data, network information, and more for any IP address or domain."
         />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:url" content="{{ request.base_url }}" />
+        <meta name="twitter:url" content="BASE_URL" />
         <meta name="twitter:title" content="IPApi - IP Address Information" />
         <meta
             name="twitter:description"
             content="Get detailed information about any IP address or domain. Free IP geolocation API with no rate limits."
         />
-        <link rel="canonical" href="{{ request.base_url }}" />
+        <link rel="canonical" href="BASE_URL" />
         <meta
             name="keywords"
             content="IP lookup, geolocation, IP address information, IP API, IP geolocation, domain lookup, network information"
@@ -230,11 +236,41 @@
                                     </div>
                                     <h2 id="result-ip">8.8.8.8</h2>
                                     <p id="result-hostname">dns.google</p>
+                                    <div
+                                        class="classification-container"
+                                        id="classification-container"
+                                    >
+                                        <span class="classification-label">Classification:</span>
+                                        <span
+                                            class="classification-value"
+                                            id="result-classification"
+                                            >Public</span
+                                        >
+                                    </div>
                                     <div class="ip-formats-container" id="ip-formats-container">
                                         <!-- Will be populated by JS -->
                                     </div>
                                 </div>
                                 <div class="results-details">
+                                    <div
+                                        class="results-error"
+                                        id="results-error"
+                                        style="display: none"
+                                    >
+                                        <div class="error-icon">
+                                            <svg
+                                                viewBox="0 0 24 24"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                            >
+                                                <path
+                                                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"
+                                                />
+                                            </svg>
+                                        </div>
+                                        <div class="error-message" id="error-message">
+                                            No data available for this IP address.
+                                        </div>
+                                    </div>
                                     <div class="results-section" id="location-section">
                                         <h3>Location</h3>
                                         <div class="results-grid" id="location-grid">
@@ -403,36 +439,55 @@
                             <div class="code-header">
                                 <span class="code-label">Example Request</span>
                             </div>
-                            <pre><code class="language-bash">curl {{ request.base_url }}json/8.8.8.8</code></pre>
+                            <pre><code class="language-bash">curl BASE_URL8.8.8.8</code></pre>
                             <div class="code-header">
                                 <span class="code-label">Example Response</span>
                             </div>
                             <pre><code class="language-json">{
-    "ip": "8.8.8.8",
+    "ip_address": "8.8.8.8",
+    "version": 4,
+    "classification": "public",
     "hostname": "dns.google",
-    "type": "ipv4",
+    "ipv4_address": "8.8.8.8",
+    "ipv6_address": "2001:4860:4860::8888",
     "continent": "North America",
     "continent_code": "NA",
     "country": "United States",
     "country_code": "US",
-    "region": "Kansas",
-    "region_code": "KS",
-    "city": "Cheney",
-    "postal_code": "67025",
-    "latitude": 37.751,
-    "longitude": -97.822,
-    "timezone": "America/Chicago",
+    "is_eu": false,
+    "region": "California",
+    "region_code": "CA",
+    "city": "Mountain View",
+    "district": "Santa Clara",
+    "postal_code": "94035",
+    "latitude": 37.386051,
+    "longitude": -122.083847,
+    "timezone_name": "America/Los_Angeles",
+    "timezone_abbreviation": "PDT",
+    "utc_offset": -25200,
+    "utc_offset_str": "UTC-07:00",
+    "dst_active": true,
     "currency": "USD",
-    "accuracy_radius": 1000,
-    "asn": 15169,
-    "asn_name": "GOOGLE",
-    "vpn": false,
-    "vpn_name": null,
-    "proxy": false,
-    "data_center": true,
-    "forum_spammer": false,
-    "firehol_level1": false,
-    "tor_exit_node": false
+    "asn": "15169",
+    "as_name": "GOOGLE",
+    "org": "Google LLC",
+    "isp": "Google",
+    "domain": "google.com",
+    "prefix": "8.8.8.0/24",
+    "date_allocated": "2009-12-05",
+    "rir": "arin",
+    "abuse_contact": "network-abuse@google.com",
+    "rpki_status": "valid",
+    "rpki_roa_count": 1,
+    "is_vpn": false,
+    "vpn_provider": null,
+    "is_proxy": false,
+    "is_firehol": false,
+    "is_datacenter": true,
+    "is_forum_spammer": false,
+    "is_tor_exit_node": false,
+    "fraud_score": 0.4,
+    "threat_type": "abuse"
 }</code></pre>
                         </div>
                     </div>

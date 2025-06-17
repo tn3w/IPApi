@@ -1,14 +1,8 @@
-<p align="center">
-	<a href="https://github.com/tn3w/IPApi">
-		<picture>
-			<source width="800px" media="(prefers-color-scheme: dark)" srcset="https://github.com/tn3w/IPApi/releases/download/img/ipapi-dark.webp">
-			<source width="800px" media="(prefers-color-scheme: light)" srcset="https://github.com/tn3w/IPApi/releases/download/img/ipapi-light.webp">
-			<img width="800px" alt="IPApi Screenshot" src="https://github.com/tn3w/IPApi/releases/download/img/ipapi-dark.webp">
-		</picture>
-	</a>
-</p>
+<h3 align="center">
+  <img src="static/favicon.ico" alt="IPApi Logo" height="64" width="64" style="vertical-align:middle">
+  IPApi
+</h3>
 
-<h1 align="center">IPApi</h1>
 <p align="center">A fast, efficient, and free Python-powered API for retrieving IP address information.</p>
 
 ## Installation and Usage
@@ -46,10 +40,87 @@
     python3 app.py
     ```
 
-## Todo
+## Usage
 
-- [x] Implement multiple ASN data sources for IP addresses like 2.2.2.2 that lack network information (improve coverage and reliability)
-- [x] Add proper spacing and formatting to the location marker popup content on the map to improve readability
+Request:
+
+```
+curl http://127.0.0.1:5000/1.1.1.1
+```
+
+Easy, isn't it? 1 KB of data, 500ms.
+
+Response:
+
+```json
+{
+    "ip_address": "1.1.1.1",
+    "version": 4,
+    "classification": "public",
+    "hostname": "one.one.one.one",
+    "ipv4_address": "1.1.1.1",
+    "ipv6_address": "2606:4700:4700::1111",
+    "continent": "Oceania",
+    "continent_code": "OC",
+    "country": "Australia",
+    "country_code": "AU",
+    "is_eu": false,
+    "region": "Queensland",
+    "region_code": "QLD",
+    "city": "Brisbane",
+    "district": null,
+    "postal_code": "4007",
+    "latitude": -27.467541,
+    "longitude": 153.028091,
+    "timezone_name": "Australia/Brisbane",
+    "timezone_abbreviation": "AEST",
+    "utc_offset": 36000,
+    "utc_offset_str": "UTC+10:00",
+    "dst_active": false,
+    "currency": "AUD",
+    "asn": "13335",
+    "as_name": "CLOUDFLARENET",
+    "org": "Cloudflare, Inc.",
+    "isp": "Cloudflare",
+    "domain": "cloudflare.com",
+    "prefix": "1.1.1.0/24",
+    "date_allocated": "2018-04-01",
+    "rir": "apnic",
+    "abuse_contact": "abuse@cloudflare.com",
+    "rpki_status": "valid",
+    "rpki_roa_count": 1,
+    "is_vpn": false,
+    "vpn_provider": null,
+    "is_proxy": false,
+    "is_firehol": false,
+    "is_datacenter": false,
+    "is_forum_spammer": false,
+    "is_tor_exit_node": false,
+    "fraud_score": 0.0,
+    "threat_type": null
+}
+```
+
+## TO-DO
+
+- [ ] Add "whois" data
+- [ ] Add hostname support back, extend the hostname information over the ip address.
+- [ ] The "I'm feeling lucky" button should also generate random valid, relevant and public IPv6 addresses.
+- [ ] Auto update databases in src/memory_server.py.
+- [x] Implement IP2Proxy database for proxy detection (See experiments/ip2location.py)
+- [x] Add more example IPs to the "Try Example" button.
+- [x] Better error handling in index.html (404 error now means invalid IP Address)
+- [x] Add ipv6 mapping to index.html template (line 710-728 in index.js)
+- [x] Update the index.html template to use the new ip information format
+- [x] Add embedded css and js minifying.
+- [x] Fill in geo data
+- [x] Make geo data cacheable
+- [x] Combine templates.py and utils.py
+
+## Credits
+
+- <a href="https://www.flaticon.com/free-icons/ip-address" title="ip address icons">Ip address icons created by Freepik - Flaticon</a>
+- IPApi uses the IP2Location LITE database for <a href="https://lite.ip2location.com">IP geolocation</a>.
 
 ## License
 
