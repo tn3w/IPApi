@@ -1,5 +1,5 @@
 <h3 align="center">
-  <img src="static/favicon.ico" alt="IPApi Logo" height="64" width="64" style="vertical-align:middle">
+  <img src="static/favicon.ico" alt="IPApi Logo" height="64" width="64" align="top">
   IPApi
 </h3>
 
