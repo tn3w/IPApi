@@ -144,7 +144,7 @@ pip install -r requirements.txt
 sudo mkdir -p /opt/ipapi/app
 
 # Copy necessary files
-sudo cp -r app.py src/ static/ styles/ templates/ /opt/ipapi/app/
+sudo cp -r app.py src/ static/ styles/ scripts/ templates/ /opt/ipapi/app/
 
 # Create .env file (if not existing)
 sudo touch /opt/ipapi/app/.env

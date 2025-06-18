@@ -89,6 +89,17 @@ def index(request: Request):
     return response
 
 
+@app.post("/", response_class=HTMLResponse, include_in_schema=False)
+def index_post(request: Request):
+    """
+    Return the index template.
+    """
+    ip_address = request.form.get("ip")
+    if not ip_address:
+        raise HTTPException(status_code=400, detail="IP address is required")
+    return get_ip_address_info(ip_address, request)
+
+
 @app.exception_handler(404)
 async def not_found_exception_handler(request: Request, exc: HTTPException):
     """
