@@ -253,12 +253,14 @@ def main() -> None:
     """
     Run the application.
     """
-    workers = min(16, os.cpu_count() or 4)
-    logger.info("Starting API server with %d workers", workers)
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "5000"))
+    workers = int(os.getenv("WORKERS", "16"))
+    logger.info("Starting API server at http://%s:%d with %d workers", host, port, workers)
     uvicorn.run(
         "app:app",
-        host="0.0.0.0",
-        port=5000,
+        host=host,
+        port=port,
         workers=workers,
         server_header=False,
     )
