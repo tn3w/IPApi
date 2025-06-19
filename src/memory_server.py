@@ -33,11 +33,10 @@ if not DATASET_DIR.exists():
 def get_github_release_assets(repo_path: str) -> Dict[str, str]:
     """Get all assets from the latest releases of a GitHub repository."""
     api_url = f"https://api.github.com/repos/{repo_path}/releases"
-    req = urllib.request.Request(api_url, headers={"User-Agent": "ip-address-info"})
     assets = {}
 
     try:
-        with urllib.request.urlopen(req) as response:
+        with urllib.request.urlopen(api_url, timeout=5) as response:
             releases = json.loads(response.read().decode("utf-8"))
 
         for release in releases:
@@ -96,7 +95,7 @@ def download_and_extract_ip2location(
     logger.info("Downloading IP2Location package %s...", package_code)
 
     try:
-        with urllib.request.urlopen(url) as response:
+        with urllib.request.urlopen(url, timeout=5) as response:
             content = response.read()
 
         with zipfile.ZipFile(io.BytesIO(content)) as zip_ref:
