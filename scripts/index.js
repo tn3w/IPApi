@@ -1008,7 +1008,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        if (isPublic && isValidValue(data.latitude) && isValidValue(data.longitude)) {
+        if (isPublic) {
             initializeMap(data.latitude, data.longitude, data.ip_address);
         }
     };
