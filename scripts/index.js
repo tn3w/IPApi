@@ -203,19 +203,34 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.search.myIpButton.disabled = true;
 
             try {
-                let ipifyResponse = await fetch('https://api4.ipify.org');
-                let ipAddress = '';
+                let isLocalhost =
+                    window.location.hostname === 'localhost' ||
+                    window.location.hostname === '127.0.0.1' ||
+                    window.location.hostname === '::1';
 
-                if (!ipifyResponse.ok) {
-                    ipifyResponse = await fetch('https://api6.ipify.org');
+                let ipAddress = '';
+                if (isLocalhost) {
+                    let ipifyResponse = await fetch('https://api4.ipify.org');
 
                     if (!ipifyResponse.ok) {
-                        throw new Error('Failed to fetch IP address from ipify');
+                        ipifyResponse = await fetch('https://api6.ipify.org');
+
+                        if (!ipifyResponse.ok) {
+                            throw new Error('Failed to fetch IP address from ipify');
+                        }
+
+                        ipAddress = await ipifyResponse.text();
+                    } else {
+                        ipAddress = await ipifyResponse.text();
+                    }
+                } else {
+                    let ipAddressResponse = await fetch(`${apiBaseUrl}/self?fields=ip_address`);
+                    if (!ipAddressResponse.ok) {
+                        throw new Error('Failed to fetch IP address.');
                     }
 
-                    ipAddress = await ipifyResponse.text();
-                } else {
-                    ipAddress = await ipifyResponse.text();
+                    let ipAddressData = await ipAddressResponse.json();
+                    ipAddress = ipAddressData.ip_address;
                 }
 
                 if (ipAddress && ipAddress.trim() !== '') {
