@@ -224,7 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         ipAddress = await ipifyResponse.text();
                     }
                 } else {
-                    let ipAddressResponse = await fetch(`${apiBaseUrl}/self?fields=ip_address`);
+                    let ipAddressResponse = await fetch(`${apiBaseUrl}self?fields=ip_address`);
                     if (!ipAddressResponse.ok) {
                         throw new Error('Failed to fetch IP address.');
                     }
