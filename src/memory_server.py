@@ -17,9 +17,6 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 import maxminddb
 from netaddr import IPNetwork, IPAddress
 import dns.resolver
-import dns.reversename
-import dns.message
-import dns.query
 from IP2Location import IP2Location
 from IP2Proxy import IP2Proxy
 
@@ -76,7 +73,7 @@ def get_geolite_url(database_name: str) -> str:
 
 def download_and_extract_ip2location(
     package_code: str, bin_name: str, dataset_dir: Path
-) -> str:
+) -> Optional[str]:
     """Download and extract an IP2Location database file.
 
     Args:
@@ -93,7 +90,7 @@ def download_and_extract_ip2location(
 
     token = os.environ.get("IP2LOCATION_TOKEN", "")
     if not token:
-        logger.warning("IP2LOCATION_TOKEN environment variable not set")
+        return None
 
     url = f"https://www.ip2location.com/download/?token={token}&file={package_code}"
     logger.info("Downloading IP2Location package %s...", package_code)

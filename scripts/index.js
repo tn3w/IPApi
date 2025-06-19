@@ -204,18 +204,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 let ipifyResponse = await fetch('https://api4.ipify.org');
+                let ipAddress = '';
 
-                if (!ipifyResponse.ok || (await ipifyResponse.text()) === '') {
+                if (!ipifyResponse.ok) {
                     ipifyResponse = await fetch('https://api6.ipify.org');
 
                     if (!ipifyResponse.ok) {
                         throw new Error('Failed to fetch IP address from ipify');
                     }
+
+                    ipAddress = await ipifyResponse.text();
+                } else {
+                    ipAddress = await ipifyResponse.text();
                 }
 
-                const ipAddress = await ipifyResponse.text();
-
-                if (ipAddress) {
+                if (ipAddress && ipAddress.trim() !== '') {
                     elements.search.input.value = ipAddress;
                     updateSearchButtonVisibility();
                 } else {
