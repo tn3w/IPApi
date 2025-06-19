@@ -417,7 +417,6 @@ class MemoryDataStore:
             return self.ip_asn_ip2location_cache[ip]
 
         if not self.ip2location_asn_db:
-            logger.warning("IP2Location ASN database not loaded")
             return None, None
 
         try:
@@ -439,7 +438,6 @@ class MemoryDataStore:
             return self.ip_city_ip2location_cache[ip]
 
         if not self.ip2location_db:
-            logger.warning("IP2Location database not loaded")
             return {}
 
         city_data = {}
@@ -476,7 +474,6 @@ class MemoryDataStore:
             return self.ip_ip2proxy_cache[ip]
 
         if not self.ip2proxy_db:
-            logger.warning("IP2Proxy database not loaded")
             return {}
 
         try:
