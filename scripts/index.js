@@ -203,38 +203,23 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.search.myIpButton.disabled = true;
 
             try {
-                const isLocalhost =
-                    window.location.hostname === 'localhost' ||
-                    window.location.hostname === '127.0.0.1' ||
-                    window.location.hostname === '0.0.0.0';
+                let ipifyResponse = await fetch('https://api4.ipify.org');
 
-                let ipData;
+                if (!ipifyResponse.ok || (await ipifyResponse.text()) === '') {
+                    ipifyResponse = await fetch('https://api6.ipify.org');
 
-                ip_address = null;
-                if (isLocalhost) {
-                    const ipifyResponse = await fetch('https://api.ipify.org?format=json');
-                    ipData = await ipifyResponse.json();
-
-                    ip_address = ipData.ip;
-                } else {
-                    const response = await fetch(`${apiBaseUrl}self?fields=ip_address`);
-
-                    if (!response.ok) {
-                        const errorHeader = response.headers.get('X-Error');
-                        throw new Error(errorHeader || 'Failed to fetch IP address');
+                    if (!ipifyResponse.ok) {
+                        throw new Error('Failed to fetch IP address from ipify');
                     }
-
-                    ipData = await response.json();
-                    ip_address = ipData.ip_address;
                 }
 
-                if (ip_address) {
-                    elements.search.input.value = ip_address;
+                const ipAddress = await ipifyResponse.text();
+
+                if (ipAddress) {
+                    elements.search.input.value = ipAddress;
                     updateSearchButtonVisibility();
-                } else if (ipData.detail) {
-                    throw new Error(ipData.detail);
                 } else {
-                    throw new Error('Unexpected response format');
+                    throw new Error('Could not fetch your IP address from ipify');
                 }
             } catch (error) {
                 showNotification(

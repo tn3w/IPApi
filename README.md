@@ -157,6 +157,7 @@ sudo nano /opt/ipapi/app/.env
 ```
 
 Example .env content:
+
 ```
 PORT=8765
 IP2LOCATION_TOKEN=
