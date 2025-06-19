@@ -185,9 +185,22 @@ def get_self_ip_address_info(request: Request):
     """
     Return information about the current IP address.
     """
-    if not request.client:
+    ip_address = None
+    for header in ["CF-Connecting-IP", "X-Forwarded-For", "X-Real-IP"]:
+        if header in request.headers:
+            ip_address = request.headers[header]
+            if header == "X-Forwarded-For":
+                ip_address = ip_address.split(",")[0]
+            ip_address = ip_address.strip()
+            break
+
+    if not ip_address:
+        ip_address = request.client.host if request.client else None
+
+    if not ip_address:
         raise HTTPException(status_code=404, detail="Client IP address not found")
-    ip_info = get_ip_info(request.client.host, request, MEMORY_STORE)
+
+    ip_info = get_ip_info(ip_address, request, MEMORY_STORE)
     if not ip_info:
         raise HTTPException(status_code=404, detail="Invalid IP address")
     return JSONResponse(content=ip_info)
