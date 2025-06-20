@@ -1133,3 +1133,19 @@ def get_ip_info(
     response.update(geographic_info)
 
     return format_response(response, fields, minify)
+
+
+def get_ip_address(request: Request) -> Optional[str]:
+    """
+    Get the IP address from the request.
+    """
+    ip_address = None
+    for header in ["CF-Connecting-IP", "X-Forwarded-For", "X-Real-IP"]:
+        if header in request.headers:
+            ip_address = request.headers[header]
+            if header == "X-Forwarded-For":
+                ip_address = ip_address.split(",")[0]
+            ip_address = ip_address.strip()
+            break
+
+    return ip_address or request.client.host if request.client else None

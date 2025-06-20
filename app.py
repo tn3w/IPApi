@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response, JSONResponse
 
 from src.memory_server import MemoryServer, MemoryDataStore
-from src.ip_address import get_ip_info
+from src.ip_address import get_ip_info, get_ip_address
 from src.utils import (
     IPAPIResponse,
     FieldsListResponse,
@@ -185,18 +185,7 @@ def get_self_ip_address_info(request: Request):
     """
     Return information about the current IP address.
     """
-    ip_address = None
-    for header in ["CF-Connecting-IP", "X-Forwarded-For", "X-Real-IP"]:
-        if header in request.headers:
-            ip_address = request.headers[header]
-            if header == "X-Forwarded-For":
-                ip_address = ip_address.split(",")[0]
-            ip_address = ip_address.strip()
-            break
-
-    if not ip_address:
-        ip_address = request.client.host if request.client else None
-
+    ip_address = get_ip_address(request)
     if not ip_address:
         raise HTTPException(status_code=404, detail="Client IP address not found")
 
