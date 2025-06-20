@@ -5,6 +5,7 @@ from typing import Optional, Tuple, Final, Dict, Any, List
 from netaddr import IPAddress, ipv6_verbose, IPNetwork, AddrFormatError
 from fastapi import Request
 import dns.reversename
+import dns.name
 
 from src.geo_info import (
     get_timezone_info,
@@ -621,10 +622,12 @@ def get_hostname_from_ip(addr: str, memory_store: MemoryDataStore) -> Optional[s
     """Get hostname from IP address."""
     try:
         rev_name = dns.reversename.from_address(addr)
-        ptr_records = memory_store.dns_query(rev_name, "PTR")
-        if ptr_records and len(ptr_records) > 0:
-            return str(ptr_records[0]).rstrip(".")
-        return None
+        if isinstance(rev_name, dns.name.Name):
+            rev_name = str(rev_name)
+            ptr_records = memory_store.dns_query(rev_name, "PTR")
+            if ptr_records and len(ptr_records) > 0:
+                return str(ptr_records[0]).rstrip(".")
+            return None
     except Exception as e:
         logger.error("Failed to get hostname for IP %s: %s", addr, e)
         return None
@@ -688,7 +691,7 @@ def get_team_cymru_info(
 
     txt_records = memory_store.dns_query(query, "TXT")
     if txt_records and len(txt_records) > 0:
-        parts_text = txt_records[0].to_text().strip('"')
+        parts_text = str(txt_records[0]).strip('"')
         parts = [part.strip() for part in parts_text.split("|")]
         if len(parts) >= 3:
             rir = parts[3].strip().lower() if len(parts) > 3 else None
@@ -796,7 +799,7 @@ def _get_general_info(
 
     if "ipv6_address" in fields:
         ipv6_address = ip_address
-        if ip_address_version == 4:
+        if ip_address_version == 4 and hostname:
             ipv6_address = get_ipv6_from_hostname(hostname, memory_store)
         response["ipv6_address"] = ipv6_address
 
@@ -805,7 +808,7 @@ def _get_general_info(
 
 def _get_abuse_info(
     ip_address: str,
-    hostname: str,
+    hostname: Optional[str],
     memory_store: MemoryDataStore,
     fields: list[str],
 ) -> dict:
@@ -920,12 +923,12 @@ def _get_geographic_info(
         and geographic_info.get("latitude")
         and geographic_info.get("longitude")
     ):
-        geographic_info.update(
-            get_timezone_info(
-                float(geographic_info.get("latitude")),
-                float(geographic_info.get("longitude")),
-            )
+        timezone_info = get_timezone_info(
+            float(geographic_info.get("latitude", 0)),
+            float(geographic_info.get("longitude", 0)),
         )
+        if timezone_info:
+            geographic_info.update(timezone_info)
 
     country_code, country_name = geographic_info.get(
         "country_code"
@@ -943,9 +946,9 @@ def _get_network_info(
     country_code: Optional[str],
     asn: Optional[str],
     fields: list[str],
-) -> Tuple[dict, Optional[str], Optional[str]]:
+) -> Tuple[dict[str, Any], Optional[str], Optional[str], Optional[str]]:
     """Get network information about the IP address."""
-    network_info = {}
+    network_info: dict[str, Any] = {}
     domain = None
 
     if any_field_in_list(
@@ -987,14 +990,17 @@ def _get_network_info(
                 domain = abuse_contact.split("@")[-1]
 
     if any_field_in_list(fields, ["rir"]) and not network_info.get("rir"):
-        rir = get_rir_for_country(country_code)
+        rir = get_rir_for_country(country_code) if country_code else None
         if rir:
             network_info["rir"] = rir
 
     if any_field_in_list(fields, ["rpki_status", "rpki_roa_count"]):
-        rpki_status, rpki_roa_count = get_rpki_info(
-            asn, network_info.get("prefix"), memory_store
-        )
+        if asn and network_info.get("prefix"):
+            prefix = network_info["prefix"]
+            rpki_status, rpki_roa_count = get_rpki_info(asn, prefix, memory_store)
+        else:
+            rpki_status, rpki_roa_count = "unknown", 0
+
         network_info["rpki_status"] = rpki_status
         network_info["rpki_roa_count"] = rpki_roa_count
 
@@ -1030,7 +1036,7 @@ def format_response(
 
 def get_ip_info(
     ip_address: str, request: Request, memory_store: MemoryDataStore
-) -> dict:
+) -> Optional[dict]:
     """
     Get IP address information.
 
@@ -1039,18 +1045,30 @@ def get_ip_info(
         fields: The fields to get information for.
         memory_store: The memory store to use.
     """
+    if not ip_address or not isinstance(ip_address, str):
+        return None
+
+    ip_address = ip_address.strip()
     ip_address_version = get_ip_address_version(ip_address)
     if not ip_address_version:
         return None
 
     try:
-        ip_address_object = IPAddress(ip_address, version=ip_address_version)
+        version = 4 if ip_address_version == 4 else 6
+        ip_address_object = IPAddress(ip_address, version=version)
     except AddrFormatError:
         return None
 
     fields_param = request.query_params.get("fields", "")
+    if not isinstance(fields_param, str):
+        fields_param = ""
+
     fields = parse_fields_param(fields_param)
-    minify = request.query_params.get("min", "0") == "1"
+
+    min_param = request.query_params.get("min", "0")
+    if not isinstance(min_param, str):
+        min_param = "0"
+    minify = min_param == "1"
 
     response = _get_general_info(
         ip_address, ip_address_object, ip_address_version, memory_store, fields
@@ -1140,12 +1158,26 @@ def get_ip_address(request: Request) -> Optional[str]:
     Get the IP address from the request.
     """
     ip_address = None
+
     for header in ["CF-Connecting-IP", "X-Forwarded-For", "X-Real-IP"]:
         if header in request.headers:
-            ip_address = request.headers[header]
-            if header == "X-Forwarded-For":
-                ip_address = ip_address.split(",")[0]
-            ip_address = ip_address.strip()
-            break
+            header_value = request.headers[header]
+            if not header_value:
+                continue
 
-    return ip_address or request.client.host if request.client else None
+            if header == "X-Forwarded-For":
+                forwarded_ips = header_value.split(",")
+                if forwarded_ips:
+                    ip_address = forwarded_ips[0].strip()
+            else:
+                ip_address = header_value.strip()
+
+            if ip_address and (validate_ipv4(ip_address) or validate_ipv6(ip_address)):
+                break
+
+    if not ip_address and request.client and request.client.host:
+        client_ip = request.client.host
+        if validate_ipv4(client_ip) or validate_ipv6(client_ip):
+            ip_address = client_ip
+
+    return ip_address

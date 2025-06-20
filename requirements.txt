@@ -13,3 +13,4 @@ pytz>=2025.2
 dnspython>=2.7.0
 IP2Location>=8.10.5
 IP2Proxy>=3.5.1
+python-multipart>=0.0.20

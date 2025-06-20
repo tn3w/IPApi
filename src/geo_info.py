@@ -556,4 +556,6 @@ def enrich_location_data(
 
 def get_rir_for_country(country_code: str) -> Optional[str]:
     """Get the RIR for a given country code."""
-    return COUNTRY_TO_RIR.get((country_code or "").upper())
+    if not country_code:
+        return None
+    return COUNTRY_TO_RIR.get(country_code.upper())

@@ -5,7 +5,7 @@ import os
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, Response, JSONResponse
+from fastapi.responses import HTMLResponse, Response, JSONResponse, RedirectResponse
 
 from src.memory_server import MemoryServer, MemoryDataStore
 from src.ip_address import get_ip_info, get_ip_address
@@ -67,7 +67,7 @@ app = FastAPI(
 
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
-def index(request: Request):
+async def index(request: Request):
     """
     Return the index template.
 
@@ -77,6 +77,13 @@ def index(request: Request):
     Returns:
         The index template
     """
+    ip_address = request.query_params.get("ip")
+    if ip_address == "self":
+        ip_address = get_ip_address(request)
+        if not ip_address:
+            raise HTTPException(status_code=404, detail="Client IP address not found")
+        return RedirectResponse(f"{request.base_url}?ip={ip_address}")
+
     index_template = TEMPLATES.get("index.html")
     if not index_template:
         raise HTTPException(status_code=404, detail="Index template not found")
@@ -90,14 +97,22 @@ def index(request: Request):
 
 
 @app.post("/", response_class=HTMLResponse, include_in_schema=False)
-def index_post(request: Request):
+async def index_post(request: Request):
     """
     Return the index template.
     """
-    ip_address = request.form.get("ip")
-    if not ip_address:
+    form = await request.form()
+    ip_address = form.get("ip")
+    if ip_address is None:
         raise HTTPException(status_code=400, detail="IP address is required")
-    return get_ip_address_info(ip_address, request)
+
+    ip_address = str(ip_address)
+    if ip_address == "self":
+        ip_address = get_ip_address(request)
+        if not ip_address:
+            raise HTTPException(status_code=404, detail="Client IP address not found")
+
+    return await get_ip_address_info(ip_address, request)
 
 
 @app.exception_handler(404)
@@ -128,7 +143,7 @@ async def not_found_exception_handler(request: Request, exc: HTTPException):
 
 
 @app.get("/robots.txt", include_in_schema=False)
-def robots_txt():
+async def robots_txt():
     """
     Return the robots.txt file.
     """
@@ -141,7 +156,7 @@ def robots_txt():
 
 
 @app.get("/.well-known/security.txt", include_in_schema=False)
-def security_txt():
+async def security_txt():
     """
     Return the security.txt file.
     """
@@ -154,7 +169,7 @@ def security_txt():
 
 
 @app.get("/favicon.ico", include_in_schema=False)
-def favicon():
+async def favicon():
     """
     Return the favicon.ico file.
     """
@@ -181,7 +196,7 @@ def favicon():
     ),
     tags=["JSON"],
 )
-def get_self_ip_address_info(request: Request):
+async def get_self_ip_address_info(request: Request):
     """
     Return information about the current IP address.
     """
@@ -204,7 +219,7 @@ def get_self_ip_address_info(request: Request):
     ),
     tags=["FIELDS"],
 )
-def get_fields_list():
+async def get_fields_list():
     """
     Return a list of all available fields.
     """
@@ -221,12 +236,12 @@ def get_fields_list():
     ),
     tags=["FIELDS"],
 )
-def get_fields_number(fields: str):
+async def get_fields_number(fields: str):
     """
     Return the number representation of a list of fields.
     """
-    fields = fields.split(",")
-    return FieldToNumberResponse(fields=fields, number=fields_to_number(fields))
+    field_list = fields.split(",")
+    return FieldToNumberResponse(fields=field_list, number=fields_to_number(field_list))
 
 
 @app.get(
@@ -241,7 +256,7 @@ def get_fields_number(fields: str):
     ),
     tags=["JSON"],
 )
-def get_ip_address_info(ip_address: str, request: Request):
+async def get_ip_address_info(ip_address: str, request: Request):
     """
     Return information about an IP address.
 
@@ -251,6 +266,8 @@ def get_ip_address_info(ip_address: str, request: Request):
     Returns:
         Information about the IP address
     """
+    ip_address = ip_address.strip()
+
     ip_info = get_ip_info(ip_address, request, MEMORY_STORE)
     if not ip_info:
         raise HTTPException(status_code=404, detail="Invalid IP address")
