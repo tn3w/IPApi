@@ -799,8 +799,10 @@ def _get_general_info(
 
     if "ipv6_address" in fields:
         ipv6_address = ip_address
-        if ip_address_version == 4 and hostname:
-            ipv6_address = get_ipv6_from_hostname(hostname, memory_store)
+        if ip_address_version == 4:
+            ipv6_address = (
+                get_ipv6_from_hostname(hostname, memory_store) if hostname else None
+            )
         response["ipv6_address"] = ipv6_address
 
     return response
