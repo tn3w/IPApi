@@ -419,6 +419,84 @@ NETWORKS: List[tuple[IPNetwork, Dict[str, str]]] = [
     (IPNetwork(prefix), data) for prefix, data in KNOWN_NETWORKS.items()
 ]
 
+
+VALID_TLDS: Final[set[str]] = {
+    "com", "org", "net", "int", "edu", "gov", "mil",
+
+    "aero", "asia", "biz", "cat", "coop", "info", "jobs", "mobi", "museum", 
+    "name", "post", "pro", "tel", "travel", "xxx",
+
+    "academy", "accountant", "accountants", "actor", "adult", "agency", "airforce", 
+    "apartments", "app", "army", "art", "associates", "attorney", "auction", "audio", 
+    "auto", "band", "bank", "bar", "bargains", "bayern", "beer", "berlin", "best", 
+    "bet", "bible", "bid", "bike", "bingo", "bio", "black", "blackfriday", "blog", 
+    "blue", "boutique", "broker", "build", "builders", "business", "buzz", "cab", 
+    "cafe", "cam", "camera", "camp", "capital", "car", "cards", "care", "career", 
+    "careers", "cash", "casino", "catering", "center", "ceo", "charity", "chat", 
+    "cheap", "christmas", "church", "city", "claims", "cleaning", "click", "clinic", 
+    "clothing", "cloud", "club", "coach", "codes", "coffee", "college", "community", 
+    "company", "computer", "condos", "construction", "consulting", "contractors", 
+    "cooking", "cool", "country", "coupons", "courses", "credit", "creditcard", 
+    "cricket", "cruises", "dance", "date", "dating", "day", "deals", "degree", 
+    "delivery", "democrat", "dental", "dentist", "design", "dev", "diamonds", 
+    "diet", "digital", "direct", "directory", "discount", "doctor", "dog", "domains", 
+    "download", "earth", "education", "email", "energy", "engineer", "engineering", 
+    "enterprises", "equipment", "estate", "events", "exchange", "expert", "exposed", 
+    "express", "fail", "faith", "family", "fans", "farm", "fashion", "finance", 
+    "financial", "fish", "fishing", "fit", "fitness", "flights", "florist", "flowers", 
+    "football", "forex", "forsale", "foundation", "fun", "fund", "furniture", "futbol", 
+    "fyi", "gallery", "game", "games", "garden", "gent", "gift", "gifts", "gives", 
+    "glass", "global", "gold", "golf", "graphics", "gratis", "green", "gripe", "group", 
+    "guide", "guitars", "guru", "hair", "hamburg", "haus", "health", "healthcare", 
+    "help", "hiphop", "hockey", "holdings", "holiday", "horse", "hospital", "host", 
+    "hosting", "house", "how", "icu", "industries", "ink", "institute", "insurance", 
+    "insure", "international", "investments", "irish", "jewelry", "juegos", "kaufen", 
+    "kim", "kitchen", "kiwi", "land", "law", "lawyer", "lease", "legal", "lgbt", "life", 
+    "lighting", "limited", "limo", "link", "live", "llc", "loan", "loans", "lol", 
+    "london", "love", "ltd", "luxe", "luxury", "maison", "management", "market", 
+    "marketing", "markets", "mba", "media", "memorial", "men", "menu", "miami", 
+    "mobile", "moda", "moe", "money", "mortgage", "moscow", "motorcycles", "movie", 
+    "music", "navy", "network", "new", "news", "ninja", "now", "nyc", "observer", 
+    "office", "one", "online", "ooo", "page", "partners", "parts", "party", "pet", 
+    "photo", "photography", "photos", "pics", "pictures", "pink", "pizza", "place", 
+    "plumbing", "plus", "poker", "press", "productions", "promo", "properties", 
+    "property", "protection", "pub", "racing", "radio", "realty", "recipes", "red", 
+    "rehab", "reise", "reisen", "rent", "rentals", "repair", "report", "republican", 
+    "rest", "restaurant", "review", "reviews", "rich", "rip", "rocks", "rodeo", 
+    "run", "sale", "salon", "sarl", "school", "schule", "science", "security", 
+    "services", "sex", "sexy", "shiksha", "shoes", "shop", "shopping", "show", 
+    "singles", "site", "ski", "soccer", "social", "software", "solar", "solutions", 
+    "space", "sport", "sports", "store", "stream", "studio", "style", "sucks", 
+    "supplies", "supply", "support", "surgery", "systems", "tattoo", "tax", "taxi", 
+    "team", "tech", "technology", "tennis", "theater", "theatre", "tickets", "tienda", 
+    "tips", "tires", "today", "tools", "top", "tours", "town", "toys", "trade", 
+    "trading", "training", "tube", "university", "uno", "vacations", "vegas", 
+    "ventures", "vet", "viajes", "video", "villas", "vin", "vip", "vision", "vodka", 
+    "vote", "voting", "voyage", "watch", "webcam", "website", "wedding", "wien", 
+    "wiki", "win", "wine", "work", "works", "world", "wtf", "xyz", "yoga", "zone",
+
+    "ac", "ad", "ae", "af", "ag", "ai", "al", "am", "an", "ao", "aq", "ar", "as", 
+    "at", "au", "aw", "ax", "az", "ba", "bb", "bd", "be", "bf", "bg", "bh", "bi", 
+    "bj", "bm", "bn", "bo", "br", "bs", "bt", "bv", "bw", "by", "bz", "ca", "cc", 
+    "cd", "cf", "cg", "ch", "ci", "ck", "cl", "cm", "cn", "co", "cr", "cu", "cv", 
+    "cw", "cx", "cy", "cz", "de", "dj", "dk", "dm", "do", "dz", "ec", "ee", "eg", 
+    "er", "es", "et", "eu", "fi", "fj", "fk", "fm", "fo", "fr", "ga", "gb", "gd", 
+    "ge", "gf", "gg", "gh", "gi", "gl", "gm", "gn", "gp", "gq", "gr", "gs", "gt", 
+    "gu", "gw", "gy", "hk", "hm", "hn", "hr", "ht", "hu", "id", "ie", "il", "im", 
+    "in", "io", "iq", "ir", "is", "it", "je", "jm", "jo", "jp", "ke", "kg", "kh", 
+    "ki", "km", "kn", "kp", "kr", "kw", "ky", "kz", "la", "lb", "lc", "li", "lk", 
+    "lr", "ls", "lt", "lu", "lv", "ly", "ma", "mc", "md", "me", "mg", "mh", "mk", 
+    "ml", "mm", "mn", "mo", "mp", "mq", "mr", "ms", "mt", "mu", "mv", "mw", "mx", 
+    "my", "mz", "na", "nc", "ne", "nf", "ng", "ni", "nl", "no", "np", "nr", "nu", 
+    "nz", "om", "pa", "pe", "pf", "pg", "ph", "pk", "pl", "pm", "pn", "pr", "ps", 
+    "pt", "pw", "py", "qa", "re", "ro", "rs", "ru", "rw", "sa", "sb", "sc", "sd", 
+    "se", "sg", "sh", "si", "sj", "sk", "sl", "sm", "sn", "so", "sr", "ss", "st", 
+    "su", "sv", "sx", "sy", "sz", "tc", "td", "tf", "tg", "th", "tj", "tk", "tl", 
+    "tm", "tn", "to", "tr", "tt", "tv", "tw", "tz", "ua", "ug", "uk", "us", "uy", 
+    "uz", "va", "vc", "ve", "vg", "vi", "vn", "vu", "wf", "ws", "ye", "yt", "za", 
+    "zm", "zw"
+}
+
 VPN_PROVIDERS: Final[List[str]] = [
     "NordVPN",
     "ProtonVPN",
@@ -523,6 +601,35 @@ def validate_ipv6(ip_address: str) -> bool:
 
         for char in segment.lower():
             if char not in "0123456789abcdef":
+                return False
+
+    return True
+
+
+def validate_hostname(hostname: str) -> bool:
+    """
+    Validate a hostname without using regex.
+    """
+    if not hostname or "." not in hostname or 4 > len(hostname) > 255:
+        return False
+
+    labels = hostname.lower().split(".")
+    if len(labels) < 2:
+        return False
+
+    tld = labels[-1]
+    if tld not in VALID_TLDS:
+        return False
+
+    for label in labels:
+        if not label or len(label) > 63:
+            return False
+
+        if not (label[0].isalnum() and label[-1].isalnum()):
+            return False
+
+        for char in label:
+            if not (char.isalnum() or char == '-'):
                 return False
 
     return True

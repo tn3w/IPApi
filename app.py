@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response, JSONResponse, RedirectResponse
 
 from src.memory_server import MemoryServer, MemoryDataStore
-from src.ip_address import get_ip_info, get_ip_address
+from src.ip_address import validate_hostname, get_ip_info, get_ip_address, get_ip_from_hostname
 from src.utils import (
     IPAPIResponse,
     FieldsListResponse,
@@ -111,6 +111,11 @@ async def index_post(request: Request):
         ip_address = get_ip_address(request)
         if not ip_address:
             raise HTTPException(status_code=404, detail="Client IP address not found")
+
+    if ip_address and validate_hostname(ip_address):
+        ip_address_from_hostname = get_ip_from_hostname(ip_address, MEMORY_STORE)
+        if isinstance(ip_address_from_hostname, str):
+            ip_address = ip_address_from_hostname
 
     return await get_ip_address_info(ip_address, request)
 
@@ -245,9 +250,9 @@ async def get_fields_number(fields: str):
 
 
 @app.get(
-    "/{ip_address}",
+    "/{ip_address_or_hostname}",
     response_model=IPAPIResponse,
-    summary="Get information about a specific IP address",
+    summary="Get information about a specific IP address or hostname",
     description=(
         "Returns comprehensive data about the specified IP address, including geographic details"
         " (continent, country, region, city, coordinates), network information"
@@ -256,19 +261,23 @@ async def get_fields_number(fields: str):
     ),
     tags=["JSON"],
 )
-async def get_ip_address_info(ip_address: str, request: Request):
+async def get_ip_address_info(ip_address_or_hostname: str, request: Request):
     """
     Return information about an IP address.
 
     Args:
-        ip_address: The IP address to get information about
+        ip_address_or_hostname: The IP address or hostname to get information about
 
     Returns:
         Information about the IP address
     """
-    ip_address = ip_address.strip()
+    ip_address_or_hostname = ip_address_or_hostname.strip()
+    if validate_hostname(ip_address_or_hostname):
+        ip_address = get_ip_from_hostname(ip_address_or_hostname, MEMORY_STORE)
+        if isinstance(ip_address, str):
+            ip_address_or_hostname = ip_address
 
-    ip_info = get_ip_info(ip_address, request, MEMORY_STORE)
+    ip_info = get_ip_info(ip_address_or_hostname, request, MEMORY_STORE)
     if not ip_info:
         raise HTTPException(status_code=404, detail="Invalid IP address")
     return JSONResponse(content=ip_info)
