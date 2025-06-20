@@ -8,7 +8,12 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response, JSONResponse, RedirectResponse
 
 from src.memory_server import MemoryServer, MemoryDataStore
-from src.ip_address import validate_hostname, get_ip_info, get_ip_address, get_ip_from_hostname
+from src.ip_address import (
+    validate_hostname,
+    get_ip_info,
+    get_ip_address,
+    get_ip_from_hostname,
+)
 from src.utils import (
     IPAPIResponse,
     FieldsListResponse,
@@ -114,8 +119,12 @@ async def index_post(request: Request):
 
     if ip_address and validate_hostname(ip_address):
         ip_address_from_hostname = get_ip_from_hostname(ip_address, MEMORY_STORE)
-        if isinstance(ip_address_from_hostname, str):
-            ip_address = ip_address_from_hostname
+        if not ip_address_from_hostname:
+            raise HTTPException(
+                status_code=404, detail="Hostname does not resolve to an IP address"
+            )
+
+        ip_address = ip_address_from_hostname
 
     return await get_ip_address_info(ip_address, request)
 
@@ -136,14 +145,15 @@ async def not_found_exception_handler(request: Request, exc: HTTPException):
     if not not_found_template:
         raise HTTPException(status_code=404, detail="404 - Not found.")
 
+    detail = exc.detail if hasattr(exc, "detail") and exc.detail else "Not found."
     response = HTMLResponse(
-        content=not_found_template.replace("BASE_URL", str(request.base_url)),
+        content=not_found_template.replace("BASE_URL", str(request.base_url)).replace(
+            "DETAIL", detail
+        ),
         status_code=404,
     )
 
-    if hasattr(exc, "detail") and exc.detail:
-        response.headers["X-Error"] = exc.detail
-
+    response.headers["X-Error"] = detail
     return response
 
 
@@ -274,8 +284,12 @@ async def get_ip_address_info(ip_address_or_hostname: str, request: Request):
     ip_address_or_hostname = ip_address_or_hostname.strip()
     if validate_hostname(ip_address_or_hostname):
         ip_address = get_ip_from_hostname(ip_address_or_hostname, MEMORY_STORE)
-        if isinstance(ip_address, str):
-            ip_address_or_hostname = ip_address
+        if not ip_address:
+            raise HTTPException(
+                status_code=404, detail="Hostname does not resolve to an IP address"
+            )
+
+        ip_address_or_hostname = ip_address
 
     ip_info = get_ip_info(ip_address_or_hostname, request, MEMORY_STORE)
     if not ip_info:

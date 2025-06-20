@@ -1,6 +1,6 @@
 [tool.black]
 extend-exclude = '''
 (
-    src/geo_info\.py
+    src/geo_info\.py|src/ip_address\.py
 )
 '''
