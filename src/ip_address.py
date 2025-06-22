@@ -1,6 +1,5 @@
 # pylint: disable=too-many-lines
 import logging
-import time
 from typing import Optional, Tuple, Final, Dict, Any, List
 
 from netaddr import IPAddress, ipv6_verbose, IPNetwork, AddrFormatError
@@ -556,8 +555,8 @@ def lookup_known_network(ip_address: str) -> Optional[Dict[str, str]]:
             if ip in network:
                 data["prefix"] = str(network)
                 return data
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error("Error looking up known network: %s", e)
 
     return None
 
@@ -1018,13 +1017,13 @@ def _get_geographic_info(
     ip_address: str, memory_store: MemoryDataStore, fields: list[str]
 ) -> dict:
     """Get geographic information about the IP address."""
-    geographic_info = memory_store.get_ip_city_ip2location(ip_address)
+    geographic_info = memory_store.get_ip_city_maxmind(ip_address)
     if (
         not geographic_info
         or not geographic_info.get("latitude")
         or not geographic_info.get("longitude")
     ):
-        geographic_info = memory_store.get_ip_city_maxmind(ip_address)
+        geographic_info = memory_store.get_ip_city_ip2location(ip_address)
 
     if (
         any_field_in_list(

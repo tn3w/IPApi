@@ -2,6 +2,7 @@ import math
 from datetime import datetime, timedelta
 from functools import lru_cache
 from typing import Final, Dict, Any, List, Optional
+import logging
 
 import pytz
 from timezonefinder import TimezoneFinder
@@ -10,6 +11,8 @@ import pandas as pd
 import numpy as np
 
 from src.utils import key_or_value_search
+
+logger = logging.getLogger(__name__)
 
 
 TIMEZONE_FINDER: Final[TimezoneFinder] = TimezoneFinder()
@@ -223,7 +226,7 @@ def get_geo_country(
     if country_code and country_name:
         country_name = None
 
-    enriched_data = {
+    enriched_data: Dict[str, Any] = {
         "country_code": country_code,
         "country": country_name,
     }
@@ -239,8 +242,9 @@ def get_geo_country(
     if country_code:
         enriched_data["country_code"] = country_code
 
-    if not enriched_data.get("continent_code") and enriched_data.get("country_code"):
-        country_code = enriched_data["country_code"].upper()
+    country_code = enriched_data.get("country_code")
+    if not enriched_data.get("continent_code") and country_code:
+        country_code = country_code.upper()
         continent_code = COUNTRY_TO_CONTINENT_CODE.get(country_code)
         if continent_code:
             enriched_data["continent_code"] = continent_code
@@ -256,16 +260,17 @@ def get_geo_country(
     if continent_code:
         enriched_data["continent_code"] = continent_code
 
-    if enriched_data.get("country_code"):
+    country_code = enriched_data.get("country_code")
+    if country_code:
         if not enriched_data.get("currency"):
             currency_code = COUNTRY_TO_CURRENCY_MAP.get(
-                enriched_data["country_code"].upper()
+                country_code.upper()
             )
             if currency_code:
                 enriched_data["currency"] = currency_code
 
         if not enriched_data.get("is_eu"):
-            is_eu = enriched_data["country_code"].upper() in EU_COUNTRY_CODES
+            is_eu = country_code.upper() in EU_COUNTRY_CODES
             enriched_data["is_eu"] = is_eu
 
     return enriched_data
@@ -317,17 +322,14 @@ def _get_postal_data(
 
     return_data = {}
     for pg_field, our_field in field_mapping.items():
-        if (
-            pg_field in postal_data.index
-            and pd.notna(postal_data[pg_field])
-            and not existing_data.get(our_field)
-        ):
-            data = postal_data[pg_field]
-            if isinstance(data, np.float64):
-                data = float(data)
-            elif isinstance(data, np.int64):
-                data = int(data)
-            return_data[our_field] = data
+        if pg_field in postal_data.index:
+            value = postal_data[pg_field]
+            is_not_na = bool(pd.notna(value))
+            if is_not_na and not existing_data.get(our_field):
+                data = value
+                if isinstance(data, np.float64):
+                    data = float(data)
+                return_data[our_field] = data
 
     return return_data
 
@@ -337,7 +339,8 @@ def _get_nominatim(country_code: str) -> Optional[pgeocode.Nominatim]:
     """Get a cached Nominatim instance for the given country code."""
     try:
         return pgeocode.Nominatim(country_code)
-    except Exception:
+    except Exception as e:
+        logger.error("Error getting Nominatim instance: %s", e)
         return None
 
 
@@ -353,7 +356,8 @@ def _get_country_locations(country_code: str) -> Optional[pd.DataFrame]:
         if df is None or len(df) == 0:
             return None
         return df
-    except Exception:
+    except Exception as e:
+        logger.error("Error getting country locations: %s", e)
         return None
 
 
@@ -400,10 +404,12 @@ def _find_nearest_postal_code(
 
         df_filtered.loc[:, "distance"] = distances
 
-        closest_idx = df_filtered["distance"].idxmin()
+        min_idx = distances.argmin()
+        closest_idx = df_filtered.index[min_idx]
         closest = df_filtered.loc[closest_idx]
         return closest if closest["distance"] < 50 else None
-    except Exception:
+    except Exception as e:
+        logger.error("Error finding nearest postal code: %s", e)
         return None
 
 
@@ -428,7 +434,7 @@ def _find_by_city(
             for field in filter_fields:
                 if field in results.columns:
                     valid_data = results[field].notna()
-                    if valid_data.any():
+                    if bool(valid_data.any()):
                         field_mask = (
                             results.loc[valid_data, field]
                             .str.lower()
@@ -440,10 +446,11 @@ def _find_by_city(
 
             filtered = results[mask]
             if not filtered.empty:
-                return filtered
+                return pd.DataFrame(filtered) if not isinstance(filtered, pd.DataFrame) else filtered
 
-        return results
-    except Exception:
+        return pd.DataFrame(results) if not isinstance(results, pd.DataFrame) else results
+    except Exception as e:
+        logger.error("Error finding by city: %s", e)
         return pd.DataFrame()
 
 
@@ -471,8 +478,10 @@ def _find_by_district(country_code: str, district: str) -> pd.DataFrame:
                     )
                     mask.loc[field_mask.index] = mask.loc[field_mask.index] | field_mask
 
-        return all_data[mask]
-    except Exception:
+        result = all_data[mask]
+        return pd.DataFrame(result) if not isinstance(result, pd.DataFrame) else result
+    except Exception as e:
+        logger.error("Error finding by district: %s", e)
         return pd.DataFrame()
 
 

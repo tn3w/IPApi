@@ -2,6 +2,7 @@ import os
 import re
 import glob
 import json
+import logging
 import urllib.request
 import urllib.error
 from typing import Optional, Final, Tuple, List, Dict, Any
@@ -10,6 +11,8 @@ import htmlmin
 from csscompressor import compress as compress_css
 from jsmin import jsmin
 from pydantic import BaseModel, Field
+
+logger = logging.getLogger(__name__)
 
 
 ALL_FIELDS: Final[List[str]] = [
@@ -143,7 +146,7 @@ def extract_external_scripts(
                 original_tag = f'<script src="{src}"></script>'
                 modified_html = modified_html.replace(original_tag, placeholder)
         except Exception as e:
-            print(f"Error processing script {src}: {e}")
+            logger.error("Error processing script %s: %s", src, e)
 
     return modified_html, scripts
 
@@ -194,7 +197,7 @@ def extract_external_styles(
                 for tag in link_tags:
                     modified_html = modified_html.replace(tag, placeholder)
         except Exception as e:
-            print(f"Error processing stylesheet {href}: {e}")
+            logger.error("Error processing stylesheet %s: %s", href, e)
 
     return modified_html, styles
 

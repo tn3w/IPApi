@@ -203,7 +203,7 @@ class MemoryDataStore:
         self.ip2proxy_db: Optional[IP2Proxy] = None
         self.ip2location_asn_db: Optional[IP2Location] = None
 
-        self.dns_cache: Dict[str, dns.resolver.Answer] = {}
+        self.dns_cache: Dict[str, Optional[dns.resolver.Answer]] = {}
         self.resolver = dns.resolver.Resolver()
         self.resolver.timeout = 0.3
         self.resolver.lifetime = 0.5
@@ -213,11 +213,13 @@ class MemoryDataStore:
         self.ip_groups_cache: Dict[str, List[str]] = {}
         self.datacenter_asn_cache: Dict[str, bool] = {}
         self.firehol_ip_cache: Dict[str, bool] = {}
-        self.ip_asn_maxmind_cache: Dict[str, str] = {}
-        self.ip_city_maxmind_cache: Dict[str, str] = {}
-        self.ip_asn_ip2location_cache: Dict[str, str] = {}
-        self.ip_city_ip2location_cache: Dict[str, str] = {}
-        self.ip_ip2proxy_cache: Dict[str, str] = {}
+        self.ip_asn_maxmind_cache: Dict[str, Tuple[Optional[str], Optional[str]]] = {}
+        self.ip_city_maxmind_cache: Dict[str, Dict[str, Any]] = {}
+        self.ip_asn_ip2location_cache: Dict[
+            str, Tuple[Optional[str], Optional[str]]
+        ] = {}
+        self.ip_city_ip2location_cache: Dict[str, Dict[str, Any]] = {}
+        self.ip_ip2proxy_cache: Dict[str, Dict[str, Any]] = {}
         self._rpki_cache: Dict[str, Tuple[str, int]] = {}
         self._abuse_contact_cache: Dict[str, Optional[str]] = {}
 
@@ -344,7 +346,11 @@ class MemoryDataStore:
 
         try:
             result = self.asn_reader.get(ip)
-            if result and "autonomous_system_number" in result:
+            if (
+                result
+                and isinstance(result, dict)
+                and "autonomous_system_number" in result
+            ):
                 asn = str(result["autonomous_system_number"])
                 asn_name = str(result["autonomous_system_organization"])
                 self.ip_asn_maxmind_cache[ip] = (asn, asn_name)
@@ -420,16 +426,18 @@ class MemoryDataStore:
 
         try:
             result = self.ip2location_asn_db.get_all(ip)
-            asn = str(result.asn) if result.asn != "-" else None
-            asn_name = (
-                result.as_name if result.as_name and result.as_name != "-" else None
-            )
-            self.ip_asn_ip2location_cache[ip] = (asn, asn_name)
-            return asn, asn_name
+            if result:
+                asn = str(result.asn) if result.asn != "-" else None
+                asn_name = (
+                    result.as_name if result.as_name and result.as_name != "-" else None
+                )
+                self.ip_asn_ip2location_cache[ip] = (asn, asn_name)
+                return asn, asn_name
         except Exception as e:
             logger.error("Error looking up ASN for IP %s: %s", ip, e)
-            self.ip_asn_ip2location_cache[ip] = (None, None)
-            return None, None
+
+        self.ip_asn_ip2location_cache[ip] = (None, None)
+        return None, None
 
     def get_ip_city_ip2location(self, ip: str) -> Dict[str, Any]:
         """Get the city for an IP address using IP2Location database."""
@@ -444,28 +452,30 @@ class MemoryDataStore:
         try:
             result = self.ip2location_db.get_all(ip)
 
-            city_data["country_code"] = result.country_short
-            city_data["region"] = result.region
-            city_data["city"] = result.city
-            city_data["latitude"] = result.latitude
-            city_data["longitude"] = result.longitude
+            if result:
+                city_data["country_code"] = result.country_short
+                city_data["region"] = result.region
+                city_data["city"] = result.city
+                city_data["latitude"] = result.latitude
+                city_data["longitude"] = result.longitude
 
-            for field in [
-                "country_code",
-                "region",
-                "city",
-                "latitude",
-                "longitude",
-            ]:
-                if city_data.get(field, ...) in (None, "-", "0.000000"):
-                    del city_data[field]
+                for field in [
+                    "country_code",
+                    "region",
+                    "city",
+                    "latitude",
+                    "longitude",
+                ]:
+                    if city_data.get(field, ...) in (None, "-", "0.000000"):
+                        del city_data[field]
 
-            self.ip_city_ip2location_cache[ip] = city_data
-            return city_data
+                self.ip_city_ip2location_cache[ip] = city_data
+                return city_data
         except Exception as e:
             logger.error("Error looking up city for IP %s: %s", ip, e)
-            self.ip_city_ip2location_cache[ip] = {}
-            return {}
+
+        self.ip_city_ip2location_cache[ip] = {}
+        return {}
 
     def get_ip_ip2proxy(self, ip: str) -> Dict[str, Any]:
         """Get the IP2Proxy data for an IP address."""
@@ -479,7 +489,7 @@ class MemoryDataStore:
             result = self.ip2proxy_db.get_all(ip)
 
             fraud_score = result.get("fraud_score")
-            if fraud_score.isdigit():
+            if isinstance(fraud_score, str) and fraud_score.isdigit():
                 fraud_score = int(fraud_score) / 100
             else:
                 fraud_score = None
@@ -490,7 +500,7 @@ class MemoryDataStore:
                 "domain": result.get("domain") if result.get("domain") != "-" else None,
                 "fraud_score": fraud_score,
                 "threat_type": (
-                    result.get("threat").lower()
+                    result.get("threat", "").lower()
                     if isinstance(result.get("threat"), str)
                     and result.get("threat") != "-"
                     else None

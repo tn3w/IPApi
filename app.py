@@ -39,7 +39,7 @@ MEMORY_SERVER.start()
 def get_memory_store() -> MemoryDataStore:
     """Dependency to get the memory data store client."""
     client = MEMORY_SERVER.get_client()
-    return client.get_data_store()
+    return client.get_data_store()  # type: ignore
 
 
 MEMORY_STORE = get_memory_store()
