@@ -98,17 +98,19 @@ def get_nested(record_value: Any, *keys: str, default: Any = None) -> Any:
 def load_dotenv(env_file=".env"):
     """Load environment variables from a .env file into os.environ."""
 
-    if os.path.exists(env_file):
-        with open(env_file, "r", encoding="utf-8") as file:
-            for line in file:
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    key, value = [part.strip() for part in line.split("=", 1)]
-                    if (value.startswith('"') and value.endswith('"')) or (
-                        value.startswith("'") and value.endswith("'")
-                    ):
-                        value = value[1:-1]
-                    os.environ[key] = value
+    if not os.path.exists(env_file):
+        return
+
+    with open(env_file, "r", encoding="utf-8") as file:
+        for line in file:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, value = [part.strip() for part in line.split("=", 1)]
+                if (value.startswith('"') and value.endswith('"')) or (
+                    value.startswith("'") and value.endswith("'")
+                ):
+                    value = value[1:-1]
+                os.environ[key] = value
 
 
 def extract_external_scripts(
