@@ -461,7 +461,6 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch(`${apiBaseUrl}${encodeURIComponent(ip)}?fields=all`);
             if (!response.ok) {
-                console.log(response);
                 throw new Error(
                     response.headers.get('X-Error') || 'HTTP error! status: ' + response.status
                 );
@@ -528,6 +527,12 @@ document.addEventListener('DOMContentLoaded', () => {
             isNaN(parseFloat(lat)) ||
             isNaN(parseFloat(lon))
         ) {
+            if (map) {
+                map.remove();
+                map = null;
+                marker = null;
+            }
+
             document.getElementById('ip-map').innerHTML = `
                 <div style="
                     height: 100%;
@@ -548,6 +553,12 @@ document.addEventListener('DOMContentLoaded', () => {
             lon = parseFloat(lon);
 
             if (lat < -90 || lat > 90 || lon < -180 || lon > 180 || (lat === 0 && lon === 0)) {
+                if (map) {
+                    map.remove();
+                    map = null;
+                    marker = null;
+                }
+
                 document.getElementById('ip-map').innerHTML = `
                     <div style="
                         height: 100%;
@@ -562,6 +573,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
                 return;
             }
+
+            if (map) {
+                map.remove();
+                map = null;
+                marker = null;
+            }
+
+            const mapContainer = document.getElementById('ip-map');
+            mapContainer.innerHTML = '';
 
             if (!window.L) {
                 const linkElement = document.createElement('link');
@@ -624,7 +644,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const finalUseDarkMode =
             (savedTheme && hasDarkClass) || (!savedTheme && prefersDarkMode) || useDarkMode;
 
-        if (!map) {
+        mapContainer.innerHTML = '';
+
+        try {
+            if (map) {
+                map.remove();
+                map = null;
+                marker = null;
+            }
+
             map = L.map(mapContainer).setView([lat, lon], 10);
 
             const tileUrl = finalUseDarkMode
@@ -640,78 +668,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const customIcon = createCustomMarker();
 
-            tileLayer.once('load', function () {
-                if (!marker) {
-                    marker = L.marker([lat, lon], { icon: customIcon })
-                        .addTo(map)
-                        .bindPopup(
-                            '<div style="text-align:center;"><strong>IP: ' +
-                                ipAddress +
-                                '</strong><br>Lat: ' +
-                                lat +
-                                '<br>Lon: ' +
-                                lon +
-                                '</div>'
-                        )
-                        .openPopup();
+            marker = L.marker([lat, lon], { icon: customIcon })
+                .addTo(map)
+                .bindPopup(
+                    '<div style="text-align:center;"><strong>IP: ' +
+                        ipAddress +
+                        '</strong><br>Lat: ' +
+                        lat +
+                        '<br>Lon: ' +
+                        lon +
+                        '</div>'
+                )
+                .openPopup();
 
-                    map.invalidateSize();
-                }
-            });
-
-            map.once('moveend', function () {
-                if (!marker) {
-                    marker = L.marker([lat, lon], { icon: customIcon })
-                        .addTo(map)
-                        .bindPopup(
-                            '<div style="text-align:center;"><strong>IP: ' +
-                                ipAddress +
-                                '</strong><br>Lat: ' +
-                                lat +
-                                '<br>Lon: ' +
-                                lon +
-                                '</div>'
-                        )
-                        .openPopup();
-
-                    map.invalidateSize();
-                }
-            });
-        } else {
-            map.setView([lat, lon], 10);
-
-            const customIcon = createCustomMarker();
-
-            if (marker) {
-                marker
-                    .setLatLng([lat, lon])
-                    .setIcon(customIcon)
-                    .bindPopup(
-                        '<div style="text-align:center;"><strong>IP: ' +
-                            ipAddress +
-                            '</strong><br>Lat: ' +
-                            lat +
-                            '<br>Lon: ' +
-                            lon +
-                            '</div>'
-                    )
-                    .openPopup();
-            } else {
-                marker = L.marker([lat, lon], { icon: customIcon })
-                    .addTo(map)
-                    .bindPopup(
-                        '<div style="text-align:center;"><strong>IP: ' +
-                            ipAddress +
-                            '</strong><br>Lat: ' +
-                            lat +
-                            '<br>Lon: ' +
-                            lon +
-                            '</div>'
-                    )
-                    .openPopup();
-            }
-
-            map.invalidateSize();
+            setTimeout(() => {
+                map.invalidateSize();
+                map.setView([lat, lon], 10);
+            }, 100);
+        } catch (error) {
+            console.error('Error creating map:', error);
+            mapContainer.innerHTML = `
+                <div style="
+                    height: 100%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 1rem;
+                    text-align: center;
+                ">
+                    Error creating map: ${error.message}
+                </div>
+            `;
         }
     };
 
