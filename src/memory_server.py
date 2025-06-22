@@ -193,6 +193,7 @@ class MemoryDataStore:
 
     def __init__(self) -> None:
         self.ip_to_groups: Dict[str, List[str]] = {}
+        self.cidrs_to_ips: Dict[IPNetwork, List[str]] = {}
         self.datacenter_asns: Set[str] = set()
         self.firehol_networks: List[IPNetwork] = []
         self.asn_reader: Optional[maxminddb.Reader] = None
@@ -232,6 +233,13 @@ class MemoryDataStore:
 
             for group, ips in group_to_ips.items():
                 for ip in ips:
+                    if "/" in ip:
+                        ip_obj = IPNetwork(ip)
+                        if ip_obj not in self.cidrs_to_ips:
+                            self.cidrs_to_ips[ip_obj] = []
+                        self.cidrs_to_ips[ip_obj].append(group)
+                        continue
+
                     if ip not in self.ip_to_groups:
                         self.ip_to_groups[ip] = []
                     self.ip_to_groups[ip].append(group)
@@ -291,12 +299,26 @@ class MemoryDataStore:
         matching_groups = self.ip_to_groups.get(ip, [])
 
         ip_obj = IPAddress(ip)
-        for ip_or_cidr, groups in self.ip_to_groups.items():
-            if '/' in ip_or_cidr:
-                if ip_obj in IPNetwork(ip_or_cidr):
-                    for group in groups:
-                        if group not in matching_groups:
-                            matching_groups.append(group)
+        ip_version = ip_obj.version
+
+        for cidr, groups in self.cidrs_to_ips.items():
+            if cidr.version != ip_version:
+                continue
+
+            ip_int = int(ip_obj)
+            net_int = int(cidr.network)
+            prefix_len = cidr.prefixlen
+
+            if ip_version == 4:
+                mask = ((1 << 32) - 1) ^ ((1 << (32 - prefix_len)) - 1)
+            else:
+                mask = ((1 << 128) - 1) ^ ((1 << (128 - prefix_len)) - 1)
+
+            if (ip_int & mask) != (net_int & mask):
+                continue
+
+            if ip_obj in cidr:
+                matching_groups.extend(groups)
 
         self.ip_groups_cache[ip] = matching_groups
         return matching_groups

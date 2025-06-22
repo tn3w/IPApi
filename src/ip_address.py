@@ -926,12 +926,20 @@ def _get_abuse_info(
     ip_groups = []
     if any_field_in_list(
         fields,
-        ["is_proxy", "is_vpn", "vpn_provider", "is_forum_spammer", "is_tor_exit_node", "is_datacenter", "is_firehol"],
+        [
+            "is_proxy",
+            "is_vpn",
+            "vpn_provider",
+            "is_forum_spammer",
+            "is_tor_exit_node",
+            "is_datacenter",
+            "is_firehol",
+        ],
     ):
         ip_groups = memory_store.get_ip_groups(ip_address)
 
     asn, as_name, org = None, None, None
-    if any_field_in_list(fields, ["asn", "as_name", "is_datacenter"]):
+    if any_field_in_list(fields, ["asn", "as_name"]):
         asn, as_name = memory_store.get_ip_asn_maxmind(ip_address)
         asn_ip2location, as_name_ip2location = memory_store.get_ip_asn_ip2location(
             ip_address
