@@ -1,5 +1,6 @@
 # pylint: disable=too-many-lines
 import logging
+import time
 from typing import Optional, Tuple, Final, Dict, Any, List
 
 from netaddr import IPAddress, ipv6_verbose, IPNetwork, AddrFormatError
@@ -925,7 +926,7 @@ def _get_abuse_info(
     ip_groups = []
     if any_field_in_list(
         fields,
-        ["is_proxy", "is_vpn", "vpn_provider", "is_forum_spammer", "is_tor_exit_node"],
+        ["is_proxy", "is_vpn", "vpn_provider", "is_forum_spammer", "is_tor_exit_node", "is_datacenter", "is_firehol"],
     ):
         ip_groups = memory_store.get_ip_groups(ip_address)
 
@@ -942,13 +943,11 @@ def _get_abuse_info(
         if as_name and as_name != as_name_ip2location:
             org = as_name_ip2location
 
-    is_firehol = False
     is_datacenter = False
-    if "is_firehol" in fields:
-        is_firehol = memory_store.is_ip_in_firehol(ip_address)
-
     if "is_datacenter" in fields:
-        is_datacenter = memory_store.is_datacenter_asn(asn) if asn else False
+        is_datacenter = "Datacenter" in ip_groups
+        if asn and not is_datacenter:
+            is_datacenter = is_datacenter or memory_store.is_datacenter_asn(asn)
 
     ip2proxy_data = {}
     if any_field_in_list(
@@ -965,6 +964,7 @@ def _get_abuse_info(
     is_vpn = vpn_provider is not None
     is_forum_spammer = "StopForumSpam" in ip_groups
     is_tor_exit_node = "TorExitNodes" in ip_groups or asn in TOR_EXIT_NODE_ASNS
+    is_firehol = "Firehol" in ip_groups
 
     fraud_score = 0.0
     threat_type = None

@@ -144,11 +144,6 @@ DATASETS: Dict[str, Tuple[Union[str, Callable[[], str]], str]] = {
         "https://raw.githubusercontent.com/tn3w/IPSet/refs/heads/master/datacenter_asns.json",
         "data-center-asns.json",
     ),
-    # Abuse: Firehol Level 1
-    "Firehol-Level-1": (
-        "https://raw.githubusercontent.com/tn3w/IPSet/refs/heads/master/firehol_level1.json",
-        "firehol_level1.json",
-    ),
 }
 
 
@@ -251,16 +246,6 @@ class MemoryDataStore:
 
             logger.info("Loaded %d data center ASNs", len(self.datacenter_asns))
 
-        firehol_path = os.path.join(DATASET_DIR, DATASETS["Firehol-Level-1"][1])
-        if os.path.exists(firehol_path):
-            with open(firehol_path, "r", encoding="utf-8") as f:
-                firehol_data = json.load(f)
-
-            self.firehol_networks = [IPNetwork(cidr) for cidr in firehol_data]
-            logger.info(
-                "Loaded %d Firehol Level 1 networks", len(self.firehol_networks)
-            )
-
         geolite2_asn_path = os.path.join(DATASET_DIR, DATASETS["GeoLite2-ASN"][1])
         if os.path.exists(geolite2_asn_path):
             self.asn_reader = maxminddb.open_database(geolite2_asn_path)
@@ -303,10 +288,18 @@ class MemoryDataStore:
         if ip in self.ip_groups_cache:
             return self.ip_groups_cache[ip]
 
-        result = self.ip_to_groups.get(ip, [])
+        matching_groups = self.ip_to_groups.get(ip, [])
 
-        self.ip_groups_cache[ip] = result
-        return result
+        ip_obj = IPAddress(ip)
+        for ip_or_cidr, groups in self.ip_to_groups.items():
+            if '/' in ip_or_cidr:
+                if ip_obj in IPNetwork(ip_or_cidr):
+                    for group in groups:
+                        if group not in matching_groups:
+                            matching_groups.append(group)
+
+        self.ip_groups_cache[ip] = matching_groups
+        return matching_groups
 
     def is_datacenter_asn(self, asn: str) -> bool:
         """Check if an ASN is a data center ASN."""
@@ -317,21 +310,6 @@ class MemoryDataStore:
 
         self.datacenter_asn_cache[asn] = result
         return result
-
-    def is_ip_in_firehol(self, ip: str) -> bool:
-        """Check if an IP is in the Firehol Level 1 list."""
-        if ip in self.firehol_ip_cache:
-            return self.firehol_ip_cache[ip]
-
-        try:
-            ip_obj = IPAddress(ip)
-            result = any(ip_obj in network for network in self.firehol_networks)
-
-            self.firehol_ip_cache[ip] = result
-            return result
-        except (ValueError, TypeError):
-            self.firehol_ip_cache[ip] = False
-            return False
 
     def get_ip_asn_maxmind(self, ip: str) -> Tuple[Optional[str], Optional[str]]:
         """Get the ASN for an IP address using MaxMind database."""

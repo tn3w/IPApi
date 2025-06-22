@@ -379,7 +379,7 @@ def _find_nearest_postal_code(
             & (df["longitude"] >= lon - lon_margin)
             & (df["longitude"] <= lon + lon_margin)
         )
-        df_filtered = df[mask]
+        df_filtered = df[mask].copy()
 
         if len(df_filtered) == 0:
             return None
