@@ -1023,7 +1023,9 @@ def _get_geographic_info(
         or not geographic_info.get("latitude")
         or not geographic_info.get("longitude")
     ):
-        geographic_info = memory_store.get_ip_city_ip2location(ip_address)
+        geographic_info_ip2location = memory_store.get_ip_city_ip2location(ip_address)
+        if geographic_info_ip2location:
+            geographic_info = geographic_info_ip2location
 
     if (
         any_field_in_list(

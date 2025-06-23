@@ -366,6 +366,9 @@ def _find_nearest_postal_code(
 ) -> Optional[pd.Series]:
     """Find the nearest postal code to a given lat/lon coordinate"""
     try:
+        lat = float(lat)
+        lon = float(lon)
+
         df = _get_country_locations(country_code)
         if df is None:
             return None
@@ -446,7 +449,11 @@ def _find_by_city(
 
             filtered = results[mask]
             if not filtered.empty:
-                return pd.DataFrame(filtered) if not isinstance(filtered, pd.DataFrame) else filtered
+                return (
+                    pd.DataFrame(filtered)
+                    if not isinstance(filtered, pd.DataFrame)
+                    else filtered
+                )
 
         return pd.DataFrame(results) if not isinstance(results, pd.DataFrame) else results
     except Exception as e:
