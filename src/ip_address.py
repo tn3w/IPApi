@@ -1017,15 +1017,13 @@ def _get_geographic_info(
     ip_address: str, memory_store: MemoryDataStore, fields: list[str]
 ) -> dict:
     """Get geographic information about the IP address."""
-    geographic_info = memory_store.get_ip_city_maxmind(ip_address)
+    geographic_info = memory_store.get_ip_city_ip2location(ip_address)
     if (
         not geographic_info
         or not geographic_info.get("latitude")
         or not geographic_info.get("longitude")
     ):
-        geographic_info_ip2location = memory_store.get_ip_city_ip2location(ip_address)
-        if geographic_info_ip2location:
-            geographic_info = geographic_info_ip2location
+        geographic_info = memory_store.get_ip_city_maxmind(ip_address)
 
     if (
         any_field_in_list(
