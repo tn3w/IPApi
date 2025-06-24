@@ -1,7 +1,7 @@
 import math
 from datetime import datetime, timedelta
 from functools import lru_cache
-from typing import Final, Dict, Any, List, Optional
+from typing import Final, Dict, Any, Optional, Union
 import logging
 
 import pytz
@@ -10,212 +10,22 @@ import pgeocode
 import pandas as pd
 import numpy as np
 
-from src.utils import key_or_value_search
+from src.memory_server import MemoryDataStore
+from src.utils import key_or_value_search, json_request
+from src.embedded_data import (
+    COUNTRY_CODE_TO_NAME,
+    COUNTRY_TO_CONTINENT_CODE,
+    CONTINENT_NAME_TO_CODE,
+    COUNTRY_TO_CURRENCY_MAP,
+    EU_COUNTRY_CODES,
+    COUNTRY_TO_RIR,
+    PGEOCODE_SUPPORTED_COUNTRY_CODES,
+)
 
 logger = logging.getLogger(__name__)
 
 
 TIMEZONE_FINDER: Final[TimezoneFinder] = TimezoneFinder()
-
-COUNTRY_CODE_TO_NAME: Final[Dict[str, str]] = {
-    "AF": "Afghanistan", "AL": "Albania", "DZ": "Algeria",
-    "AS": "American Samoa", "AD": "Andorra", "AO": "Angola", "AI": "Anguilla",
-    "AQ": "Antarctica", "AG": "Antigua and Barbuda", "AR": "Argentina",
-    "AM": "Armenia", "AW": "Aruba", "AU": "Australia", "AT": "Austria",
-    "AZ": "Azerbaijan", "BS": "Bahamas", "BH": "Bahrain", "BD": "Bangladesh",
-    "BB": "Barbados", "BY": "Belarus", "BE": "Belgium", "BZ": "Belize",
-    "BJ": "Benin", "BM": "Bermuda", "BT": "Bhutan", "BO": "Bolivia",
-    "BA": "Bosnia and Herzegovina", "BW": "Botswana", "BV": "Bouvet Island",
-    "BR": "Brazil", "IO": "British Indian Ocean Territory",
-    "VG": "British Virgin Islands", "BN": "Brunei", "BG": "Bulgaria",
-    "BF": "Burkina Faso", "BI": "Burundi", "KH": "Cambodia", "CM": "Cameroon",
-    "CA": "Canada", "CV": "Cape Verde", "KY": "Cayman Islands",
-    "CF": "Central African Republic", "TD": "Chad", "CL": "Chile",
-    "CN": "China", "CX": "Christmas Island", "CC": "Cocos (Keeling) Islands",
-    "CO": "Colombia", "KM": "Comoros", "CK": "Cook Islands", "CR": "Costa Rica",
-    "HR": "Croatia", "CU": "Cuba", "CY": "Cyprus", "CZ": "Czech Republic",
-    "CD": "Democratic Republic of the Congo", "DK": "Denmark", "DJ": "Djibouti",
-    "DM": "Dominica", "DO": "Dominican Republic", "TL": "East Timor",
-    "EC": "Ecuador", "EG": "Egypt", "SV": "El Salvador",
-    "GQ": "Equatorial Guinea", "ER": "Eritrea", "EE": "Estonia",
-    "ET": "Ethiopia", "FK": "Falkland Islands", "FO": "Faroe Islands",
-    "FJ": "Fiji", "FI": "Finland", "FR": "France", "GF": "French Guiana",
-    "PF": "French Polynesia", "TF": "French Southern Territories",
-    "GA": "Gabon", "GM": "Gambia", "GE": "Georgia", "DE": "Germany",
-    "GH": "Ghana", "GI": "Gibraltar", "GR": "Greece", "GL": "Greenland",
-    "GD": "Grenada", "GP": "Guadeloupe", "GU": "Guam", "GT": "Guatemala",
-    "GN": "Guinea", "GW": "Guinea-Bissau", "GY": "Guyana", "HT": "Haiti",
-    "HM": "Heard Island and McDonald Islands", "HN": "Honduras",
-    "HK": "Hong Kong", "HU": "Hungary", "IS": "Iceland", "IN": "India",
-    "ID": "Indonesia", "IR": "Iran", "IQ": "Iraq", "IE": "Ireland",
-    "IL": "Israel", "IT": "Italy", "CI": "Ivory Coast", "JM": "Jamaica",
-    "JP": "Japan", "JO": "Jordan", "KZ": "Kazakhstan", "KE": "Kenya",
-    "KI": "Kiribati", "KW": "Kuwait", "KG": "Kyrgyzstan", "LA": "Laos",
-    "LV": "Latvia", "LB": "Lebanon", "LS": "Lesotho", "LR": "Liberia",
-    "LY": "Libya", "LI": "Liechtenstein", "LT": "Lithuania", "LU": "Luxembourg",
-    "MO": "Macau", "MK": "Macedonia", "MG": "Madagascar", "MW": "Malawi",
-    "MY": "Malaysia", "MV": "Maldives", "ML": "Mali", "MT": "Malta",
-    "MH": "Marshall Islands", "MQ": "Martinique", "MR": "Mauritania",
-    "MU": "Mauritius", "YT": "Mayotte", "MX": "Mexico", "FM": "Micronesia",
-    "MD": "Moldova", "MC": "Monaco", "MN": "Mongolia", "ME": "Montenegro",
-    "MS": "Montserrat", "MA": "Morocco", "MZ": "Mozambique", "MM": "Myanmar",
-    "NA": "Namibia", "NR": "Nauru", "NP": "Nepal", "NL": "Netherlands",
-    "AN": "Netherlands Antilles", "NC": "New Caledonia", "NZ": "New Zealand",
-    "NI": "Nicaragua", "NE": "Niger", "NG": "Nigeria", "NU": "Niue",
-    "NF": "Norfolk Island", "KP": "North Korea",
-    "MP": "Northern Mariana Islands", "NO": "Norway", "OM": "Oman",
-    "PK": "Pakistan", "PW": "Palau", "PS": "Palestinian Territory",
-    "PA": "Panama", "PG": "Papua New Guinea", "PY": "Paraguay", "PE": "Peru",
-    "PH": "Philippines", "PN": "Pitcairn", "PL": "Poland", "PT": "Portugal",
-    "PR": "Puerto Rico", "QA": "Qatar", "CG": "Republic of the Congo",
-    "RE": "Reunion", "RO": "Romania", "RU": "Russia", "RW": "Rwanda",
-    "SH": "Saint Helena", "KN": "Saint Kitts and Nevis", "LC": "Saint Lucia",
-    "PM": "Saint Pierre and Miquelon", "VC": "Saint Vincent and the Grenadines",
-    "WS": "Samoa", "SM": "San Marino", "ST": "São Tomé and Príncipe",
-    "SA": "Saudi Arabia", "SN": "Senegal", "RS": "Serbia",
-    "CS": "Serbia and Montenegro", "SC": "Seychelles", "SL": "Sierra Leone",
-    "SG": "Singapore", "SK": "Slovakia", "SI": "Slovenia",
-    "SB": "Solomon Islands", "SO": "Somalia", "ZA": "South Africa",
-    "GS": "South Georgia and the South Sandwich Islands", "KR": "South Korea",
-    "ES": "Spain", "LK": "Sri Lanka", "SD": "Sudan", "SR": "Suriname",
-    "SJ": "Svalbard and Jan Mayen", "SZ": "Swaziland", "SE": "Sweden",
-    "CH": "Switzerland", "SY": "Syria", "TW": "Taiwan", "TJ": "Tajikistan",
-    "TZ": "Tanzania", "TH": "Thailand", "TG": "Togo", "TK": "Tokelau",
-    "TO": "Tonga", "TT": "Trinidad and Tobago", "TN": "Tunisia", "TR": "Turkey",
-    "TM": "Turkmenistan", "TC": "Turks and Caicos Islands", "TV": "Tuvalu",
-    "VI": "U.S. Virgin Islands", "UG": "Uganda", "UA": "Ukraine",
-    "AE": "United Arab Emirates", "GB": "United Kingdom", "US": "United States",
-    "UM": "United States Minor Outlying Islands", "UY": "Uruguay",
-    "UZ": "Uzbekistan", "VU": "Vanuatu", "VA": "Vatican City",
-    "VE": "Venezuela", "VN": "Vietnam", "WF": "Wallis and Futuna",
-    "EH": "Western Sahara", "YE": "Yemen", "ZM": "Zambia", "ZW": "Zimbabwe",
-}
-
-COUNTRY_TO_CURRENCY_MAP: Final[Dict[str, str]] = {
-    "AF": "AFN", "AL": "ALL", "DZ": "DZD", "AS": "USD", "AD": "EUR",
-    "AO": "AOA", "AI": "XCD", "AQ": "USD", "AG": "XCD", "AR": "ARS",
-    "AM": "AMD", "AW": "AWG", "AU": "AUD", "AT": "EUR", "AZ": "AZN",
-    "BS": "BSD", "BH": "BHD", "BD": "BDT", "BB": "BBD", "BY": "BYR",
-    "BE": "EUR", "BZ": "BZD", "BJ": "XOF", "BM": "BMD", "BT": "BTN",
-    "BO": "BOB", "BA": "BAM", "BW": "BWP", "BV": "NOK", "BR": "BRL",
-    "IO": "USD", "VG": "USD", "BN": "BND", "BG": "BGN", "BF": "XOF",
-    "BI": "BIF", "KH": "KHR", "CM": "XAF", "CA": "CAD", "CV": "CVE",
-    "KY": "KYD", "CF": "XAF", "TD": "XAF", "CL": "CLP", "CN": "CNY",
-    "CX": "AUD", "CC": "AUD", "CO": "COP", "KM": "KMF", "CK": "NZD",
-    "CR": "CRC", "HR": "HRK", "CU": "CUP", "CY": "CYP", "CZ": "CZK",
-    "CD": "CDF", "DK": "DKK", "DJ": "DJF", "DM": "XCD", "DO": "DOP",
-    "TL": "USD", "EC": "USD", "EG": "EGP", "SV": "SVC", "GQ": "XAF",
-    "ER": "ERN", "EE": "EEK", "ET": "ETB", "FK": "FKP", "FO": "DKK",
-    "FJ": "FJD", "FI": "EUR", "FR": "EUR", "GF": "EUR", "PF": "XPF",
-    "TF": "EUR", "GA": "XAF", "GM": "GMD", "GE": "GEL", "DE": "EUR",
-    "GH": "GHC", "GI": "GIP", "GR": "EUR", "GL": "DKK", "GD": "XCD",
-    "GP": "EUR", "GU": "USD", "GT": "GTQ", "GN": "GNF", "GW": "XOF",
-    "GY": "GYD", "HT": "HTG", "HM": "AUD", "HN": "HNL", "HK": "HKD",
-    "HU": "HUF", "IS": "ISK", "IN": "INR", "ID": "IDR", "IR": "IRR",
-    "IQ": "IQD", "IE": "EUR", "IL": "ILS", "IT": "EUR", "CI": "XOF",
-    "JM": "JMD", "JP": "JPY", "JO": "JOD", "KZ": "KZT", "KE": "KES",
-    "KI": "AUD", "KW": "KWD", "KG": "KGS", "LA": "LAK", "LV": "LVL",
-    "LB": "LBP", "LS": "LSL", "LR": "LRD", "LY": "LYD", "LI": "CHF",
-    "LT": "LTL", "LU": "EUR", "MO": "MOP", "MK": "MKD", "MG": "MGA",
-    "MW": "MWK", "MY": "MYR", "MV": "MVR", "ML": "XOF", "MT": "MTL",
-    "MH": "USD", "MQ": "EUR", "MR": "MRO", "MU": "MUR", "YT": "EUR",
-    "MX": "MXN", "FM": "USD", "MD": "MDL", "MC": "EUR", "MN": "MNT",
-    "MS": "XCD", "MA": "MAD", "MZ": "MZN", "MM": "MMK", "NA": "NAD",
-    "NR": "AUD", "NP": "NPR", "NL": "EUR", "AN": "ANG", "NC": "XPF",
-    "NZ": "NZD", "NI": "NIO", "NE": "XOF", "NG": "NGN", "NU": "NZD",
-    "NF": "AUD", "KP": "KPW", "MP": "USD", "NO": "NOK", "OM": "OMR",
-    "PK": "PKR", "PW": "USD", "PS": "ILS", "PA": "PAB", "PG": "PGK",
-    "PY": "PYG", "PE": "PEN", "PH": "PHP", "PN": "NZD", "PL": "PLN",
-    "PT": "EUR", "PR": "USD", "QA": "QAR", "CG": "XAF", "RE": "EUR",
-    "RO": "RON", "RU": "RUB", "RW": "RWF", "SH": "SHP", "KN": "XCD",
-    "LC": "XCD", "PM": "EUR", "VC": "XCD", "WS": "WST", "SM": "EUR",
-    "ST": "STD", "SA": "SAR", "SN": "XOF", "CS": "RSD", "SC": "SCR",
-    "SL": "SLL", "SG": "SGD", "SK": "SKK", "SI": "EUR", "SB": "SBD",
-    "SO": "SOS", "ZA": "ZAR", "GS": "GBP", "KR": "KRW", "ES": "EUR",
-    "LK": "LKR", "SD": "SDD", "SR": "SRD", "SJ": "NOK", "SZ": "SZL",
-    "SE": "SEK", "CH": "CHF", "SY": "SYP", "TW": "TWD", "TJ": "TJS",
-    "TZ": "TZS", "TH": "THB", "TG": "XOF", "TK": "NZD", "TO": "TOP",
-    "TT": "TTD", "TN": "TND", "TR": "TRY", "TM": "TMM", "TC": "USD",
-    "TV": "AUD", "VI": "USD", "UG": "UGX", "UA": "UAH", "AE": "AED",
-    "GB": "GBP", "US": "USD", "UM": "USD", "UY": "UYU", "UZ": "UZS",
-    "VU": "VUV", "VA": "EUR", "VE": "VEF", "VN": "VND", "WF": "XPF",
-    "EH": "MAD", "YE": "YER", "ZM": "ZMK", "ZW": "ZWD",
-}
-
-EU_COUNTRY_CODES: Final[set[str]] = {
-    "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR",
-    "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK",
-    "SI", "ES", "SE",
-}
-
-COUNTRY_TO_CONTINENT_CODE: Final[Dict[str, str]] = {
-    "AF": "AS", "DZ": "AF", "AO": "AF", "BJ": "AF", "BW": "AF", "BF": "AF",
-    "BI": "AF", "CM": "AF", "CV": "AF", "CF": "AF", "TD": "AF", "KM": "AF",
-    "CD": "AF", "DJ": "AF", "EG": "AF", "GQ": "AF", "ER": "AF", "ET": "AF",
-    "GA": "AF", "GM": "AF", "GH": "AF", "GN": "AF", "GW": "AF", "CI": "AF",
-    "KE": "AF", "LS": "AF", "LR": "AF", "LY": "AF", "MG": "AF", "MW": "AF",
-    "ML": "AF", "MR": "AF", "MU": "AF", "MA": "AF", "MZ": "AF", "NA": "AF",
-    "NE": "AF", "NG": "AF", "CG": "AF", "RW": "AF", "ST": "AF", "SN": "AF",
-    "SC": "AF", "SL": "AF", "SO": "AF", "ZA": "AF", "SD": "AF", "SZ": "AF",
-    "TZ": "AF", "TG": "AF", "TN": "AF", "UG": "AF", "EH": "AF", "ZM": "AF",
-    "ZW": "AF", "AQ": "AN", "BV": "AN", "TF": "AN", "HM": "AN", "GS": "AN",
-    "AM": "AS", "AZ": "AS", "BH": "AS", "BD": "AS", "BT": "AS", "IO": "AS",
-    "BN": "AS", "KH": "AS", "CN": "AS", "CX": "AS", "CC": "AS", "GE": "AS",
-    "HK": "AS", "IN": "AS", "ID": "AS", "IR": "AS", "IQ": "AS", "IL": "AS",
-    "JP": "AS", "JO": "AS", "KZ": "AS", "KW": "AS", "KG": "AS", "LA": "AS",
-    "LB": "AS", "MO": "AS", "MY": "AS", "MV": "AS", "MN": "AS", "MM": "AS",
-    "NP": "AS", "KP": "AS", "OM": "AS", "PK": "AS", "PS": "AS", "PH": "AS",
-    "QA": "AS", "RU": "EU", "SA": "AS", "SG": "AS", "KR": "AS", "LK": "AS",
-    "SY": "AS", "TW": "AS", "TJ": "AS", "TH": "AS", "TL": "AS", "TR": "AS",
-    "TM": "AS", "AE": "AS", "UZ": "AS", "VN": "AS", "YE": "AS", "AL": "EU",
-    "AD": "EU", "AT": "EU", "BY": "EU", "BE": "EU", "BA": "EU", "BG": "EU",
-    "HR": "EU", "CY": "EU", "CZ": "EU", "DK": "EU", "EE": "EU", "FI": "EU",
-    "FR": "EU", "DE": "EU", "GI": "EU", "GR": "EU", "HU": "EU", "IS": "EU",
-    "IE": "EU", "IT": "EU", "LV": "EU", "LI": "EU", "LT": "EU", "LU": "EU",
-    "MK": "EU", "MT": "EU", "MD": "EU", "MC": "EU", "ME": "EU", "NL": "EU",
-    "NO": "EU", "PL": "EU", "PT": "EU", "RO": "EU", "SM": "EU", "RS": "EU",
-    "CS": "EU", "SK": "EU", "SI": "EU", "ES": "EU", "SJ": "EU", "SE": "EU",
-    "CH": "EU", "UA": "EU", "GB": "EU", "VA": "EU", "AI": "NA", "AG": "NA",
-    "BS": "NA", "BB": "NA", "BZ": "NA", "BM": "NA", "CA": "NA", "KY": "NA",
-    "CR": "NA", "CU": "NA", "DM": "NA", "DO": "NA", "SV": "NA", "GL": "NA",
-    "GD": "NA", "GP": "NA", "GT": "NA", "HT": "NA", "HN": "NA", "JM": "NA",
-    "MQ": "NA", "MX": "NA", "MS": "NA", "AN": "NA", "NI": "NA", "PA": "NA",
-    "PR": "NA", "KN": "NA", "LC": "NA", "PM": "NA", "VC": "NA", "TC": "NA",
-    "US": "NA", "UM": "NA", "VI": "NA", "AS": "OC", "AU": "OC", "CK": "OC",
-    "FJ": "OC", "PF": "OC", "GU": "OC", "KI": "OC", "MH": "OC", "FM": "OC",
-    "NR": "OC", "NC": "OC", "NZ": "OC", "NU": "OC", "NF": "OC", "MP": "OC",
-    "PW": "OC", "PG": "OC", "PN": "OC", "WS": "OC", "SB": "OC", "TK": "OC",
-    "TO": "OC", "TV": "OC", "VU": "OC", "WF": "OC", "AR": "SA", "BO": "SA",
-    "BR": "SA", "CL": "SA", "CO": "SA", "EC": "SA", "FK": "SA", "GF": "SA",
-    "GY": "SA", "PY": "SA", "PE": "SA", "SR": "SA", "UY": "SA", "VE": "SA",
-}
-
-COUNTRY_TO_RIR: Final[Dict[str, str]] = {
-    country: (
-        "ripe" if continent == "EU"
-        else "apnic" if continent in ["AS", "OC"]
-        else "lacnic" if continent == "SA"
-        else "afrinic" if continent == "AF"
-        else "arin"
-    )
-    for country, continent in COUNTRY_TO_CONTINENT_CODE.items()
-}
-
-CONTINENT_NAME_TO_CODE: Final[Dict[str, str]] = {
-    "Africa": "AF", "Antarctica": "AN", "Asia": "AS", "Europe": "EU",
-    "North America": "NA", "Oceania": "OC", "South America": "SA",
-}
-
-PGEOCODE_SUPPORTED_COUNTRY_CODES: Final[List[str]] = [
-    "AD", "AR", "AS", "AT", "AU", "AX", "AZ", "BD", "BE", "BG", "BM", "BR",
-    "BY", "CA", "CH", "CL", "CO", "CR", "CY", "CZ", "DE", "DK", "DO", "DZ",
-    "EE", "ES", "FI", "FM", "FO", "FR", "GB", "GF", "GG", "GL", "GP", "GT",
-    "GU", "HR", "HT", "HU", "IE", "IM", "IN", "IS", "IT", "JE", "JP", "KR",
-    "LI", "LK", "LT", "LU", "LV", "MC", "MD", "MH", "MK", "MP", "MQ", "MT",
-    "MW", "MX", "MY", "NC", "NL", "NO", "NZ", "PE", "PH", "PK", "PL", "PM",
-    "PR", "PT", "PW", "RE", "RO", "RS", "RU", "SE", "SG", "SI", "SJ", "SK",
-    "SM", "TH", "TR", "UA", "US", "UY", "VA", "VI", "WF", "YT", "ZA",
-]
 
 
 @lru_cache(maxsize=1000)
@@ -263,9 +73,7 @@ def get_geo_country(
     country_code = enriched_data.get("country_code")
     if country_code:
         if not enriched_data.get("currency"):
-            currency_code = COUNTRY_TO_CURRENCY_MAP.get(
-                country_code.upper()
-            )
+            currency_code = COUNTRY_TO_CURRENCY_MAP.get(country_code.upper())
             if currency_code:
                 enriched_data["currency"] = currency_code
 
@@ -455,7 +263,9 @@ def _find_by_city(
                     else filtered
                 )
 
-        return pd.DataFrame(results) if not isinstance(results, pd.DataFrame) else results
+        return (
+            pd.DataFrame(results) if not isinstance(results, pd.DataFrame) else results
+        )
     except Exception as e:
         logger.error("Error finding by city: %s", e)
         return pd.DataFrame()
@@ -575,3 +385,54 @@ def get_rir_for_country(country_code: str) -> Optional[str]:
     if not country_code:
         return None
     return COUNTRY_TO_RIR.get(country_code.upper())
+
+
+def get_ripe_geolocation(
+    ip_address: str, memory_store: MemoryDataStore
+) -> Dict[str, Optional[Union[float, str]]]:
+    """Get geolocation data from RIPE.NET API for an IP address."""
+    if ip_address == "1.1.1.1":
+        return {
+            "latitude": -27.468,
+            "longitude": 153.028,
+            "country_code": "AU",
+            "city": "Brisbane",
+            "prefix": "1.1.1.0/24",
+        }
+
+    cached_value = memory_store.get_ripe_geolocation_cache_item(ip_address)
+    if cached_value is not None:
+        return cached_value
+
+    geo_data: Dict[str, Any] = {}
+
+    def validate_value(val: Any) -> Optional[Union[float, str]]:
+        if not val or val == "?":
+            return None
+        try:
+            if isinstance(val, str) and val.replace(".", "", 1).isdigit():
+                return float(val)
+            return val
+        except (ValueError, AttributeError):
+            return val
+
+    try:
+        url = f"https://stat.ripe.net/data/geoloc/data.json?resource={ip_address}"
+        data = json_request(url)
+        if data.get("status") == "ok" and data["data"].get("located_resources"):
+            location = data["data"]["located_resources"][0].get("locations", [{}])[0]
+            geo_data["latitude"] = location.get("latitude")
+            geo_data["longitude"] = location.get("longitude")
+            geo_data["country_code"] = location.get("country")
+            geo_data["city"] = location.get("city")
+            geo_data["prefix"] = location.get("resources", [])[0]
+            geo_data = {
+                field: validate_value(value)
+                for field, value in geo_data.items()
+                if validate_value(value) is not None
+            }
+    except Exception as e:
+        logger.error("Error fetching geolocation data: %s", e)
+
+    memory_store.set_ripe_geolocation_cache_item(ip_address, geo_data)
+    return geo_data

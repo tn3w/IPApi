@@ -326,10 +326,11 @@ def load_templates(
 def json_request(url: str) -> Dict[str, Any]:
     """Make a JSON request to a URL."""
     try:
-        with urllib.request.urlopen(url, timeout=1) as response:
+        request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(request, timeout=1) as response:
             return json.loads(response.read().decode())
     except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as e:
-        print(f"Error making JSON request to {url}: {e}")
+        logger.error("Error making JSON request to %s: %s", url, e)
         return {}
 
 

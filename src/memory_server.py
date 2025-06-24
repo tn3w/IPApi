@@ -222,6 +222,7 @@ class MemoryDataStore:
         self.ip_ip2proxy_cache: Dict[str, Dict[str, Any]] = {}
         self._rpki_cache: Dict[str, Tuple[str, int]] = {}
         self._abuse_contact_cache: Dict[str, Optional[str]] = {}
+        self._ripe_geolocation_cache: Dict[str, Dict[str, Any]] = {}
 
     def load_datasets(self) -> None:
         """Load all datasets into memory."""
@@ -545,6 +546,18 @@ class MemoryDataStore:
     ) -> None:
         """Set an item in the abuse contact cache."""
         self._abuse_contact_cache[ip_address] = value
+
+    def get_ripe_geolocation_cache_item(
+        self, ip_address: str
+    ) -> Optional[Dict[str, Any]]:
+        """Get an item from the RIPE geolocation cache."""
+        return self._ripe_geolocation_cache.get(ip_address)
+
+    def set_ripe_geolocation_cache_item(
+        self, ip_address: str, value: Dict[str, Any]
+    ) -> None:
+        """Set an item in the RIPE geolocation cache."""
+        self._ripe_geolocation_cache[ip_address] = value
 
 
 class MemoryServer:
