@@ -23,5 +23,5 @@ datasets/
 .ipapi_memory_server.lock
 .env
 
-# Experiments
-experiments/
+# VSCode
+.vscode

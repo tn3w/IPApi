@@ -1,6 +1,5 @@
-# pylint: disable=too-many-lines
 import logging
-from typing import Optional, Tuple, Dict, Any
+from typing import Any
 
 from netaddr import IPAddress, ipv6_verbose, IPNetwork, AddrFormatError
 from fastapi import Request
@@ -10,18 +9,24 @@ import dns.name
 from src.geo_info import (
     get_timezone_info,
     get_geo_country,
-    get_rir_for_country,
     enrich_location_data,
+    get_rir_for_country,
     get_ripe_geolocation,
 )
-from src.memory_server import MemoryDataStore
-from src.utils import any_field_in_list, parse_fields_param, json_request
+from src.utils import (
+    any_field_in_list,
+    json_request,
+    xml_request,
+    parse_fields_param,
+    extract_domain_from_email_or_hostname,
+)
+from src.shared_data_store import IPDataStore
 from src.embedded_data import NETWORKS, VALID_TLDS, VPN_PROVIDERS, TOR_EXIT_NODE_ASNS
 
 logger = logging.getLogger(__name__)
 
 
-def lookup_known_network(ip_address: str) -> Optional[Dict[str, str]]:
+def lookup_known_network(ip_address: str) -> dict[str, str] | None:
     """
     Lookup an IP address in the known networks database.
 
@@ -119,7 +124,7 @@ def validate_hostname(hostname: str) -> bool:
     return True
 
 
-def get_ip_address_version(ip_address: str) -> Optional[int]:
+def get_ip_address_version(ip_address: str) -> int | None:
     """
     Get the version of an IP address.
 
@@ -138,7 +143,7 @@ def get_ip_address_version(ip_address: str) -> Optional[int]:
     return None
 
 
-def get_ip_address_classification(ip_address: IPAddress) -> Optional[str]:
+def get_ip_address_classification(ip_address: IPAddress) -> str | None:
     """
     Get the classification of an IP address.
 
@@ -149,6 +154,7 @@ def get_ip_address_classification(ip_address: IPAddress) -> Optional[str]:
         The classification of the IP address or None if invalid
     """
     classifications = {
+        "ipv4_mapped": (ip_address.version == 6 and ip_address.is_ipv4_mapped()),
         "private": (
             (ip_address.version == 4 and ip_address.is_ipv4_private_use())
             or (ip_address.version == 6 and ip_address.is_ipv6_unique_local())
@@ -167,7 +173,7 @@ def get_ip_address_classification(ip_address: IPAddress) -> Optional[str]:
     return "unknown"
 
 
-def extract_ipv4_from_ipv6(ipv6_address: IPAddress) -> Optional[str]:
+def extract_ipv4_from_ipv6(ipv6_address: IPAddress) -> str | None:
     """
     Extract IPv4 address from various IPv6 formats.
 
@@ -209,10 +215,10 @@ def extract_ipv4_from_ipv6(ipv6_address: IPAddress) -> Optional[str]:
         return None
 
 
-def get_hostname_from_ip(addr: str, memory_store: MemoryDataStore) -> Optional[str]:
+def get_hostname_from_ip(ip_address: str, memory_store: IPDataStore) -> str | None:
     """Get hostname from IP address."""
     try:
-        rev_name = dns.reversename.from_address(addr)
+        rev_name = dns.reversename.from_address(ip_address)
         if isinstance(rev_name, dns.name.Name):
             rev_name = str(rev_name)
             ptr_records = memory_store.dns_query(rev_name, "PTR")
@@ -220,11 +226,11 @@ def get_hostname_from_ip(addr: str, memory_store: MemoryDataStore) -> Optional[s
                 return str(ptr_records[0]).rstrip(".")
             return None
     except Exception as e:
-        logger.error("Failed to get hostname for IP %s: %s", addr, e)
+        logger.error("Failed to get hostname for IP %s: %s", ip_address, e)
         return None
 
 
-def get_ip_from_hostname(hostname: str, memory_store: MemoryDataStore) -> Optional[str]:
+def get_ip_from_hostname(hostname: str, memory_store: IPDataStore) -> str | None:
     """Resolve hostname to IP address."""
     a_records = memory_store.dns_query(hostname, "A")
     if a_records and len(a_records) > 0:
@@ -237,9 +243,7 @@ def get_ip_from_hostname(hostname: str, memory_store: MemoryDataStore) -> Option
     return None
 
 
-def get_ipv4_from_hostname(
-    hostname: str, memory_store: MemoryDataStore
-) -> Optional[str]:
+def get_ipv4_from_hostname(hostname: str, memory_store: IPDataStore) -> str | None:
     """Extract IPv4 address from hostname."""
     a_records = memory_store.dns_query(hostname, "A")
     if a_records and len(a_records) > 0:
@@ -247,9 +251,7 @@ def get_ipv4_from_hostname(
     return None
 
 
-def get_ipv6_from_hostname(
-    hostname: str, memory_store: MemoryDataStore
-) -> Optional[str]:
+def get_ipv6_from_hostname(hostname: str, memory_store: IPDataStore) -> str | None:
     """Extract IPv6 address from hostname."""
     aaaa_records = memory_store.dns_query(hostname, "AAAA")
     if aaaa_records and len(aaaa_records) > 0:
@@ -272,15 +274,15 @@ VALID_RIRS = ["arin", "ripe", "apnic", "lacnic", "afrinic"]
 def get_team_cymru_info(
     ip_address: str,
     ip_version: int,
-    memory_store: MemoryDataStore,
-) -> Optional[Dict[str, Any]]:
+    memory_store: IPDataStore,
+) -> dict[str, Any] | None:
     """Get Team Cymru info for an IP address."""
     reversed_ip_address = reverse_ip_address(ip_address, ip_version)
     query = reversed_ip_address + (
         ".origin.asn.cymru.com" if ip_version == 4 else ".origin6.asn.cymru.com"
     )
 
-    txt_records = memory_store.dns_query(query, "TXT")
+    txt_records: list[str] | None = memory_store.dns_query(query, "TXT")
     if txt_records and len(txt_records) > 0:
         parts_text = str(txt_records[0]).strip('"')
         parts = [part.strip() for part in parts_text.split("|")]
@@ -307,8 +309,8 @@ def get_team_cymru_info(
 def get_rpki_info(
     asn: str,
     prefix: str,
-    memory_store: MemoryDataStore,
-) -> Tuple[str, int]:
+    memory_store: IPDataStore,
+) -> tuple[str, int]:
     """Get RPKI info for an ASN and prefix."""
     if not prefix:
         return "unknown", 0
@@ -336,23 +338,33 @@ def get_rpki_info(
     return result
 
 
-def get_abuse_contact(ip_address: str, memory_store: MemoryDataStore) -> Optional[str]:
+def get_abuse_contact(ip_address: str, memory_store: IPDataStore) -> str | None:
     """Get abuse contact for an IP address."""
     cached_value = memory_store.get_abuse_contact_cache_item(ip_address)
     if cached_value is not None:
         return cached_value
 
-    url = (
+    ripe_url = (
         "https://stat.ripe.net/data/abuse-contact-finder/data.json"
         f"?resource={ip_address}"
     )
 
-    data = json_request(url)
+    data: dict[str, dict[str, list[str]]] | None = json_request(ripe_url)
     abuse_contacts = data.get("data", {}).get("abuse_contacts", [])
     if abuse_contacts:
         abuse_contact = abuse_contacts[0]
         memory_store.set_abuse_contact_cache_item(ip_address, abuse_contact)
         return abuse_contact
+
+    dshield_url = f"https://isc.sans.edu/api/ip/{ip_address}"
+    xml_root = xml_request(dshield_url)
+    if xml_root is not None:
+        asabusecontact_elem = xml_root.find("asabusecontact")
+        if asabusecontact_elem is not None and asabusecontact_elem.text:
+            abuse_contact = asabusecontact_elem.text.strip()
+            if abuse_contact:
+                memory_store.set_abuse_contact_cache_item(ip_address, abuse_contact)
+                return abuse_contact
 
     memory_store.set_abuse_contact_cache_item(ip_address, None)
     return None
@@ -362,9 +374,9 @@ def _get_general_info(
     ip_address: str,
     ip_address_object: IPAddress,
     ip_address_version: int,
-    memory_store: MemoryDataStore,
+    memory_store: IPDataStore,
     fields: list[str],
-) -> dict:
+) -> dict[str, Any]:
     """Get general information about the IP address."""
     classification = get_ip_address_classification(ip_address_object)
 
@@ -374,13 +386,20 @@ def _get_general_info(
         "classification": classification,
     }
 
+    hostname: str | None = None
     if "hostname" in fields:
         hostname = "localhost" if ip_address_version == 4 else "ip6-localhost"
         if classification != "loopback":
             hostname = get_hostname_from_ip(ip_address, memory_store)
         response["hostname"] = hostname
 
-    if "ipv4_address" in fields:
+    if classification == "ipv4_mapped":
+        ipv4_address = extract_ipv4_from_ipv6(ip_address_object)
+        response["ipv4_address"] = ipv4_address
+        if ipv4_address:
+            ip_address = ipv4_address
+            ip_address_version = 4
+    elif "ipv4_address" in fields:
         ipv4_address = ip_address
         if ip_address_version == 6:
             ipv4_address = extract_ipv4_from_ipv6(ip_address_object)
@@ -401,10 +420,10 @@ def _get_general_info(
 
 def _get_abuse_info(
     ip_address: str,
-    hostname: Optional[str],
-    memory_store: MemoryDataStore,
+    hostname: str | None,
+    memory_store: IPDataStore,
     fields: list[str],
-) -> dict:
+) -> dict[str, Any]:
     """Get abuse information about the IP address."""
     ip_groups = []
     if any_field_in_list(
@@ -480,11 +499,7 @@ def _get_abuse_info(
         "org": org,
         "isp": ip2proxy_data.get("isp"),
         "domain": ip2proxy_data.get("domain")
-        or (
-            ".".join(hostname.rsplit(".", 2)[-2:])
-            if hostname and "." in hostname
-            else None
-        ),
+        or (extract_domain_from_email_or_hostname(hostname) if hostname else None),
         "is_vpn": is_vpn,
         "vpn_provider": vpn_provider,
         "is_proxy": is_proxy,
@@ -498,10 +513,10 @@ def _get_abuse_info(
 
 
 def _get_geographic_info(
-    ip_address: str, memory_store: MemoryDataStore, fields: list[str]
-) -> dict:
+    ip_address: str, memory_store: IPDataStore, fields: list[str]
+) -> dict[str, Any]:
     """Get geographic information about the IP address."""
-    geographic_info = memory_store.get_ip_city_ip2location(ip_address)
+    geographic_info: dict[str, Any] = memory_store.get_ip_city_ip2location(ip_address)
     if (
         not geographic_info
         or not geographic_info.get("latitude")
@@ -549,11 +564,11 @@ def _get_geographic_info(
 def _get_network_info(
     ip_address: str,
     ip_address_version: int,
-    memory_store: MemoryDataStore,
-    country_code: Optional[str],
-    asn: Optional[str],
+    memory_store: IPDataStore,
+    country_code: str | None,
+    asn: str | None,
     fields: list[str],
-) -> Tuple[dict[str, Any], Optional[str], Optional[str], Optional[str]]:
+) -> tuple[dict[str, Any], str | None, str | None, str | None]:
     """Get network information about the IP address."""
     network_info: dict[str, Any] = {}
     domain = None
@@ -594,7 +609,7 @@ def _get_network_info(
         if abuse_contact:
             network_info["abuse_contact"] = abuse_contact
             if not domain and "@" in abuse_contact:
-                domain = abuse_contact.split("@")[-1]
+                domain = extract_domain_from_email_or_hostname(abuse_contact)
 
     if any_field_in_list(fields, ["rir"]) and not network_info.get("rir"):
         rir = get_rir_for_country(country_code) if country_code else None
@@ -611,12 +626,16 @@ def _get_network_info(
         network_info["rpki_status"] = rpki_status
         network_info["rpki_roa_count"] = rpki_roa_count
 
+    if "is_anycast" in fields:
+        is_anycast = memory_store.is_anycast_ip(ip_address)
+        network_info["is_anycast"] = is_anycast
+
     return network_info, country_code, asn, domain
 
 
 def format_response(
-    ip_info: Dict[str, Any], fields: list[str], minify: bool = False
-) -> Dict[str, Any]:
+    ip_info: dict[str, Any], fields: list[str], minify: bool = False
+) -> dict[str, Any]:
     """Format the response for the IP address information."""
     for field in ["latitude", "longitude"]:
         if ip_info.get(field) and not isinstance(ip_info[field], float):
@@ -642,8 +661,8 @@ def format_response(
 
 
 def get_ip_info(
-    ip_address: str, request: Request, memory_store: MemoryDataStore
-) -> Optional[dict]:
+    ip_address: str, request: Request, memory_store: IPDataStore
+) -> dict[str, Any] | None:
     """
     Get IP address information.
 
@@ -652,7 +671,7 @@ def get_ip_info(
         fields: The fields to get information for.
         memory_store: The memory store to use.
     """
-    if not ip_address or not isinstance(ip_address, str):
+    if not ip_address:
         return None
 
     ip_address = ip_address.strip()
@@ -666,22 +685,20 @@ def get_ip_info(
     except AddrFormatError:
         return None
 
-    fields_param = request.query_params.get("fields", "")
-    if not isinstance(fields_param, str):
-        fields_param = ""
-
-    fields = parse_fields_param(fields_param)
-
-    min_param = request.query_params.get("min", "0")
-    if not isinstance(min_param, str):
-        min_param = "0"
-    minify = min_param == "1"
+    fields = parse_fields_param(request.query_params.get("fields", ""))
+    minify = request.query_params.get("min", "0") == "1"
 
     response = _get_general_info(
         ip_address, ip_address_object, ip_address_version, memory_store, fields
     )
 
-    if response["classification"] != "public":
+    if response["classification"] == "ipv4_mapped":
+        ip_address = response["ipv4_address"]
+        if not ip_address:
+            return format_response(response, fields, minify)
+        ip_address_object = IPAddress(ip_address, version=4)
+        ip_address_version = 4
+    elif response["classification"] != "public":
         return format_response(response, fields, minify)
 
     response.update(
@@ -760,7 +777,7 @@ def get_ip_info(
     return format_response(response, fields, minify)
 
 
-def get_ip_address(request: Request) -> Optional[str]:
+def get_ip_address(request: Request) -> str | None:
     """
     Get the IP address from the request.
     """

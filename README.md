@@ -89,15 +89,16 @@ Response:
     "abuse_contact": "abuse@cloudflare.com",
     "rpki_status": "valid",
     "rpki_roa_count": 1,
+    "is_anycast": true,
     "is_vpn": false,
     "vpn_provider": null,
-    "is_proxy": false,
+    "is_proxy": true,
     "is_firehol": false,
     "is_datacenter": false,
     "is_forum_spammer": false,
     "is_tor_exit_node": false,
-    "fraud_score": 0.0,
-    "threat_type": null
+    "fraud_score": 0.5,
+    "threat_type": "spam"
 }
 ```
 

@@ -720,6 +720,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const forumSpammerBadgeEl = document.getElementById('forum-spammer-badge');
         const fireholLevel1BadgeEl = document.getElementById('firehol-level1-badge');
         const torBadgeEl = document.getElementById('tor-badge');
+        const anycastBadgeEl = document.getElementById('anycast-badge');
         const mapContainer = document.querySelector('.results-map-container');
 
         if (ipTypeEl) ipTypeEl.textContent = data.version === 6 ? 'IPV6' : 'IPV4';
@@ -729,38 +730,51 @@ document.addEventListener('DOMContentLoaded', () => {
             ipEl.classList.toggle('long-ip', data.ip_address && data.ip_address.length > 20);
 
             const ipvxContainer = document.querySelector('.ipvx-mapping');
-            if (
-                (data.version === 6 && isValidValue(data.ipv4_address)) ||
-                (data.version === 4 && isValidValue(data.ipv6_address))
-            ) {
-                const mappingText =
-                    data.version === 6
-                        ? 'IPv4: ' + data.ipv4_address
-                        : 'IPv6: ' + data.ipv6_address;
+            const hasIpv4 =
+                isValidValue(data.ipv4_address) && data.ipv4_address !== data.ip_address;
+            const hasIpv6 =
+                isValidValue(data.ipv6_address) && data.ipv6_address !== data.ip_address;
 
+            if (hasIpv4 || hasIpv6) {
                 if (!ipvxContainer) {
                     const container = document.createElement('div');
                     container.className = 'ipvx-mapping';
-                    container.textContent = mappingText;
                     ipEl.parentNode.insertBefore(container, ipEl.nextSibling);
-                } else {
-                    ipvxContainer.textContent = mappingText;
-                    ipvxContainer.style.display = 'block';
+                }
+
+                const container = ipvxContainer || document.querySelector('.ipvx-mapping');
+                container.innerHTML = '';
+                container.style.display = 'block';
+
+                if (hasIpv4) {
+                    const ipv4Text = document.createTextNode('IPv4: ' + data.ipv4_address);
+                    container.appendChild(ipv4Text);
+                }
+
+                if (hasIpv4 && hasIpv6) {
+                    container.appendChild(document.createElement('br'));
+                }
+
+                if (hasIpv6) {
+                    const ipv6Text = document.createTextNode('IPv6: ' + data.ipv6_address);
+                    container.appendChild(ipv6Text);
                 }
             } else if (ipvxContainer) {
                 ipvxContainer.style.display = 'none';
             }
         }
 
+        const isPublic = ['public', 'ipv4_mapped'].includes(data.classification || 'unknown');
         if (classificationEl) {
             const classification = data.classification || 'unknown';
             classificationEl.textContent =
-                classification.charAt(0).toUpperCase() + classification.slice(1);
-            classificationEl.classList.toggle('non-public', classification !== 'public');
+                classification === 'ipv4_mapped'
+                    ? 'IPv4 Mapped'
+                    : classification.charAt(0).toUpperCase() + classification.slice(1);
+            classificationEl.classList.toggle('non-public', !isPublic);
         }
 
         if (mapContainer) {
-            const isPublic = data.classification === 'public';
             mapContainer.style.display = isPublic ? 'block' : 'none';
         }
 
@@ -776,6 +790,8 @@ document.addEventListener('DOMContentLoaded', () => {
             fireholLevel1BadgeEl.style.display = data.is_firehol === true ? 'inline-flex' : 'none';
         if (torBadgeEl)
             torBadgeEl.style.display = data.is_tor_exit_node === true ? 'inline-flex' : 'none';
+        if (anycastBadgeEl)
+            anycastBadgeEl.style.display = data.is_anycast === true ? 'inline-flex' : 'none';
 
         if (hostnameEl)
             hostnameEl.textContent = isValidValue(data.hostname)
@@ -791,7 +807,6 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.results.locationSection.style.display = 'none';
         if (elements.results.networkSection) elements.results.networkSection.style.display = 'none';
 
-        const isPublic = data.classification === 'public';
         const hasLocationData =
             isPublic && (isValidValue(data.latitude) || isValidValue(data.country));
         const hasNetworkData = isPublic && (isValidValue(data.asn) || isValidValue(data.as_name));
@@ -935,6 +950,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             default:
                                 return data.rpki;
                         }
+                    },
+                },
+                {
+                    key: 'is_anycast',
+                    label: 'Anycast',
+                    format: (data) => {
+                        return data.is_anycast === true ? 'Yes' : 'No';
                     },
                 },
             ];

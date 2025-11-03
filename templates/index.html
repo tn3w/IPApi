@@ -233,6 +233,43 @@
                                             </svg>
                                             <span>Tor</span>
                                         </div>
+                                        <div
+                                            class="anycast-badge"
+                                            id="anycast-badge"
+                                            style="display: none"
+                                        >
+                                            <svg
+                                                viewBox="0 0 24 24"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                            >
+                                                <circle cx="12" cy="4" r="2.5" fill="#FFFFFF" />
+                                                <circle cx="4" cy="12" r="2" fill="#FFFFFF" />
+                                                <circle cx="12" cy="12" r="2" fill="#FFFFFF" />
+                                                <circle cx="20" cy="12" r="2" fill="#FFFFFF" />
+                                                <circle cx="4" cy="20" r="2" fill="#FFFFFF" />
+                                                <circle cx="12" cy="20" r="2" fill="#FFFFFF" />
+                                                <circle cx="20" cy="20" r="2" fill="#FFFFFF" />
+                                                <path
+                                                    d="M12 6.5 L12 10 M12 14 L12 18"
+                                                    stroke="#FFFFFF"
+                                                    stroke-width="1.5"
+                                                    fill="none"
+                                                />
+                                                <path
+                                                    d="M10 12 L6 12 M14 12 L18 12"
+                                                    stroke="#FFFFFF"
+                                                    stroke-width="1.5"
+                                                    fill="none"
+                                                />
+                                                <path
+                                                    d="M10.5 13.5 L5.5 18.5 M13.5 13.5 L18.5 18.5"
+                                                    stroke="#FFFFFF"
+                                                    stroke-width="1.5"
+                                                    fill="none"
+                                                />
+                                            </svg>
+                                            <span>Anycast</span>
+                                        </div>
                                     </div>
                                     <h2 id="result-ip">8.8.8.8</h2>
                                     <p id="result-hostname">dns.google</p>
@@ -368,9 +405,7 @@
                                     <li>Validate user location claims</li>
                                     <li>Block suspicious traffic</li>
                                 </ul>
-                                <a href="/docs/developers" class="use-case-link"
-                                    >Developer Guide →</a
-                                >
+                                <a href="/docs" class="use-case-link">Developer Guide →</a>
                             </div>
                         </div>
 
@@ -392,9 +427,7 @@
                                     <li>User behavior analytics</li>
                                     <li>Market segmentation</li>
                                 </ul>
-                                <a href="/docs/business" class="use-case-link"
-                                    >Business Solutions →</a
-                                >
+                                <a href="/docs" class="use-case-link">Business Solutions →</a>
                             </div>
                         </div>
 
@@ -416,7 +449,7 @@
                                     <li>IP reputation checking</li>
                                     <li>DDoS protection</li>
                                 </ul>
-                                <a href="/docs/security" class="use-case-link">Security Guide →</a>
+                                <a href="/docs" class="use-case-link">Security Guide →</a>
                             </div>
                         </div>
                     </div>
@@ -479,6 +512,7 @@
     "abuse_contact": "network-abuse@google.com",
     "rpki_status": "valid",
     "rpki_roa_count": 1,
+    "is_anycast": true,
     "is_vpn": false,
     "vpn_provider": null,
     "is_proxy": false,

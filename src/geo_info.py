@@ -1,7 +1,7 @@
 import math
 from datetime import datetime, timedelta
 from functools import lru_cache
-from typing import Final, Dict, Any, Optional, Union
+from typing import Final, Any
 import logging
 
 import pytz
@@ -10,7 +10,7 @@ import pgeocode
 import pandas as pd
 import numpy as np
 
-from src.memory_server import MemoryDataStore
+from src.shared_data_store import IPDataStore
 from src.utils import key_or_value_search, json_request
 from src.embedded_data import (
     COUNTRY_CODE_TO_NAME,
@@ -30,13 +30,13 @@ TIMEZONE_FINDER: Final[TimezoneFinder] = TimezoneFinder()
 
 @lru_cache(maxsize=1000)
 def get_geo_country(
-    country_code: Optional[str], country_name: Optional[str]
-) -> Dict[str, Any]:
+    country_code: str | None, country_name: str | None
+) -> dict[str, Any]:
     """Get the geo information for a country code or name."""
     if country_code and country_name:
         country_name = None
 
-    enriched_data: Dict[str, Any] = {
+    enriched_data: dict[str, Any] = {
         "country_code": country_code,
         "country": country_name,
     }
@@ -85,7 +85,7 @@ def get_geo_country(
 
 
 @lru_cache(maxsize=1000)
-def get_timezone_info(latitude: float, longitude: float) -> Optional[Dict[str, Any]]:
+def get_timezone_info(latitude: float, longitude: float) -> dict[str, Any] | None:
     """Get the timezone info for a given latitude and longitude."""
 
     timezone_data = {}
@@ -115,8 +115,8 @@ def get_timezone_info(latitude: float, longitude: float) -> Optional[Dict[str, A
 
 
 def _get_postal_data(
-    postal_data: pd.Series, existing_data: Dict[str, Any]
-) -> Dict[str, Any]:
+    postal_data: pd.Series, existing_data: dict[str, Any]
+) -> dict[str, Any]:
     """Update enriched data with postal data."""
     field_mapping = {
         "place_name": "city",
@@ -143,7 +143,7 @@ def _get_postal_data(
 
 
 @lru_cache(maxsize=50)
-def _get_nominatim(country_code: str) -> Optional[pgeocode.Nominatim]:
+def _get_nominatim(country_code: str) -> pgeocode.Nominatim | None:
     """Get a cached Nominatim instance for the given country code."""
     try:
         return pgeocode.Nominatim(country_code)
@@ -153,7 +153,7 @@ def _get_nominatim(country_code: str) -> Optional[pgeocode.Nominatim]:
 
 
 @lru_cache(maxsize=50)
-def _get_country_locations(country_code: str) -> Optional[pd.DataFrame]:
+def _get_country_locations(country_code: str) -> pd.DataFrame | None:
     """Get and cache all location data for a country."""
     nomi = _get_nominatim(country_code)
     if nomi is None:
@@ -171,7 +171,7 @@ def _get_country_locations(country_code: str) -> Optional[pd.DataFrame]:
 
 def _find_nearest_postal_code(
     country_code: str, lat: float, lon: float
-) -> Optional[pd.Series]:
+) -> pd.Series | None:
     """Find the nearest postal code to a given lat/lon coordinate"""
     try:
         lat = float(lat)
@@ -225,7 +225,7 @@ def _find_nearest_postal_code(
 
 
 def _find_by_city(
-    country_code: str, city: str, district: Optional[str] = None
+    country_code: str, city: str, district: str | None = None
 ) -> pd.DataFrame:
     """Find postal codes by city name and optionally district"""
     try:
@@ -305,13 +305,13 @@ def _find_by_district(country_code: str, district: str) -> pd.DataFrame:
 @lru_cache(maxsize=1000)
 def enrich_location_data(
     country_code: str,
-    postal_code: Optional[str] = None,
-    latitude: Optional[float] = None,
-    longitude: Optional[float] = None,
-    city: Optional[str] = None,
-    region: Optional[str] = None,
-    district: Optional[str] = None,
-) -> Optional[Dict[str, Any]]:
+    postal_code: str | None = None,
+    latitude: float | None = None,
+    longitude: float | None = None,
+    city: str | None = None,
+    region: str | None = None,
+    district: str | None = None,
+) -> dict[str, Any] | None:
     """Enrich location data by filling in missing fields based on available information."""
 
     if country_code.upper() not in PGEOCODE_SUPPORTED_COUNTRY_CODES:
@@ -380,7 +380,7 @@ def enrich_location_data(
     return {}
 
 
-def get_rir_for_country(country_code: str) -> Optional[str]:
+def get_rir_for_country(country_code: str) -> str | None:
     """Get the RIR for a given country code."""
     if not country_code:
         return None
@@ -388,8 +388,8 @@ def get_rir_for_country(country_code: str) -> Optional[str]:
 
 
 def get_ripe_geolocation(
-    ip_address: str, memory_store: MemoryDataStore
-) -> Dict[str, Optional[Union[float, str]]]:
+    ip_address: str, memory_store: IPDataStore
+) -> dict[str, Any | None]:
     """Get geolocation data from RIPE.NET API for an IP address."""
     if ip_address == "1.1.1.1":
         return {
@@ -404,9 +404,9 @@ def get_ripe_geolocation(
     if cached_value is not None:
         return cached_value
 
-    geo_data: Dict[str, Any] = {}
+    geo_data: dict[str, Any | None] = {}
 
-    def validate_value(val: Any) -> Optional[Union[float, str]]:
+    def validate_value(val: Any) -> float | str | None:
         if not val or val == "?":
             return None
         try:
@@ -419,18 +419,26 @@ def get_ripe_geolocation(
     try:
         url = f"https://stat.ripe.net/data/geoloc/data.json?resource={ip_address}"
         data = json_request(url)
-        if data.get("status") == "ok" and data["data"].get("located_resources"):
-            location = data["data"]["located_resources"][0].get("locations", [{}])[0]
-            geo_data["latitude"] = location.get("latitude")
-            geo_data["longitude"] = location.get("longitude")
-            geo_data["country_code"] = location.get("country")
-            geo_data["city"] = location.get("city")
-            geo_data["prefix"] = location.get("resources", [])[0]
-            geo_data = {
-                field: validate_value(value)
-                for field, value in geo_data.items()
-                if validate_value(value) is not None
-            }
+        if data.get("status") == "ok":
+            response_data: dict[str, Any] = data.get("data", {})
+            if response_data:
+                located_resources: list[dict[str, Any]] = response_data.get(
+                    "located_resources", []
+                )
+                if located_resources:
+                    location: dict[str, Any] = located_resources[0].get(
+                        "locations", [{}]
+                    )[0]
+                    geo_data["latitude"] = location.get("latitude")
+                    geo_data["longitude"] = location.get("longitude")
+                    geo_data["country_code"] = location.get("country")
+                    geo_data["city"] = location.get("city")
+                    geo_data["prefix"] = location.get("resources", [])[0]
+                    geo_data = {
+                        field: validate_value(value)
+                        for field, value in geo_data.items()
+                        if validate_value(value) is not None
+                    }
     except Exception as e:
         logger.error("Error fetching geolocation data: %s", e)
 

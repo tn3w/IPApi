@@ -1,7 +1,7 @@
-from typing import Final, Dict, List
+from typing import Final
 from netaddr import IPNetwork
 
-COUNTRY_CODE_TO_NAME: Final[Dict[str, str]] = {
+COUNTRY_CODE_TO_NAME: Final[dict[str, str]] = {
     "AF": "Afghanistan", "AL": "Albania", "DZ": "Algeria",
     "AS": "American Samoa", "AD": "Andorra", "AO": "Angola", "AI": "Anguilla",
     "AQ": "Antarctica", "AG": "Antigua and Barbuda", "AR": "Argentina",
@@ -75,7 +75,7 @@ COUNTRY_CODE_TO_NAME: Final[Dict[str, str]] = {
     "EH": "Western Sahara", "YE": "Yemen", "ZM": "Zambia", "ZW": "Zimbabwe",
 }
 
-COUNTRY_TO_CURRENCY_MAP: Final[Dict[str, str]] = {
+COUNTRY_TO_CURRENCY_MAP: Final[dict[str, str]] = {
     "AF": "AFN", "AL": "ALL", "DZ": "DZD", "AS": "USD", "AD": "EUR",
     "AO": "AOA", "AI": "XCD", "AQ": "USD", "AG": "XCD", "AR": "ARS",
     "AM": "AMD", "AW": "AWG", "AU": "AUD", "AT": "EUR", "AZ": "AZN",
@@ -132,7 +132,7 @@ EU_COUNTRY_CODES: Final[set[str]] = {
     "SI", "ES", "SE",
 }
 
-COUNTRY_TO_CONTINENT_CODE: Final[Dict[str, str]] = {
+COUNTRY_TO_CONTINENT_CODE: Final[dict[str, str]] = {
     "AF": "AS", "DZ": "AF", "AO": "AF", "BJ": "AF", "BW": "AF", "BF": "AF",
     "BI": "AF", "CM": "AF", "CV": "AF", "CF": "AF", "TD": "AF", "KM": "AF",
     "CD": "AF", "DJ": "AF", "EG": "AF", "GQ": "AF", "ER": "AF", "ET": "AF",
@@ -174,7 +174,7 @@ COUNTRY_TO_CONTINENT_CODE: Final[Dict[str, str]] = {
     "GY": "SA", "PY": "SA", "PE": "SA", "SR": "SA", "UY": "SA", "VE": "SA",
 }
 
-COUNTRY_TO_RIR: Final[Dict[str, str]] = {
+COUNTRY_TO_RIR: Final[dict[str, str]] = {
     country: (
         "ripe" if continent == "EU"
         else "apnic" if continent in ["AS", "OC"]
@@ -185,12 +185,12 @@ COUNTRY_TO_RIR: Final[Dict[str, str]] = {
     for country, continent in COUNTRY_TO_CONTINENT_CODE.items()
 }
 
-CONTINENT_NAME_TO_CODE: Final[Dict[str, str]] = {
+CONTINENT_NAME_TO_CODE: Final[dict[str, str]] = {
     "Africa": "AF", "Antarctica": "AN", "Asia": "AS", "Europe": "EU",
     "North America": "NA", "Oceania": "OC", "South America": "SA",
 }
 
-PGEOCODE_SUPPORTED_COUNTRY_CODES: Final[List[str]] = [
+PGEOCODE_SUPPORTED_COUNTRY_CODES: Final[list[str]] = [
     "AD", "AR", "AS", "AT", "AU", "AX", "AZ", "BD", "BE", "BG", "BM", "BR",
     "BY", "CA", "CH", "CL", "CO", "CR", "CY", "CZ", "DE", "DK", "DO", "DZ",
     "EE", "ES", "FI", "FM", "FO", "FR", "GB", "GF", "GG", "GL", "GP", "GT",
@@ -201,7 +201,7 @@ PGEOCODE_SUPPORTED_COUNTRY_CODES: Final[List[str]] = [
     "SM", "TH", "TR", "UA", "US", "UY", "VA", "VI", "WF", "YT", "ZA",
 ]
 
-KNOWN_NETWORKS: Dict[str, Dict[str, str]] = {
+KNOWN_NETWORKS: dict[str, dict[str, str]] = {
     # Cloudflare
     "1.1.1.0/24": {
         "org": "Cloudflare, Inc.",
@@ -597,7 +597,7 @@ KNOWN_NETWORKS: Dict[str, Dict[str, str]] = {
     },
 }
 
-NETWORKS: List[tuple[IPNetwork, Dict[str, str]]] = [
+NETWORKS: list[tuple[IPNetwork, dict[str, str]]] = [
     (IPNetwork(prefix), data) for prefix, data in KNOWN_NETWORKS.items()
 ]
 
@@ -678,7 +678,7 @@ VALID_TLDS: Final[set[str]] = {
     "zm", "zw"
 }
 
-VPN_PROVIDERS: Final[List[str]] = [
+VPN_PROVIDERS: Final[list[str]] = [
     "NordVPN",
     "ProtonVPN",
     "ExpressVPN",
@@ -690,7 +690,7 @@ VPN_PROVIDERS: Final[List[str]] = [
 ]
 
 
-TOR_EXIT_NODE_ASNS: Final[List[str]] = [
+TOR_EXIT_NODE_ASNS: Final[list[str]] = [
     "60729",
     "53667",
     "4224",

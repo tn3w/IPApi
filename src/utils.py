@@ -3,19 +3,21 @@ import re
 import glob
 import json
 import logging
+import xml.etree.ElementTree as ET
 import urllib.request
 import urllib.error
-from typing import Optional, Final, Tuple, List, Dict, Any
+from typing import Final, Any
 
 import htmlmin
 from csscompressor import compress as compress_css
 from jsmin import jsmin
 from pydantic import BaseModel, Field
+from tld import get_fld
 
 logger = logging.getLogger(__name__)
 
 
-ALL_FIELDS: Final[List[str]] = [
+ALL_FIELDS: Final[list[str]] = [
     # General information
     "ip_address",
     "version",
@@ -54,6 +56,7 @@ ALL_FIELDS: Final[List[str]] = [
     "abuse_contact",
     "rpki_status",
     "rpki_roa_count",
+    "is_anycast",
     # Abuse information
     "is_vpn",
     "vpn_provider",
@@ -66,17 +69,17 @@ ALL_FIELDS: Final[List[str]] = [
     "threat_type",
 ]
 
-FIELDS_INCLUDING_ALL: Final[List[str]] = ALL_FIELDS + ["all"]
+FIELDS_INCLUDING_ALL: Final[list[str]] = ALL_FIELDS + ["all"]
 
-FIELD_BITS: Final[Dict[str, int]] = {
+FIELD_BITS: Final[dict[str, int]] = {
     field: 1 << i for i, field in enumerate(FIELDS_INCLUDING_ALL)
 }
 ALL_FIELDS_MASK: Final[int] = (1 << len(FIELDS_INCLUDING_ALL)) - 1
 
 
 def key_or_value_search(
-    key: Optional[str], value: Optional[str], mapping: Dict[str, str]
-) -> Tuple[Optional[str], Optional[str]]:
+    key: str | None, value: str | None, mapping: dict[str, str]
+) -> tuple[str | None, str | None]:
     """Look up a key or value in a mapping."""
     if not key and not value:
         return None, None
@@ -88,7 +91,7 @@ def key_or_value_search(
     return None, None
 
 
-def get_nested(record_value: Any, *keys: str, default: Any = None) -> Any:
+def get_nested(record_value: dict[str, Any], *keys: str, default: Any = None) -> Any:
     """Safely get a nested value from a dictionary."""
     current = record_value
     for key in keys:
@@ -118,12 +121,12 @@ def load_dotenv(env_file=".env"):
 
 def extract_external_scripts(
     html_content: str, base_path: str, scripts_dir: str = "scripts"
-) -> Tuple[str, Dict[str, str]]:
+) -> tuple[str, dict[str, str]]:
     """Extract and process external script references."""
     script_pattern = re.compile(
         r'<script\s+src=["\']([^"\']+)["\'][^>]*></script>', re.DOTALL
     )
-    matches = script_pattern.findall(html_content)
+    matches: list[str] = script_pattern.findall(html_content)
 
     scripts = {}
     modified_html = html_content
@@ -153,7 +156,7 @@ def extract_external_scripts(
 
 def extract_external_styles(
     html_content: str, base_path: str, styles_dir: str = "styles"
-) -> Tuple[str, Dict[str, str]]:
+) -> tuple[str, dict[str, str]]:
     """Extract and process external stylesheet references."""
     link_pattern = re.compile(
         r'<link\s+[^>]*href=["\']([^"\']+)["\'][^>]*rel=["\']stylesheet["\'][^>]*>',
@@ -164,11 +167,11 @@ def extract_external_styles(
         re.DOTALL,
     )
 
-    matches = link_pattern.findall(html_content) + link_pattern_alt.findall(
+    matches: list[str] = link_pattern.findall(html_content) + link_pattern_alt.findall(
         html_content
     )
 
-    styles = {}
+    styles: dict[str, str] = {}
     modified_html = html_content
 
     for href in matches:
@@ -204,8 +207,8 @@ def extract_external_styles(
 
 def inline_external_resources(
     html_content: str,
-    external_scripts: Dict[str, str],
-    external_styles: Dict[str, str],
+    external_scripts: dict[str, str],
+    external_styles: dict[str, str],
 ) -> str:
     """Replace external resource references with inlined minified content."""
     result = html_content
@@ -227,7 +230,7 @@ def minify_inline_resources(html_content: str) -> str:
     """Minify inline CSS and JavaScript within style and script tags."""
     script_pattern = re.compile(r"<script[^>]*>(.*?)</script>", re.DOTALL)
 
-    def minify_script(match):
+    def minify_script(match: re.Match[str]) -> str:
         script_content = match.group(1).strip()
         if not script_content or "src=" in match.group(0):
             return match.group(0)
@@ -236,7 +239,7 @@ def minify_inline_resources(html_content: str) -> str:
 
     style_pattern = re.compile(r"<style[^>]*>(.*?)</style>", re.DOTALL)
 
-    def minify_style(match):
+    def minify_style(match: re.Match[str]) -> str:
         style_content = match.group(1).strip()
         if not style_content:
             return match.group(0)
@@ -298,7 +301,7 @@ def load_templates(
     templates_dir: str = "templates",
     styles_dir: str = "styles",
     scripts_dir: str = "scripts",
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Load and minify all HTML templates.
 
@@ -323,7 +326,7 @@ def load_templates(
     return minified_templates
 
 
-def json_request(url: str) -> Dict[str, Any]:
+def json_request(url: str) -> dict[str, Any]:
     """Make a JSON request to a URL."""
     try:
         request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
@@ -334,20 +337,26 @@ def json_request(url: str) -> Dict[str, Any]:
         return {}
 
 
+def xml_request(url: str) -> ET.Element | None:
+    """Make an HTTP request and parse XML response."""
+    try:
+        request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(request, timeout=1) as response:
+            xml_data = response.read().decode("utf-8")
+            return ET.fromstring(xml_data)
+    except Exception as e:
+        logger.warning(f"XML request failed for {url}: {e}")
+        return None
+
+
 def any_field_in_list(fields: list[str], field_list: list[str]) -> bool:
     """Check if any field in the list is in the field list."""
     return any(field in field_list for field in fields)
 
 
-def fields_to_number(fields: List[str]) -> int:
+def fields_to_number(fields: list[str]) -> int:
     """
     Convert a list of field names to a unique number.
-
-    Each field has a bit position, and the number has those bits set.
-    For example:
-    - "ip" -> 1 (binary: 0001)
-    - "ip,continent" -> 3 (binary: 0011)
-    - "ip,continent,country" -> 7 (binary: 0111)
 
     Args:
         fields: List of field names
@@ -366,7 +375,7 @@ def fields_to_number(fields: List[str]) -> int:
     return number
 
 
-def number_to_fields(number: int) -> List[str]:
+def number_to_fields(number: int) -> list[str]:
     """
     Convert a number back to the list of field names it represents.
 
@@ -382,7 +391,7 @@ def number_to_fields(number: int) -> List[str]:
     if number >= ALL_FIELDS_MASK:
         return FIELDS_INCLUDING_ALL.copy()
 
-    result: List[str] = []
+    result: list[str] = []
     for field, bit in FIELD_BITS.items():
         if number & bit:
             result.append(field)
@@ -397,7 +406,7 @@ def number_to_fields(number: int) -> List[str]:
     return result
 
 
-def parse_fields_param(fields_param: Optional[str] = None) -> List[str]:
+def parse_fields_param(fields_param: str | None = None) -> list[str]:
     """
     Parse the fields parameter from the request.
 
@@ -440,85 +449,82 @@ class IPAPIResponse(BaseModel):
     """IP API response model."""
 
     # General information
-    ip_address: Optional[str] = Field(None, description="IP address")
-    version: Optional[int] = Field(None, description="IP address version")
-    classification: Optional[str] = Field(None, description="IP address classification")
-    ipv4_address: Optional[str] = Field(
+    ip_address: str | None = Field(None, description="IP address")
+    version: int | None = Field(None, description="IP address version")
+    classification: str | None = Field(None, description="IP address classification")
+    ipv4_address: str | None = Field(
         None,
         description="IPv4 address from DNS lookup or IPv4-mapped IPv6 address",
     )
-    ipv6_address: Optional[str] = Field(
+    ipv6_address: str | None = Field(
         None,
         description="IPv6 address from DNS lookup",
     )
-    hostname: Optional[str] = Field(None, description="Hostname from DNS lookup")
+    hostname: str | None = Field(None, description="Hostname from DNS lookup")
 
     # Geographic information
-    continent: Optional[str] = Field(None, description="Continent name")
-    continent_code: Optional[str] = Field(None, description="Continent code")
-    is_eu: Optional[bool] = Field(
+    continent: str | None = Field(None, description="Continent name")
+    continent_code: str | None = Field(None, description="Continent code")
+    is_eu: bool | None = Field(
         None, description="If the country is in the European Union"
     )
-    country: Optional[str] = Field(None, description="Country name")
-    country_code: Optional[str] = Field(
+    country: str | None = Field(None, description="Country name")
+    country_code: str | None = Field(
         None, description="Country code (ISO 3166-1 alpha-2)"
     )
-    region: Optional[str] = Field(None, description="Region/state name")
-    region_code: Optional[str] = Field(None, description="Region/state code")
-    city: Optional[str] = Field(None, description="City name")
-    district: Optional[str] = Field(None, description="District name")
-    postal_code: Optional[str] = Field(None, description="Postal/ZIP code")
-    latitude: Optional[float] = Field(None, description="Latitude coordinate")
-    longitude: Optional[float] = Field(None, description="Longitude coordinate")
-    timezone_name: Optional[str] = Field(None, description="Timezone name")
-    timezone_abbreviation: Optional[str] = Field(
-        None, description="Timezone abbreviation"
-    )
-    utc_offset: Optional[int] = Field(None, description="Timezone offset")
-    utc_offset_str: Optional[str] = Field(
+    region: str | None = Field(None, description="Region/state name")
+    region_code: str | None = Field(None, description="Region/state code")
+    city: str | None = Field(None, description="City name")
+    district: str | None = Field(None, description="District name")
+    postal_code: str | None = Field(None, description="Postal/ZIP code")
+    latitude: float | None = Field(None, description="Latitude coordinate")
+    longitude: float | None = Field(None, description="Longitude coordinate")
+    timezone_name: str | None = Field(None, description="Timezone name")
+    timezone_abbreviation: str | None = Field(None, description="Timezone abbreviation")
+    utc_offset: int | None = Field(None, description="Timezone offset")
+    utc_offset_str: str | None = Field(
         None, description="Timezone offset in string format"
     )
-    dst_active: Optional[bool] = Field(None, description="If the timezone is in DST")
-    currency: Optional[str] = Field(None, description="Currency code")
+    dst_active: bool | None = Field(None, description="If the timezone is in DST")
+    currency: str | None = Field(None, description="Currency code")
 
     # ASN information
-    asn: Optional[str] = Field(None, description="Autonomous System Number")
-    as_name: Optional[str] = Field(None, description="Autonomous System name")
-    org: Optional[str] = Field(None, description="Organization name")
-    isp: Optional[str] = Field(None, description="Internet Service Provider name")
-    domain: Optional[str] = Field(None, description="Domain name")
-    prefix: Optional[str] = Field(None, description="Prefix")
-    date_allocated: Optional[str] = Field(None, description="Date allocated")
-    rir: Optional[str] = Field(None, description="RIR")
-    abuse_contact: Optional[str] = Field(None, description="Abuse contact email")
-    rpki_status: Optional[str] = Field(None, description="RPKI validity status")
-    rpki_roa_count: Optional[int] = Field(
+    asn: str | None = Field(None, description="Autonomous System Number")
+    as_name: str | None = Field(None, description="Autonomous System name")
+    org: str | None = Field(None, description="Organization name")
+    isp: str | None = Field(None, description="Internet Service Provider name")
+    domain: str | None = Field(None, description="Domain name")
+    prefix: str | None = Field(None, description="Prefix")
+    date_allocated: str | None = Field(None, description="Date allocated")
+    rir: str | None = Field(None, description="RIR")
+    abuse_contact: str | None = Field(None, description="Abuse contact email")
+    rpki_status: str | None = Field(None, description="RPKI validity status")
+    rpki_roa_count: int | None = Field(
         None, description="Number of ROAs existing for the prefix"
     )
+    is_anycast: bool | None = Field(None, description="If the IP is an anycast IP")
 
     # Abuse information
-    is_vpn: Optional[bool] = Field(None, description="If the IP is a VPN server")
-    vpn_provider: Optional[str] = Field(None, description="Name of the VPN server")
-    is_proxy: Optional[bool] = Field(None, description="If the IP is a proxy server")
-    is_datacenter: Optional[bool] = Field(
-        None, description="If the IP is a data center"
-    )
-    is_forum_spammer: Optional[bool] = Field(
+    is_vpn: bool | None = Field(None, description="If the IP is a VPN server")
+    vpn_provider: str | None = Field(None, description="Name of the VPN server")
+    is_proxy: bool | None = Field(None, description="If the IP is a proxy server")
+    is_datacenter: bool | None = Field(None, description="If the IP is a data center")
+    is_forum_spammer: bool | None = Field(
         None, description="If the IP is a forum spammer"
     )
-    is_firehol: Optional[bool] = Field(
+    is_firehol: bool | None = Field(
         None, description="If the IP is in the Firehol Level 1 dataset"
     )
-    is_tor_exit_node: Optional[bool] = Field(
+    is_tor_exit_node: bool | None = Field(
         None, description="If the IP is a Tor exit node"
     )
-    fraud_score: Optional[float] = Field(None, description="Fraud score")
-    threat_type: Optional[str] = Field(None, description="Threat type")
+    fraud_score: float | None = Field(None, description="Fraud score")
+    threat_type: str | None = Field(None, description="Threat type")
 
     class Config:
         """Config for the IPAPIResponse model."""
 
-        json_schema_extra = {
+        json_schema_extra: dict[str, Any] = {
             "example": {
                 "ip_address": "1.1.1.1",
                 "version": 4,
@@ -555,6 +561,7 @@ class IPAPIResponse(BaseModel):
                 "abuse_contact": "abuse@cloudflare.com",
                 "rpki_status": "valid",
                 "rpki_roa_count": 1,
+                "is_anycast": True,
                 "is_vpn": False,
                 "vpn_provider": None,
                 "is_proxy": False,
@@ -571,26 +578,94 @@ class IPAPIResponse(BaseModel):
 class FieldsListResponse(BaseModel):
     """Response model for the field list endpoint."""
 
-    fields: List[str] = Field(..., description="List of all available fields")
+    fields: list[str] = Field(..., description="List of all available fields")
 
     class Config:
         """Config for the FieldsListResponse model."""
 
-        json_schema_extra = {"example": {"fields": FIELDS_INCLUDING_ALL}}
+        json_schema_extra: dict[str, Any] = {
+            "example": {"fields": FIELDS_INCLUDING_ALL}
+        }
 
 
 class FieldToNumberResponse(BaseModel):
     """Response model for converting field names to a number."""
 
-    fields: List[str] = Field(..., description="List of field names")
+    fields: list[str] = Field(..., description="List of field names")
     number: int = Field(..., description="Numeric representation of the fields")
 
     class Config:
         """Config for the FieldToNumberResponse model."""
 
-        json_schema_extra = {
+        json_schema_extra: dict[str, Any] = {
             "example": {
                 "fields": ["ip", "country", "city"],
                 "number": fields_to_number(["ip", "country", "city"]),
             }
         }
+
+
+GENERAL_EMAIL_PROVIDERS = {
+    "gmail.com",
+    "yahoo.com",
+    "hotmail.com",
+    "outlook.com",
+    "aol.com",
+    "icloud.com",
+    "protonmail.com",
+    "mail.com",
+    "yandex.com",
+    "zoho.com",
+    "fastmail.com",
+    "tutanota.com",
+    "gmx.com",
+    "web.de",
+    "mail.ru",
+    "qq.com",
+    "163.com",
+    "126.com",
+    "sina.com",
+    "sohu.com",
+    "mail.mil",
+}
+
+
+def extract_domain_from_email_or_hostname(input_string: str) -> str | None:
+    """
+    Extract the proper domain from an email address or hostname using the tld library.
+
+    This function handles:
+    - Multi-part TLDs like co.uk, com.au, etc.
+    - Excludes general email providers (gmail.com, yahoo.com, etc.)
+
+    Args:
+        input_string: Email address or hostname to extract domain from
+
+    Returns:
+        The extracted domain or None if extraction fails or domain should be excluded
+    """
+    if not input_string:
+        return None
+
+    if "@" in input_string:
+        domain_part = input_string.split("@")[-1].strip()
+    else:
+        domain_part = input_string.strip()
+
+    if not domain_part:
+        return None
+
+    try:
+        fld = get_fld(domain_part, fix_protocol=True, fail_silently=True)
+
+        if fld and fld.lower() not in GENERAL_EMAIL_PROVIDERS:
+            return fld.lower()
+    except Exception:
+        if "." in domain_part:
+            parts = domain_part.lower().split(".")
+            if len(parts) >= 2:
+                fallback_domain = ".".join(parts[-2:])
+                if fallback_domain not in GENERAL_EMAIL_PROVIDERS:
+                    return fallback_domain
+
+    return None

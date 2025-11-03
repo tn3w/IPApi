@@ -16,6 +16,7 @@
     --data-center-badge-color: #1abc9c;
     --forum-spammer-badge-color: #795548;
     --firehol-level1-badge-color: #008080;
+    --anycast-badge-color: #e74c3c;
     --text-rgb: 33, 37, 41;
     --cta-background: var(--primary-dark);
     --cta-text: white;
@@ -934,8 +935,6 @@ footer .container {
     background-color: var(--surface);
     color: var(--text);
     border: 1px solid var(--border);
-    width: 50px;
-    height: 40px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -945,6 +944,7 @@ footer .container {
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     margin-left: 5px;
     text-decoration: none;
+    padding: 12px;
 }
 
 #close-results:hover {
@@ -1077,7 +1077,8 @@ footer .container {
 .data-center-badge,
 .forum-spammer-badge,
 .firehol-level1-badge,
-.tor-badge {
+.tor-badge,
+.anycast-badge {
     display: inline-flex;
     align-items: center;
     color: white;
@@ -1094,7 +1095,8 @@ footer .container {
 .data-center-badge svg,
 .forum-spammer-badge svg,
 .firehol-level1-badge svg,
-.tor-badge svg {
+.tor-badge svg,
+.anycast-badge svg {
     width: 16px;
     height: 16px;
 }
@@ -1121,6 +1123,10 @@ footer .container {
 
 .tor-badge {
     background-color: var(--tor-badge-color);
+}
+
+.anycast-badge {
+    background-color: var(--anycast-badge-color);
 }
 
 .results-primary-info h2 {
