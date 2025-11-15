@@ -4,7 +4,6 @@ from typing import Any
 from netaddr import IPAddress, ipv6_verbose, IPNetwork, AddrFormatError
 from fastapi import Request
 import dns.reversename
-import dns.name
 from tld import get_tld
 
 from src.geo_info import (
@@ -218,13 +217,11 @@ def extract_ipv4_from_ipv6(ipv6_address: IPAddress) -> str | None:
 def get_hostname_from_ip(ip_address: str, memory_store: IPDataStore) -> str | None:
     """Get hostname from IP address."""
     try:
-        rev_name = dns.reversename.from_address(ip_address)
-        if isinstance(rev_name, dns.name.Name):
-            rev_name = str(rev_name)
-            ptr_records = memory_store.dns_query(rev_name, "PTR")
-            if ptr_records and len(ptr_records) > 0:
-                return str(ptr_records[0]).rstrip(".")
-            return None
+        rev_name = str(dns.reversename.from_address(ip_address))
+        ptr_records = memory_store.dns_query(rev_name, "PTR")
+        if ptr_records and len(ptr_records) > 0:
+            return str(ptr_records[0]).rstrip(".")
+        return None
     except Exception as e:
         logger.error("Failed to get hostname for IP %s: %s", ip_address, e)
         return None
