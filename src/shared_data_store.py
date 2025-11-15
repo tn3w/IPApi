@@ -789,7 +789,6 @@ class SharedDataStoreClient:
         if self._client is None:
             try:
                 self._client = get_memory_client(self.port)
-                logger.info("Connected to shared memory server")
             except Exception as e:
                 logger.error("Failed to connect to memory server: %s", e)
                 logger.info("Falling back to local data store")

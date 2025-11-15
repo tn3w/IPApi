@@ -32,18 +32,15 @@ _data_store: IPDataStore | None = None
 async def lifespan(_: FastAPI):
     """FastAPI lifespan context manager for startup and shutdown."""
     global _data_store
-    logger.info("Connecting to shared memory data store...")
 
     memory_port = int(os.getenv("MEMORY_PORT", "50000"))
 
     try:
         _data_store = get_shared_client(memory_port)
-        logger.info("Connected to shared memory data store successfully")
     except Exception as e:
         logger.warning("Failed to connect to shared memory, using local store: %s", e)
         _data_store = IPDataStore()
         _data_store.load_datasets()
-        logger.info("Local data store initialized successfully")
 
     yield
 

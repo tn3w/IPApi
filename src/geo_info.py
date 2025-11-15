@@ -161,7 +161,7 @@ def _get_country_locations(country_code: str) -> pd.DataFrame | None:
 
     try:
         df = nomi.query_location("")
-        if df is None or len(df) == 0:
+        if len(df) == 0:
             return None
         return df
     except Exception as e:
@@ -235,7 +235,7 @@ def _find_by_city(
 
         results = nomi.query_location(city)
 
-        if results is None or results.empty:
+        if results.empty:
             return pd.DataFrame()
 
         if district and not results.empty:
@@ -257,15 +257,9 @@ def _find_by_city(
 
             filtered = results[mask]
             if not filtered.empty:
-                return (
-                    pd.DataFrame(filtered)
-                    if not isinstance(filtered, pd.DataFrame)
-                    else filtered
-                )
+                return filtered
 
-        return (
-            pd.DataFrame(results) if not isinstance(results, pd.DataFrame) else results
-        )
+        return results
     except Exception as e:
         logger.error("Error finding by city: %s", e)
         return pd.DataFrame()
@@ -295,8 +289,7 @@ def _find_by_district(country_code: str, district: str) -> pd.DataFrame:
                     )
                     mask.loc[field_mask.index] = mask.loc[field_mask.index] | field_mask
 
-        result = all_data[mask]
-        return pd.DataFrame(result) if not isinstance(result, pd.DataFrame) else result
+        return all_data[mask]
     except Exception as e:
         logger.error("Error finding by district: %s", e)
         return pd.DataFrame()
