@@ -5,6 +5,7 @@ from netaddr import IPAddress, ipv6_verbose, IPNetwork, AddrFormatError
 from fastapi import Request
 import dns.reversename
 import dns.name
+from tld import get_tld
 
 from src.geo_info import (
     get_timezone_info,
@@ -21,7 +22,7 @@ from src.utils import (
     extract_domain_from_email_or_hostname,
 )
 from src.shared_data_store import IPDataStore
-from src.embedded_data import NETWORKS, VALID_TLDS, VPN_PROVIDERS, TOR_EXIT_NODE_ASNS
+from src.embedded_data import NETWORKS, VPN_PROVIDERS, TOR_EXIT_NODE_ASNS
 
 logger = logging.getLogger(__name__)
 
@@ -106,8 +107,9 @@ def validate_hostname(hostname: str) -> bool:
     if len(labels) < 2:
         return False
 
-    tld = labels[-1]
-    if tld not in VALID_TLDS:
+    try:
+        get_tld(hostname, fix_protocol=True, fail_silently=False)
+    except Exception:
         return False
 
     for label in labels:
