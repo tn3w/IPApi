@@ -21,7 +21,7 @@ from src.utils import (
     extract_domain_from_email_or_hostname,
 )
 from src.shared_data_store import IPDataStore
-from src.embedded_data import NETWORKS, VPN_PROVIDERS, TOR_EXIT_NODE_ASNS
+from src.constants import NETWORKS, VPN_PROVIDERS, TOR_EXIT_NODE_ASNS
 
 logger = logging.getLogger(__name__)
 

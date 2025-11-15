@@ -7,9 +7,6 @@ import uvicorn
 from src.utils import load_dotenv
 from src.shared_data_store import start_memory_server
 
-if __name__ == "__main__":
-    multiprocessing.freeze_support()
-
 load_dotenv()
 
 logging.basicConfig(
@@ -68,4 +65,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    if os.name == "nt":
+        multiprocessing.freeze_support()
+
     main()

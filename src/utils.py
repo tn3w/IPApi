@@ -14,6 +14,8 @@ from jsmin import jsmin
 from pydantic import BaseModel, Field
 from tld import get_fld
 
+from src.constants import GENERAL_EMAIL_PROVIDERS
+
 logger = logging.getLogger(__name__)
 
 
@@ -603,31 +605,6 @@ class FieldToNumberResponse(BaseModel):
                 "number": fields_to_number(["ip", "country", "city"]),
             }
         }
-
-
-GENERAL_EMAIL_PROVIDERS = {
-    "gmail.com",
-    "yahoo.com",
-    "hotmail.com",
-    "outlook.com",
-    "aol.com",
-    "icloud.com",
-    "protonmail.com",
-    "mail.com",
-    "yandex.com",
-    "zoho.com",
-    "fastmail.com",
-    "tutanota.com",
-    "gmx.com",
-    "web.de",
-    "mail.ru",
-    "qq.com",
-    "163.com",
-    "126.com",
-    "sina.com",
-    "sohu.com",
-    "mail.mil",
-}
 
 
 def extract_domain_from_email_or_hostname(input_string: str) -> str | None:

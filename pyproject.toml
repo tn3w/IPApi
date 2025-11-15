@@ -1,6 +1,6 @@
 [tool.black]
 extend-exclude = '''
 (
-    src/embedded_data\.py
+    src/constants\.py
 )
 '''

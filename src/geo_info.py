@@ -12,7 +12,7 @@ import numpy as np
 
 from src.shared_data_store import IPDataStore
 from src.utils import key_or_value_search, json_request
-from src.embedded_data import (
+from src.constants import (
     COUNTRY_CODE_TO_NAME,
     COUNTRY_TO_CONTINENT_CODE,
     CONTINENT_NAME_TO_CODE,
