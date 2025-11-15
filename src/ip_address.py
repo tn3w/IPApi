@@ -107,9 +107,7 @@ def validate_hostname(hostname: str) -> bool:
     if len(labels) < 2:
         return False
 
-    try:
-        get_tld(hostname, fix_protocol=True, fail_silently=False)
-    except Exception:
+    if not get_tld(hostname, fix_protocol=True, fail_silently=True):
         return False
 
     for label in labels:
