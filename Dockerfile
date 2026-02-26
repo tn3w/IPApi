@@ -7,6 +7,7 @@ RUN apk add --no-cache musl-dev
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 COPY data ./data
+COPY build ./build
 
 RUN cargo build --release --target x86_64-unknown-linux-musl
 
