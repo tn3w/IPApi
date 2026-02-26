@@ -1,15 +1,17 @@
 [package]
-name = "verity"
-version = "0.1.0"
+name = "ipapi"
+version = "1.0.0"
 edition = "2021"
 
 [dependencies]
+axum = "0.8"
+tokio = { version = "1.4", features = ["rt-multi-thread", "net", "time", "fs", "macros"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1.49", features = ["rt-multi-thread", "net", "time"] }
-axum = "0.8"
-reqwest = "0.13"
+reqwest = { version = "0.13", features = ["stream"] }
+genom = "1.1"
 trust-dns-resolver = "0.23"
+redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
 
 [profile.release]
 opt-level = 'z'

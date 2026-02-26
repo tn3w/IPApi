@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  dragonfly:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
+    container_name: ipapi_dragonfly
+    command:
+      - "--maxmemory=512mb"
+      - "--proactor_threads=2"
+      - "--cache_mode=true"
+    ulimits:
+      memlock: -1
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ipapi_1:
+    build: .
+    container_name: ipapi_1
+    ports:
+      - "3001:3000"
+    environment:
+      REDIS_URL: redis://dragonfly:6379
+    depends_on:
+      dragonfly:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ipapi_2:
+    build: .
+    container_name: ipapi_2
+    ports:
+      - "3002:3000"
+    environment:
+      REDIS_URL: redis://dragonfly:6379
+    depends_on:
+      dragonfly:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ipapi_3:
+    build: .
+    container_name: ipapi_3
+    ports:
+      - "3003:3000"
+    environment:
+      REDIS_URL: redis://dragonfly:6379
+    depends_on:
+      dragonfly:
+        condition: service_healthy
+    restart: unless-stopped

@@ -41,3 +41,13 @@ htmlcov/
 
 # VSCode
 .vscode
+
+# Node
+node_modules
+package-lock.json
+
+# Bin Files Data Directory
+data/
+
+# Build Templates
+build/

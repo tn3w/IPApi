@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="darkreader-lock" />
+        <title>IPApi - Network Intelligence</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+        <link rel="stylesheet" href="static/style.css" />
+    </head>
+    <body>
+        <div class="gradient-orbs">
+            <div class="orb orb-1"></div>
+            <div class="orb orb-2"></div>
+            <div class="orb orb-3"></div>
+        </div>
+
+        <div id="hero" class="hero">
+            <div class="hero-container">
+                <h1 class="hero-title">
+                    <span class="title-line">Lookup Any</span>
+                    <span class="title-line highlight">IP Address</span>
+                </h1>
+                <p class="hero-subtitle">
+                    Discover location, network details, and security information for any IPv4 or
+                    IPv6 address
+                </p>
+
+                <div class="search-container">
+                    <div class="search-icon">
+                        <svg
+                            width="20"
+                            height="20"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <circle cx="11" cy="11" r="8" />
+                            <path d="M21 21l-4.35-4.35" />
+                        </svg>
+                    </div>
+                    <input
+                        type="text"
+                        id="ipInput"
+                        placeholder="Enter IP address (e.g., 8.8.8.8) or domain..."
+                        class="search-input"
+                    />
+                    <button id="searchBtn" class="search-button">
+                        <span>Lookup</span>
+                        <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="quick-actions">
+                    <button class="action-chip" id="myIpBtn">
+                        <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                        </svg>
+                        My IP Address
+                    </button>
+                    <button class="action-chip" id="exampleBtn">
+                        <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                        </svg>
+                        Try Example
+                    </button>
+                    <button class="action-chip" id="luckyBtn">
+                        <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                        Random IP
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="results" class="results hidden">
+            <nav class="top-nav">
+                <div class="nav-inner">
+                    <div class="nav-brand">
+                        <div class="brand-icon">IP</div>
+                        <span class="brand-text">Api</span>
+                    </div>
+                    <div class="nav-search">
+                        <input
+                            type="text"
+                            id="ipInputSmall"
+                            placeholder="Search IP..."
+                            class="nav-input"
+                        />
+                        <button id="searchBtnSmall" class="nav-search-btn">→</button>
+                    </div>
+                </div>
+            </nav>
+
+            <div class="results-container">
+                <div class="performance-metrics" id="performanceMetrics"></div>
+
+                <div class="results-map-container">
+                    <div id="map" class="map-container"></div>
+                </div>
+
+                <div class="results-info-container">
+                    <div class="results-primary-info">
+                        <div class="ip-badges" id="ipBadges"></div>
+                        <div class="ip-display" id="ipDisplay"></div>
+                        <div class="ip-hostname" id="hostname"></div>
+
+                        <div class="classification-container">
+                            <span class="classification-label">Classification:</span>
+                            <span class="classification-value" id="classification"></span>
+                        </div>
+
+                        <div class="data-card">
+                            <div class="card-header">
+                                <svg
+                                    width="18"
+                                    height="18"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <polyline points="16 18 22 12 16 6" />
+                                    <polyline points="8 6 2 12 8 18" />
+                                </svg>
+                                <h3 class="card-title">Format Conversions</h3>
+                            </div>
+                            <div class="card-content" id="formatDetails"></div>
+                        </div>
+                    </div>
+
+                    <div class="results-details">
+                        <div class="data-card">
+                            <div class="card-header">
+                                <svg
+                                    width="18"
+                                    height="18"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                                    <circle cx="12" cy="10" r="3" />
+                                </svg>
+                                <h3 class="card-title">Location</h3>
+                            </div>
+                            <div class="card-content" id="locationDetails"></div>
+                        </div>
+
+                        <div class="data-card">
+                            <div class="card-header">
+                                <svg
+                                    width="18"
+                                    height="18"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                                </svg>
+                                <h3 class="card-title">Network</h3>
+                            </div>
+                            <div class="card-content" id="networkDetails"></div>
+                        </div>
+
+                        <div class="data-card">
+                            <div class="card-header">
+                                <svg
+                                    width="18"
+                                    height="18"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                </svg>
+                                <h3 class="card-title">Security</h3>
+                            </div>
+                            <div class="card-content" id="securityDetails"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="notification" class="notification hidden"></div>
+        <div id="loader" class="loader hidden">
+            <div class="loader-spinner">
+                <div class="spinner-ring"></div>
+                <div class="spinner-ring"></div>
+                <div class="spinner-ring"></div>
+            </div>
+            <p class="loader-text">Looking up IP address...</p>
+        </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+        <script src="static/app.js"></script>
+    </body>
+</html>

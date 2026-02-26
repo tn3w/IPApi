@@ -1,481 +1,369 @@
+mod database;
+
 use axum::{
-    extract::{ConnectInfo, Path, State},
-    http::{HeaderMap, StatusCode},
-    response::{IntoResponse, Redirect, Response},
+    extract::{Path, State},
+    http::{header::HeaderMap, StatusCode},
+    response::IntoResponse,
     routing::get,
     Json, Router,
 };
+use database::DatabaseManager;
+use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    net::{Ipv4Addr, Ipv6Addr, SocketAddr},
-    sync::Arc,
-    time::{Duration, SystemTime, UNIX_EPOCH},
-};
-use tokio::sync::RwLock;
-use trust_dns_resolver::{
-    config::{ResolverConfig, ResolverOpts},
-    TokioAsyncResolver,
-};
+use std::{net::IpAddr, sync::Arc};
+use tokio::time::{interval, Duration};
 
-const DATA_URL: &str = "https://raw.githubusercontent.com/tn3w/IPBlocklist/master/data.json";
-const FEEDS_URL: &str = "https://raw.githubusercontent.com/tn3w/IPBlocklist/master/feeds.json";
-const CACHE_TTL: Duration = Duration::from_secs(3600);
-const DATA_FILE: &str = "data.json";
-const FEEDS_FILE: &str = "feeds.json";
-const UPDATE_INTERVAL: Duration = Duration::from_secs(86400);
-const DNS_TIMEOUT: Duration = Duration::from_millis(500);
-const SCORE_CATEGORIES: [&str; 7] = [
-    "malware",
-    "botnet",
-    "attacks",
-    "spam",
-    "compromised",
-    "anonymizer",
-    "infrastructure",
-];
-
-#[derive(Deserialize, Clone)]
-struct ListData {
-    addresses: Vec<u128>,
-    networks: Vec<[u128; 2]>,
-}
-
-#[derive(Deserialize, Clone)]
-struct SourceData {
-    #[serde(default)]
-    flags: Vec<String>,
-    #[serde(default = "default_base_score")]
-    base_score: f64,
-    #[serde(default)]
-    categories: Vec<String>,
-    #[serde(default)]
-    provider_name: Option<String>,
-}
-
-fn default_base_score() -> f64 {
-    0.5
-}
-
-#[derive(Serialize, Default)]
-struct ReputationResponse {
-    score: f64,
-    lists: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    ip: Option<String>,
-    #[serde(flatten)]
-    flags: HashMap<String, serde_json::Value>,
-}
-
-#[derive(Deserialize)]
-struct DataFile {
-    timestamp: i64,
-    feeds: HashMap<String, ListData>,
-}
-
-#[derive(Deserialize)]
-struct FeedConfig {
-    name: String,
-    #[serde(default)]
-    flags: Vec<String>,
-    #[serde(default = "default_base_score")]
-    base_score: f64,
-    #[serde(default)]
-    categories: Vec<String>,
-    #[serde(default)]
-    provider_name: Option<String>,
-    #[serde(default)]
-    confidence: f64,
-}
-
-type Lists = Arc<RwLock<HashMap<String, ListData>>>;
-type Sources = Arc<HashMap<String, SourceData>>;
-type Cache = Arc<RwLock<HashMap<String, (Vec<u128>, SystemTime)>>>;
-type Resolver = Arc<TokioAsyncResolver>;
-
-fn parse_ip(input: &str) -> Option<u128> {
-    if let Ok(v4) = input.parse::<Ipv4Addr>() {
-        return Some(u32::from(v4) as u128);
-    }
-    input.parse::<Ipv6Addr>().ok().map(u128::from)
-}
-
-fn is_ipv6(value: u128) -> bool {
-    value > u32::MAX as u128
-}
-
-fn extract_ipv4_from_parts(ipv6_str: &str) -> Option<u128> {
-    let parts: Vec<&str> = ipv6_str.split(':').collect();
-
-    for (index, part) in parts.iter().enumerate() {
-        if part.is_empty() || part.parse::<u8>().is_err() {
-            continue;
-        }
-
-        if index + 3 >= parts.len() {
-            continue;
-        }
-
-        let octets: Result<Vec<u8>, _> = parts[index..index + 4]
-            .iter()
-            .map(|p| p.parse::<u8>())
-            .collect();
-
-        if let Ok(octets) = octets {
-            if octets.len() == 4 {
-                let ipv4 = Ipv4Addr::new(octets[0], octets[1], octets[2], octets[3]);
-                return Some(u32::from(ipv4) as u128);
-            }
-        }
-    }
-    None
-}
-
-fn extract_ipv4_from_ipv6(ipv6: &Ipv6Addr) -> Vec<u128> {
-    let mut results = Vec::new();
-    let segments = ipv6.segments();
-
-    if segments[0..6] == [0, 0, 0, 0, 0, 0xffff] {
-        let ipv4 = Ipv4Addr::new(
-            (segments[6] >> 8) as u8,
-            (segments[6] & 0xff) as u8,
-            (segments[7] >> 8) as u8,
-            (segments[7] & 0xff) as u8,
-        );
-        results.push(u32::from(ipv4) as u128);
-    }
-
-    if segments[0] == 0x2002 {
-        let ipv4 = Ipv4Addr::new(
-            (segments[1] >> 8) as u8,
-            (segments[1] & 0xff) as u8,
-            (segments[2] >> 8) as u8,
-            (segments[2] & 0xff) as u8,
-        );
-        results.push(u32::from(ipv4) as u128);
-    }
-
-    if let Some(embedded) = extract_ipv4_from_parts(&ipv6.to_string()) {
-        results.push(embedded);
-    }
-
-    results
-}
-
-async fn reverse_lookup_ipv4(ipv6_str: &str, resolver: &Resolver) -> Option<Vec<u128>> {
-    let addr = ipv6_str.parse().ok()?;
-
-    let response = tokio::time::timeout(DNS_TIMEOUT, resolver.reverse_lookup(addr))
-        .await
-        .ok()?
-        .ok()?;
-
-    let hostname = response.iter().next()?.to_string();
-    let hostname = hostname.trim_end_matches('.');
-
-    let lookup = tokio::time::timeout(DNS_TIMEOUT, resolver.ipv4_lookup(hostname))
-        .await
-        .ok()?
-        .ok()?;
-
-    Some(lookup.iter().map(|ip| u32::from(ip.0) as u128).collect())
-}
-
-async fn resolve_ipv4_from_ipv6(ipv6_str: &str, resolver: &Resolver, cache: &Cache) -> Vec<u128> {
-    let now = SystemTime::now();
-
-    if let Some((addresses, expires)) = cache.read().await.get(ipv6_str) {
-        if *expires > now {
-            return addresses.clone();
-        }
-    }
-
-    let mut addresses = Vec::new();
-
-    if let Ok(ipv6) = ipv6_str.parse::<Ipv6Addr>() {
-        addresses.extend(extract_ipv4_from_ipv6(&ipv6));
-    }
-
-    if addresses.is_empty() {
-        if let Some(resolved) = reverse_lookup_ipv4(ipv6_str, resolver).await {
-            addresses.extend(resolved);
-        }
-    }
-
-    cache
-        .write()
-        .await
-        .insert(ipv6_str.to_string(), (addresses.clone(), now + CACHE_TTL));
-
-    addresses
-}
-
-fn check_ip(target: u128, lists: &HashMap<String, ListData>) -> Vec<String> {
-    lists
-        .iter()
-        .filter_map(|(name, data)| {
-            if data.addresses.binary_search(&target).is_ok() {
-                return Some(name.clone());
-            }
-            for [start, end] in &data.networks {
-                if target >= *start && target <= *end {
-                    return Some(name.clone());
-                }
-            }
-            None
-        })
-        .collect()
-}
-
-fn load_data() -> Option<(i64, HashMap<String, ListData>)> {
-    let content = std::fs::read_to_string(DATA_FILE).ok()?;
-    let parsed: DataFile = serde_json::from_str(&content).ok()?;
-    Some((parsed.timestamp, parsed.feeds))
-}
-
-fn load_feeds() -> Option<HashMap<String, SourceData>> {
-    let content = std::fs::read_to_string(FEEDS_FILE).ok()?;
-    let feeds: Vec<FeedConfig> = serde_json::from_str(&content).ok()?;
-
-    let mut map = HashMap::new();
-    for feed in feeds {
-        let data = SourceData {
-            flags: feed.flags,
-            base_score: feed.base_score,
-            categories: feed.categories,
-            provider_name: feed.provider_name,
-        };
-        map.insert(feed.name, data);
-    }
-    Some(map)
-}
-
-async fn download_data() -> Option<HashMap<String, ListData>> {
-    let response = reqwest::get(DATA_URL).await.ok()?;
-    let bytes = response.bytes().await.ok()?;
-    let parsed: DataFile = serde_json::from_slice(&bytes).ok()?;
-    std::fs::write(DATA_FILE, &bytes).ok()?;
-    Some(parsed.feeds)
-}
-
-async fn download_feeds() -> Option<()> {
-    let response = reqwest::get(FEEDS_URL).await.ok()?;
-    let bytes = response.bytes().await.ok()?;
-    std::fs::write(FEEDS_FILE, &bytes).ok()?;
-    Some(())
-}
-
-fn unix_timestamp() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or(Duration::ZERO)
-        .as_secs() as i64
-}
-
-async fn update_data_loop(lists: Lists, initial_timestamp: i64) {
-    let mut last_timestamp = initial_timestamp;
-
-    loop {
-        let next_update = last_timestamp + UPDATE_INTERVAL.as_secs() as i64;
-        let wait = next_update - unix_timestamp();
-
-        if wait > 0 {
-            tokio::time::sleep(Duration::from_secs(wait as u64)).await;
-        }
-
-        println!("Updating data...");
-
-        match download_data().await {
-            Some(new_lists) => {
-                let count = new_lists.len();
-                *lists.write().await = new_lists;
-                last_timestamp = unix_timestamp();
-                println!("Data updated: {} feeds", count);
-            }
-            None => {
-                eprintln!("Failed to update data");
-                tokio::time::sleep(Duration::from_secs(300)).await;
-            }
-        }
-    }
-}
-
-async fn root() -> Redirect {
-    Redirect::permanent("https://github.com/tn3w/Verity")
-}
-
-fn process_reputation(
-    matches: &[String],
-    sources: &HashMap<String, SourceData>,
-    ip: Option<String>,
-) -> ReputationResponse {
-    if matches.is_empty() {
-        return ReputationResponse {
-            ip,
-            ..Default::default()
-        };
-    }
-
-    let mut flags = HashMap::new();
-    let mut scores: HashMap<&str, Vec<f64>> =
-        SCORE_CATEGORIES.iter().map(|c| (*c, Vec::new())).collect();
-
-    for list_name in matches {
-        let Some(source) = sources.get(list_name) else {
-            continue;
-        };
-
-        for flag in &source.flags {
-            flags.insert(flag.clone(), serde_json::Value::Bool(true));
-        }
-
-        for category in &source.categories {
-            if let Some(category_scores) = scores.get_mut(category.as_str()) {
-                category_scores.push(source.base_score);
-            }
-        }
-
-        if let Some(provider) = &source.provider_name {
-            flags.insert(
-                "vpn_provider".to_string(),
-                serde_json::Value::String(provider.clone()),
-            );
-        }
-    }
-
-    ReputationResponse {
-        score: calculate_score(&scores),
-        lists: matches.to_vec(),
-        ip,
-        flags,
-    }
-}
-
-fn calculate_score(scores: &HashMap<&str, Vec<f64>>) -> f64 {
-    let mut total = 0.0;
-
-    for category_scores in scores.values() {
-        if category_scores.is_empty() {
-            continue;
-        }
-
-        let mut sorted = category_scores.clone();
-        sorted.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
-
-        let combined = sorted.iter().fold(1.0, |acc, &score| acc * (1.0 - score));
-
-        total += 1.0 - combined;
-    }
-
-    (total / 1.5).min(1.0)
-}
-
-async fn evaluate_ip(
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+struct IPResponse {
     ip: String,
-    lists: &HashMap<String, ListData>,
-    sources: &HashMap<String, SourceData>,
-    cache: &Cache,
-    resolver: &Resolver,
-    include_ip: bool,
-) -> Response {
-    let Some(target) = parse_ip(&ip) else {
-        return (StatusCode::BAD_REQUEST, "Invalid IP").into_response();
-    };
-
-    let mut matches = check_ip(target, lists);
-
-    if is_ipv6(target) {
-        let ipv4_addresses = resolve_ipv4_from_ipv6(&ip, resolver, cache).await;
-
-        for ipv4 in ipv4_addresses {
-            for name in check_ip(ipv4, lists) {
-                if !matches.contains(&name) {
-                    matches.push(name);
-                }
-            }
-        }
-    }
-
-    let ip_field = if include_ip { Some(ip) } else { None };
-    let reputation = process_reputation(&matches, sources, ip_field);
-
-    Json(reputation).into_response()
+    ipv4: Option<String>,
+    ipv6: Option<String>,
+    #[serde(rename = "type")]
+    ip_type: u8,
+    classification: String,
+    hostname: Option<String>,
+    latitude: Option<f64>,
+    longitude: Option<f64>,
+    city: Option<String>,
+    region: Option<String>,
+    region_code: Option<String>,
+    district: Option<String>,
+    postal_code: Option<String>,
+    country_code: Option<String>,
+    country_name: Option<String>,
+    continent_code: Option<String>,
+    continent_name: Option<String>,
+    is_eu: Option<bool>,
+    timezone: Option<String>,
+    timezone_abbr: Option<String>,
+    utc_offset: Option<i32>,
+    utc_offset_str: Option<String>,
+    dst_active: Option<bool>,
+    currency: Option<String>,
+    cidr: Option<String>,
+    asn: Option<String>,
+    as_name: Option<String>,
+    proxy_type: Option<String>,
+    isp: Option<String>,
+    domain: Option<String>,
+    provider: Option<String>,
+    blocklists: Vec<String>,
 }
 
-async fn lookup(
-    Path(ip): Path<String>,
-    State((lists, sources, cache, resolver)): State<(Lists, Sources, Cache, Resolver)>,
-) -> Response {
-    let lists_data = lists.read().await;
-    evaluate_ip(ip, &lists_data, &sources, &cache, &resolver, false).await
+#[derive(Clone, Serialize, Deserialize)]
+struct CacheEntry {
+    response: IPResponse,
+    search_count: u64,
+    elapsed_us: u64,
 }
 
-async fn lookup_self(
-    headers: HeaderMap,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    State((lists, sources, cache, resolver)): State<(Lists, Sources, Cache, Resolver)>,
-) -> Response {
-    let ip = headers
-        .get("cf-connecting-ip")
-        .and_then(|h| h.to_str().ok())
-        .or_else(|| headers.get("x-real-ip").and_then(|h| h.to_str().ok()))
-        .or_else(|| {
-            headers
-                .get("x-forwarded-for")
-                .and_then(|h| h.to_str().ok())
-                .and_then(|s| s.split(',').next())
-                .map(|s| s.trim())
-        })
-        .unwrap_or_else(|| {
-            let ip_str = addr.ip().to_string();
-            Box::leak(ip_str.into_boxed_str())
-        })
-        .to_string();
-
-    let lists_data = lists.read().await;
-    evaluate_ip(ip, &lists_data, &sources, &cache, &resolver, true).await
+#[derive(Clone)]
+struct AppState {
+    db: Arc<DatabaseManager>,
+    redis: redis::aio::ConnectionManager,
 }
+
+const RATE_LIMIT: u32 = 40;
+const RATE_WINDOW: u32 = 60;
+const CACHE_TTL: u32 = 3600;
 
 #[tokio::main]
 async fn main() {
-    if load_feeds().is_none() {
-        println!("Downloading feeds configuration...");
-        download_feeds().await.expect("Failed to download feeds");
-    }
+    let redis_url = std::env::var("REDIS_URL").unwrap_or_else(|_| panic!("REDIS_URL not set"));
+    let redis = redis::aio::ConnectionManager::new(
+        redis::Client::open(redis_url).expect("Invalid Redis URL"),
+    )
+    .await
+    .expect("Redis connection failed");
 
-    let sources = Arc::new(load_feeds().expect("Failed to load feeds"));
+    let db = Arc::new(DatabaseManager::new(redis.clone()));
+    db.initialize().await;
+    tokio::task::spawn_blocking(|| genom::lookup(0.0, 0.0))
+        .await
+        .ok();
 
-    let (timestamp, initial_lists) = load_data()
-        .or_else(|| {
-            println!("Downloading initial data...");
-            tokio::runtime::Handle::current().block_on(async {
-                download_data()
-                    .await
-                    .map(|lists| (unix_timestamp(), lists))
-            })
-        })
-        .expect("Failed to load data");
+    let state = AppState {
+        db: db.clone(),
+        redis,
+    };
 
-    println!("Loaded {} feeds with 8.7M+ entries", initial_lists.len());
-
-    let lists = Arc::new(RwLock::new(initial_lists));
-    let cache = Arc::new(RwLock::new(HashMap::new()));
-    let resolver = Arc::new(TokioAsyncResolver::tokio(
-        ResolverConfig::default(),
-        ResolverOpts::default(),
-    ));
-
-    tokio::spawn(update_data_loop(lists.clone(), timestamp));
+    tokio::spawn(async move {
+        let mut ticker = interval(Duration::from_secs(3600));
+        loop {
+            ticker.tick().await;
+            if db.should_refresh() {
+                db.download_and_reload().await;
+            }
+        }
+    });
 
     let app = Router::new()
-        .route("/", get(root))
-        .route("/me", get(lookup_self))
-        .route("/{ip}", get(lookup))
-        .with_state((lists, sources, cache, resolver))
-        .into_make_service_with_connect_info::<SocketAddr>();
+        .route("/", get(serve_index))
+        .route("/api/{query}", get(get_api_info))
+        .route("/health", get(health))
+        .with_state(state);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    axum::serve(
+        tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap(),
+        app,
+    )
+    .await
+    .unwrap();
+}
 
-    println!("Server running on http://0.0.0.0:3000");
-    axum::serve(listener, app).await.unwrap();
+async fn get_api_info(
+    State(state): State<AppState>,
+    Path(query): Path<String>,
+    headers: HeaderMap,
+) -> Result<(HeaderMap, Json<IPResponse>), (StatusCode, HeaderMap, Json<serde_json::Value>)> {
+    let client_ip = get_client_ip(&headers);
+
+    if let Ok(ip) = parse_query_as_ip(&query, &headers) {
+        handle_ip_lookup(state, ip, client_ip).await
+    } else {
+        handle_domain_lookup(state, query, client_ip).await
+    }
+}
+
+async fn handle_ip_lookup(
+    state: AppState,
+    ip: IpAddr,
+    client_ip: String,
+) -> Result<(HeaderMap, Json<IPResponse>), (StatusCode, HeaderMap, Json<serde_json::Value>)> {
+    let cache_key = format!("cache:{}", ip);
+    let mut conn = state.redis.clone();
+
+    if let Ok(cached) = conn.get::<_, String>(&cache_key).await {
+        if let Ok(entry) = serde_json::from_str::<CacheEntry>(&cached) {
+            let (remaining, reset) = rate_limit_status(&state, &client_ip).await;
+            return Ok(build_response(entry, remaining, reset, true));
+        }
+    }
+
+    enforce_rate_limit(&state, &client_ip).await?;
+
+    let (mut response, search_count, elapsed_us) = state.db.lookup_async(&ip).await;
+    response.ip = ip.to_string();
+
+    let entry = CacheEntry {
+        response,
+        search_count,
+        elapsed_us,
+    };
+
+    if let Ok(json) = serde_json::to_string(&entry) {
+        let _: Result<(), _> = conn.set_ex(&cache_key, json, CACHE_TTL as u64).await;
+    }
+
+    let (remaining, reset) = rate_limit_status(&state, &client_ip).await;
+    Ok(build_response(entry, remaining, reset, false))
+}
+
+async fn handle_domain_lookup(
+    state: AppState,
+    hostname: String,
+    client_ip: String,
+) -> Result<(HeaderMap, Json<IPResponse>), (StatusCode, HeaderMap, Json<serde_json::Value>)> {
+    let cache_key = format!("cache:domain:{}", hostname);
+    let mut conn = state.redis.clone();
+
+    if let Ok(cached) = conn.get::<_, String>(&cache_key).await {
+        if let Ok(entry) = serde_json::from_str::<CacheEntry>(&cached) {
+            let (remaining, reset) = rate_limit_status(&state, &client_ip).await;
+            return Ok(build_response(entry, remaining, reset, true));
+        }
+    }
+
+    enforce_rate_limit(&state, &client_ip).await?;
+
+    let (response, search_count, elapsed_us) = state
+        .db
+        .lookup_domain(&hostname)
+        .await
+        .map_err(|e| error_response_with_headers(StatusCode::BAD_REQUEST, &e, 0, 0))?;
+
+    let entry = CacheEntry {
+        response,
+        search_count,
+        elapsed_us,
+    };
+
+    if let Ok(json) = serde_json::to_string(&entry) {
+        let _: Result<(), _> = conn.set_ex(&cache_key, json, CACHE_TTL as u64).await;
+    }
+
+    let (remaining, reset) = rate_limit_status(&state, &client_ip).await;
+    Ok(build_response(entry, remaining, reset, false))
+}
+
+fn parse_query_as_ip(query: &str, headers: &HeaderMap) -> Result<IpAddr, ()> {
+    if query == "me" {
+        client_ip_from_headers(headers)
+            .and_then(|s| s.parse().ok())
+            .ok_or(())
+    } else {
+        query.parse().map_err(|_| ())
+    }
+}
+
+fn get_client_ip(headers: &HeaderMap) -> String {
+    client_ip_from_headers(headers).unwrap_or_else(|| "0.0.0.0".to_string())
+}
+
+fn client_ip_from_headers(headers: &HeaderMap) -> Option<String> {
+    headers
+        .get("cf-connecting-ip")
+        .and_then(|v| v.to_str().ok())
+        .filter(|ip| is_public_ip(ip))
+        .map(String::from)
+}
+
+fn is_public_ip(ip: &str) -> bool {
+    ip.parse::<IpAddr>().map_or(false, |addr| match addr {
+        IpAddr::V4(v4) => {
+            !(v4.is_loopback()
+                || v4.is_private()
+                || v4.is_link_local()
+                || v4.is_unspecified()
+                || v4.octets()[0] == 0
+                || (v4.octets()[0] == 169 && v4.octets()[1] == 254))
+        }
+        IpAddr::V6(v6) => !v6.is_loopback() && !v6.is_unspecified(),
+    })
+}
+
+async fn enforce_rate_limit(
+    state: &AppState,
+    ip: &str,
+) -> Result<(), (StatusCode, HeaderMap, Json<serde_json::Value>)> {
+    let key = format!("rl:{}", ip);
+    let mut conn = state.redis.clone();
+
+    let count: u32 = conn.incr(&key, 1).await.map_err(|_| {
+        error_response_with_headers(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Rate limit check failed",
+            0,
+            0,
+        )
+    })?;
+
+    if count == 1 {
+        let _: () = conn.expire(&key, RATE_WINDOW as i64).await.map_err(|_| {
+            error_response_with_headers(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Rate limit setup failed",
+                0,
+                0,
+            )
+        })?;
+    }
+
+    if count > RATE_LIMIT {
+        let ttl: i64 = conn.ttl(&key).await.unwrap_or(RATE_WINDOW as i64);
+        return Err(error_response_with_headers(
+            StatusCode::TOO_MANY_REQUESTS,
+            "Rate limit exceeded",
+            0,
+            ttl.max(0) as u64,
+        ));
+    }
+
+    Ok(())
+}
+
+async fn rate_limit_status(state: &AppState, ip: &str) -> (u32, u64) {
+    let key = format!("rl:{}", ip);
+    let mut conn = state.redis.clone();
+    let count: u32 = conn.get(&key).await.unwrap_or(0);
+    let ttl: i64 = conn.ttl(&key).await.unwrap_or(RATE_WINDOW as i64);
+    (RATE_LIMIT.saturating_sub(count), ttl.max(0) as u64)
+}
+
+fn build_response(
+    entry: CacheEntry,
+    remaining: u32,
+    reset: u64,
+    cached: bool,
+) -> (HeaderMap, Json<IPResponse>) {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "x-search-count",
+        entry.search_count.to_string().parse().unwrap(),
+    );
+    headers.insert(
+        "x-server-time-us",
+        entry.elapsed_us.to_string().parse().unwrap(),
+    );
+    headers.insert(
+        "x-cache-status",
+        (if cached { "hit" } else { "miss" }).parse().unwrap(),
+    );
+    headers.insert("ratelimit-limit", RATE_LIMIT.to_string().parse().unwrap());
+    headers.insert(
+        "ratelimit-remaining",
+        remaining.to_string().parse().unwrap(),
+    );
+    headers.insert("ratelimit-reset", reset.to_string().parse().unwrap());
+    (headers, Json(entry.response))
+}
+
+fn error_response_with_headers(
+    status: StatusCode,
+    message: &str,
+    remaining: u32,
+    reset: u64,
+) -> (StatusCode, HeaderMap, Json<serde_json::Value>) {
+    let mut headers = HeaderMap::new();
+    headers.insert("ratelimit-limit", RATE_LIMIT.to_string().parse().unwrap());
+    headers.insert(
+        "ratelimit-remaining",
+        remaining.to_string().parse().unwrap(),
+    );
+    headers.insert("ratelimit-reset", reset.to_string().parse().unwrap());
+    (status, headers, Json(serde_json::json!({"error": message})))
+}
+
+async fn health(State(state): State<AppState>) -> impl IntoResponse {
+    Json(serde_json::json!({
+        "status": "ok",
+        "last_refresh": state.db.last_refresh(),
+    }))
+}
+
+async fn serve_index() -> impl IntoResponse {
+    let mut headers = HeaderMap::new();
+    headers.insert("content-type", "text/html; charset=utf-8".parse().unwrap());
+    headers.insert("x-content-type-options", "nosniff".parse().unwrap());
+    headers.insert("x-frame-options", "DENY".parse().unwrap());
+    headers.insert("x-xss-protection", "1; mode=block".parse().unwrap());
+    headers.insert(
+        "content-security-policy",
+        "default-src 'self'; script-src 'self' 'unsafe-inline' \
+        https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' \
+        https://cdn.jsdelivr.net; img-src 'self' data: \
+        https://*.fastly.net https://*.ssl.fastly.net; \
+        connect-src 'self' https://raw.githubusercontent.com; \
+        form-action 'self'; frame-ancestors 'none'; base-uri 'self'"
+            .parse()
+            .unwrap(),
+    );
+    headers.insert(
+        "referrer-policy",
+        "strict-origin-when-cross-origin".parse().unwrap(),
+    );
+    headers.insert(
+        "permissions-policy",
+        "geolocation=(), microphone=(), camera=()".parse().unwrap(),
+    );
+    headers.insert("cross-origin-opener-policy", "same-origin".parse().unwrap());
+    headers.insert(
+        "cross-origin-resource-policy",
+        "same-origin".parse().unwrap(),
+    );
+    headers.insert(
+        "strict-transport-security",
+        "max-age=31536000; includeSubDomains".parse().unwrap(),
+    );
+    (StatusCode::OK, headers, include_str!("../build/index.html"))
 }
