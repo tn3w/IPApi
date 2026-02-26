@@ -211,11 +211,31 @@ fn get_client_ip(headers: &HeaderMap) -> String {
 }
 
 fn client_ip_from_headers(headers: &HeaderMap) -> Option<String> {
-    headers
+    if let Some(ip) = headers
         .get("cf-connecting-ip")
         .and_then(|v| v.to_str().ok())
         .filter(|ip| is_public_ip(ip))
-        .map(String::from)
+    {
+        return Some(ip.to_string());
+    }
+
+    if let Some(ip) = headers
+        .get("x-real-ip")
+        .and_then(|v| v.to_str().ok())
+        .filter(|ip| is_public_ip(ip))
+    {
+        return Some(ip.to_string());
+    }
+
+    if let Some(forwarded) = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()) {
+        for ip in forwarded.split(',').map(|s| s.trim()) {
+            if is_public_ip(ip) {
+                return Some(ip.to_string());
+            }
+        }
+    }
+
+    None
 }
 
 fn is_public_ip(ip: &str) -> bool {
