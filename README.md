@@ -261,7 +261,7 @@ curl https://ipapi.tn3w.dev/api/1.1.1.1
 ### IPv6 Lookup
 
 ```bash
-curl https://ipapi.tn3w.dev/api/2606:4700:4700::1111
+curl https://ipapi.tn3w.dev/api/2a0b:f4c2::13
 ```
 
 ### Domain Lookup
