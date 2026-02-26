@@ -1,3 +1,5 @@
+<p align="center"><img src="https://github.com/tn3w/IPApi/releases/download/img/ipapi.webp" alt="IPApi - Fast IP geolocation and threat intelligence API"></p>
+
 <h1 align="center">IPApi</h1>
 
 <h3 align="center">Fast IP geolocation and threat intelligence API</h3>
