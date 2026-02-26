@@ -334,6 +334,17 @@ impl DatabaseManager {
                 resp.latitude = Some(g.2);
                 resp.longitude = Some(g.3);
             }
+            
+            if resp.latitude.is_none() && resp.longitude.is_none() && extracted_v4.is_some() {
+                let v4_target = to_int(&IpAddr::V4(extracted_v4.unwrap()));
+                let (v4_idx_opt, v4_count) = search4(&geo, v4_target);
+                search_count += v4_count;
+                if let Some(v4_idx) = v4_idx_opt {
+                    let g = &geo[v4_idx];
+                    resp.latitude = Some(g.2);
+                    resp.longitude = Some(g.3);
+                }
+            }
             drop(geo);
 
             if let (Some(lat), Some(lon)) = (resp.latitude, resp.longitude) {
